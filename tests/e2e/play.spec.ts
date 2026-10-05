@@ -25,16 +25,16 @@ for (const size of SIZES) {
       const errors = watchErrors(page);
       await page.goto('/');
       await page.waitForTimeout(2000);
-      expect(await page.locator('#board').evaluate((b) => b.children.length)).toBeGreaterThan(0);
+      await expect(page.locator('[data-testid="screen-splash"], [data-testid="screen-title"]')).toBeVisible();
+      expect(await page.locator('#app .stage').evaluate((b) => b.children.length)).toBeGreaterThan(0);
       expect(errors).toEqual([]);
-      const sq = await page.locator('[data-square="a1"]').boundingBox();
-      expect(sq!.width).toBeGreaterThanOrEqual(44);
+
     });
 
     for (const mate of MATES) {
       test(`${mate.name} by clicks`, async ({ page }) => {
         const errors = watchErrors(page);
-        await page.goto('/');
+        await page.goto('/?debug=1&start=two');
         for (const uci of mate.moves) {
           await page.click(`[data-square="${uci.slice(0, 2)}"]`);
           await page.click(`[data-square="${uci.slice(2, 4)}"]`);
@@ -62,7 +62,7 @@ test('__kc only behind ?debug=1 (T-12)', async ({ page }) => {
 });
 
 test('promotion picker shows four team Pokémon', async ({ page }) => {
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   await page.evaluate(() => (window as unknown as { __kc: { loadFen(f: string): string } }).__kc.loadFen('7k/1P5p/8/8/8/8/8/K7 w - - 0 1'));
   await page.click('[data-square="b7"]');
   await page.click('[data-square="b8"]');

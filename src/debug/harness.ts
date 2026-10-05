@@ -48,7 +48,7 @@ export function installHarness(app: App): void {
       if (ov.running) throw new Error(`battle ${attacker} vs ${defender} did not finish`);
       return ov.lines.map((l) => fmt(l.key, l.vars));
     },
-    setMode: (mode: Mode, level?: AiLevel) => app.setMode(mode, level),
+    setMode: (mode: Mode, level?: AiLevel, human?: 'w' | 'b') => app.setMode(mode, level, human),
     takeBack: () => app.takeBack(),
     /** Asks a level for a move in `fen` (default: the board) and checks it is legal. */
     aiMove: async (level: AiLevel = app.level, fen = app.game.fen()) => {

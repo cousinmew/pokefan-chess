@@ -15,7 +15,7 @@ test('pair sweep: 98 battles, zero errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   const out = await page.evaluate(
     ([red, rocket]) => {
       const kc = (window as unknown as { __kc: KC }).__kc;
@@ -35,7 +35,7 @@ test('pair sweep: 98 battles, zero errors', async ({ page }) => {
 });
 
 test('bolt is deterministic under a seed', async ({ page }) => {
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   const run = (seed: number) =>
     page.evaluate((s) => {
       const kc = (window as unknown as { __kc: KC }).__kc;
@@ -53,7 +53,7 @@ test('bolt is deterministic under a seed', async ({ page }) => {
 });
 
 test('a real capture plays the battle, tap skips it in under 100 ms', async ({ page }) => {
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.loadFen('4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1'));
   await page.click('[data-square="e4"]');
   await page.click('[data-square="d5"]');

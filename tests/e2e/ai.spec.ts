@@ -12,7 +12,7 @@ const MOVETIME = [0, 0, 200, 600, 1200];
 
 test('each level returns a legal move from 5 seeded positions', async ({ page }) => {
   test.setTimeout(60_000);
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   const res = await page.evaluate(async () => {
     const kc = (window as unknown as { __kc: KC }).__kc;
     const out: { level: number; seed: number; uci: string; ms: number; legal: boolean }[] = [];
@@ -32,14 +32,13 @@ test('each level returns a legal move from 5 seeded positions', async ({ page })
 
 test('engine blocked: Gym Leader shows ai.failed, then the game finishes', async ({ page }) => {
   await page.route('**/engine/**', (r) => r.abort());
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&start=two');
   await page.evaluate(() => {
     const kc = (window as unknown as { __kc: KC }).__kc;
     kc.setMode('computer', 2);
     // Black's only reply is Kh7, then Rh1 is mate.
     kc.loadFen('7k/5K2/8/p7/P7/8/8/1R6 w - - 0 1');
   });
-  await expect(page.getByTestId('mode')).toHaveText('vs Gym Leader');
   await page.click('[data-square="b1"]');
   await page.click('[data-square="c1"]');
   await expect(page.getByTestId('text-main')).toContainText('The computer trainer got lost. Switching to Youngster.', { timeout: 8000 });

@@ -41,6 +41,14 @@ export class Game {
     return this.chess.undo() !== null;
   }
 
+  pgn(): string {
+    return this.chess.pgn();
+  }
+
+  loadPgn(pgn: string): void {
+    this.chess.loadPgn(pgn);
+  }
+
   reset(): void {
     this.chess.reset();
   }

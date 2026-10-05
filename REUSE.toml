@@ -10,3 +10,15 @@ path = ["docs/**", "*.md", "src/data/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Cousin Mew"
 SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
+
+[[annotations]]
+path = ["public/assets/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "The Pokémon Company / Nintendo / Game Freak / Creatures Inc.; not licensed by this project, fetched at build time and never committed"
+SPDX-License-Identifier = "LicenseRef-NotLicensed"
+
+[[annotations]]
+path = ["public/engine/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Chess.com LLC and the Stockfish developers"
+SPDX-License-Identifier = "GPL-3.0-only"

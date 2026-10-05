@@ -24,7 +24,8 @@ const read = (p) => {
 };
 const tracked = git('ls-files', '-z').split('\0').filter(Boolean);
 const src = walk('src');
-const dist = walk('dist');
+// GATES_DIST points the gates at another build, e.g. the bundle downloaded from the live site.
+const dist = walk(process.env.GATES_DIST ?? 'dist');
 const fails = [];
 
 if (run('G1')) {
@@ -59,7 +60,8 @@ if (run('G5')) {
 }
 if (run('G6')) {
   const re = /\b(ads|donate|sponsor|paypal|ko-fi|analytics|gtag)\b/i;
-  for (const f of [...src, ...dist]) if (re.test(read(f))) fails.push(`G6: forbidden string in ${f}`);
+  const text = (f) => !/\.(wasm|png|gif|ogg|mp3|ico)$/.test(f); // binaries hold random byte runs like "aDs"
+  for (const f of [...src, ...dist].filter(text)) if (re.test(read(f))) fails.push(`G6: forbidden string in ${f}`);
 }
 
 if (fails.length) {

@@ -13,3 +13,7 @@
 - S3: no `stockfish.worker.ts` wrapper; the Stockfish lite build is itself a worker, loaded from `engine/` on the first level 2+ request.
 - S3: interim header Mode button (Two Players, vs 4 levels), human always plays Red until S4 team select. Stockfish is GPL-3.0, combinable with AGPL-3.0 (GPLv3 §13).
 - S3: T-2 (cold engine load to first bestmove at Gym Leader, 200 ms movetime) measured 492 ms headless on the dev Mac, so about 290 ms to load.
+- S4: the boot gate's "board root" is now `#app .stage` (the splash shows first); the board itself is checked by every flow test.
+- S4: interim header Mode/Anim/Sound buttons removed; the game header is Menu, turn, Take back. `?debug=1&start=two` skips the splash for tests.
+- S4: T4 says the battle is about 1.9 s, but the §4.5 timings sum to 2.74 s (2.34 s without an effectiveness line); §4.5 ships, T4 is in the taste list.
+- S4: G6 skips binary files (wasm, images, audio); the Stockfish wasm contains the byte run "aDs" by chance.

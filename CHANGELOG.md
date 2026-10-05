@@ -16,3 +16,9 @@
 
 - Computer opponent: Youngster (seeded random) and Stockfish 19 lite at Gym Leader, Elite Four and Champion, loaded only when needed.
 - Minimum think time, 5 s timeout and failure fallback to Youngster with a message, take back vs Youngster and Gym Leader.
+
+## 1.0.0 (S4)
+
+- Splash, title with one tap Battle! quick play and Continue, team and level select, intro card, How to Play, settings screen, end screen with Rematch and Menu.
+- Settings, the game in progress and the last quick play are saved locally; everything still works with storage blocked.
+- Share button, footer disclaimer and GitHub link, full README and CREDITS. Board palette set to the T3 default.

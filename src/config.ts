@@ -13,7 +13,7 @@ export const BOARD_SIDE_GUTTER_PX = 16; // horizontal room left around the board
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, takeBack: false }; // settings defaults (reduced motion starts on Quick)
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, takeBack: false }; // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
   inMs: 250, // dim board, slide in sprites
@@ -51,3 +51,8 @@ export const AI_TIMEOUT_MS = 5000; // engine load or search slower than this fal
 export const YOUNGSTER_CAPTURE_BIAS = 0.5; // chance Youngster takes a capture when one exists
 export const TAKE_BACK_LEVELS: readonly number[] = [1, 2]; // levels that allow take back
 export const ENGINE_URL = 'engine/stockfish-19-lite-single.js'; // same origin worker, copied at build
+export const SPLASH_AUTO_MS = 2500; // splash moves on by itself after this, or on the first tap
+export const INTRO_MS = 1200; // "X wants to battle!" card, tap to skip
+export const TOAST_MS = 1600; // "Link copied" toast
+export const DISCORD_URL = ''; // optional project Discord, link shown only when set
+export const STORAGE_NS = 'kc:v1:'; // localStorage namespace

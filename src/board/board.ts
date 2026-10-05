@@ -3,6 +3,7 @@
 import { DRAG_THRESHOLD_PX, MOVE_SLIDE_MS } from '../config';
 import type { Game } from '../game/chess';
 import { GLYPHS, speciesFor, spriteUrl, type Color, type Role } from './pieces';
+import { fmt } from '../game/text';
 
 const FILES = 'abcdefgh';
 
@@ -38,7 +39,6 @@ export class Board {
     this.el.className = 'board';
     this.el.id = 'board';
     this.el.setAttribute('role', 'grid');
-    this.el.setAttribute('aria-label', 'Chess board');
     this.el.tabIndex = 0;
     this.el.addEventListener('pointerdown', (e) => this.onDown(e));
     this.el.addEventListener('pointermove', (e) => this.onMoveEvt(e));
@@ -94,7 +94,7 @@ export class Board {
         if (piece) {
           const sp = speciesFor(piece.color, piece.type, sq);
           cell.dataset.piece = `${piece.color}${piece.type}`;
-          cell.setAttribute('aria-label', `${sp.name} on ${sq}`);
+          cell.setAttribute('aria-label', fmt('square.piece', { piece: sp.name, square: sq }));
           const img = document.createElement('img');
           img.className = 'piece';
           img.src = spriteUrl(sp.dex);
@@ -197,7 +197,7 @@ export class Board {
       this.focus = `${FILES[f]}${r}`;
       this.render();
       const p = this.game.pieceAt(this.focus);
-      this.hooks.announce(p ? `${speciesFor(p.color, p.type, this.focus).name} on ${this.focus}` : this.focus);
+      this.hooks.announce(p ? fmt('square.piece', { piece: speciesFor(p.color, p.type, this.focus).name, square: this.focus }) : this.focus);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (this.tryTarget(this.focus)) return;

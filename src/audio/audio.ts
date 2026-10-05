@@ -12,6 +12,7 @@ const ext = (() => {
 
 export const sound = {
   enabled: true,
+  volume: 1,
   /** Called on the first user gesture: browsers only allow audio after one. */
   unlock(): void {
     if (ctx || typeof AudioContext === 'undefined') return;
@@ -21,7 +22,7 @@ export const sound = {
   cry(dex: number, volume = CRY_VOLUME, rate = 1): void {
     if (!this.enabled || blocked) return;
     const el = new Audio(`${ASSET_BASE}cries/${dex}.${ext}`);
-    el.volume = volume;
+    el.volume = Math.min(1, volume * this.volume);
     el.preservesPitch = false;
     el.playbackRate = rate;
     el.play().catch((err: unknown) => {
@@ -37,7 +38,7 @@ export const sound = {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
     if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, now + ms / 1000);
-    gain.gain.setValueAtTime(SFX_VOLUME, now);
+    gain.gain.setValueAtTime(Math.max(0.0001, SFX_VOLUME * this.volume), now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + ms / 1000);
     osc.connect(gain).connect(ctx.destination);
     osc.start(now);
