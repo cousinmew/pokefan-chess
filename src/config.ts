@@ -13,7 +13,7 @@ export const BOARD_SIDE_GUTTER_PX = 16; // horizontal room left around the board
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true }; // settings defaults (reduced motion starts on Quick)
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, takeBack: false }; // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
   inMs: 250, // dim board, slide in sprites
@@ -39,3 +39,15 @@ export const SELECT_CRY_VOLUME = 0.12; // short quiet cry when a piece is select
 export const SFX_VOLUME = 0.08; // synth blips and ticks
 export const ANIM_MODES = ['full', 'quick', 'off'] as const; // battle animation settings, Full is default
 export type AnimMode = (typeof ANIM_MODES)[number];
+export const AI_LEVELS = [
+  { id: 1, name: 'Youngster', skill: null, movetimeMs: 0 }, // seeded random legal move, no engine
+  { id: 2, name: 'Gym Leader', skill: 3, movetimeMs: 200 }, // punishes hanging pieces
+  { id: 3, name: 'Elite Four', skill: 10, movetimeMs: 600 }, // a real club game
+  { id: 4, name: 'Champion', skill: 20, movetimeMs: 1200 }, // unbeatable for almost everyone
+] as const;
+export type AiLevel = (typeof AI_LEVELS)[number]['id'];
+export const AI_MIN_THINK_MS = 600; // the computer never moves faster than this
+export const AI_TIMEOUT_MS = 5000; // engine load or search slower than this falls back to Youngster
+export const YOUNGSTER_CAPTURE_BIAS = 0.5; // chance Youngster takes a capture when one exists
+export const TAKE_BACK_LEVELS: readonly number[] = [1, 2]; // levels that allow take back
+export const ENGINE_URL = 'engine/stockfish-19-lite-single.js'; // same origin worker, copied at build

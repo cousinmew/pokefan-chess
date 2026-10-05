@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // window.__kc, installed only behind ?debug=1 (§6.1). bench/metrics cut in lean mode.
-import { BATTLE } from '../config';
+import { Chess } from 'chess.js';
+import { BATTLE, type AiLevel } from '../config';
+import { youngsterMove } from '../ai/engine';
 import { rng } from '../game/rng';
 import { fmt } from '../game/text';
 import type { SpeciesId } from '../board/pieces';
-import type { App } from '../main';
+import type { App, Mode } from '../main';
 
 export function installHarness(app: App): void {
   const ov = app.overlay;
@@ -46,6 +48,32 @@ export function installHarness(app: App): void {
       if (ov.running) throw new Error(`battle ${attacker} vs ${defender} did not finish`);
       return ov.lines.map((l) => fmt(l.key, l.vars));
     },
+    setMode: (mode: Mode, level?: AiLevel) => app.setMode(mode, level),
+    takeBack: () => app.takeBack(),
+    /** Asks a level for a move in `fen` (default: the board) and checks it is legal. */
+    aiMove: async (level: AiLevel = app.level, fen = app.game.fen()) => {
+      const chess = new Chess(fen);
+      const t0 = performance.now();
+      const uci = level === 1 ? youngsterMove(chess, rng) : await app.engine.bestMove(fen, level);
+      const ms = Math.round(performance.now() - t0);
+      const legal = chess.moves({ verbose: true }).some((m) => m.from + m.to + (m.promotion ?? '') === uci);
+      return { uci, ms, legal };
+    },
+    /** A seeded position: 10 to 40 random legal plies from the start, stopping before a game end. */
+    randomPosition: (seed: number) => {
+      rng.seed(seed);
+      const chess = new Chess();
+      const plies = 10 + Math.floor(rng.next() * 31);
+      for (let i = 0; i < plies; i++) {
+        const uci = youngsterMove(chess, rng);
+        chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || undefined });
+        if (chess.isGameOver()) {
+          chess.undo();
+          break;
+        }
+      }
+      return chess.fen();
+    },
     /** The start position already shows all 14 species, bishops on both colours. */
     stage: () => app.restart(),
     dumpState: () =>
@@ -54,7 +82,9 @@ export function installHarness(app: App): void {
         fen: app.game.fen(),
         turn: app.game.turn(),
         mode: app.mode,
-        level: null,
+        level: app.mode === 'computer' ? app.level : null,
+        aiFailed: app.aiFailed,
+        engineLoaded: app.engine.loaded,
         settings: app.settings,
         overlay: ov.state(),
         fxSig: ov.sig,

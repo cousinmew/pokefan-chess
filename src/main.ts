@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot and Two Players flow. Screens (title, team select, settings) arrive in S4.
 import './style.css';
-import { ANIM_MODES, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX } from './config';
+import { AI_LEVELS, AI_MIN_THINK_MS, ANIM_MODES, TAKE_BACK_LEVELS, type AiLevel, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX } from './config';
 import { Board } from './board/board';
-import { GLYPHS, species, speciesFor, spriteUrl, teamOf, type Role, type SpeciesId } from './board/pieces';
+import { GLYPHS, species, speciesFor, spriteUrl, teamOf, type Color, type Role, type SpeciesId } from './board/pieces';
+import { Engine, youngsterMove } from './ai/engine';
+import type { Line } from './game/text';
 import { Overlay } from './battle/overlay';
 import { sound } from './audio/audio';
 import { rng } from './game/rng';
@@ -19,12 +21,25 @@ export interface App {
   text: TextBox;
   overlay: Overlay;
   settings: typeof DEFAULT_SETTINGS;
-  mode: 'two-players';
+  mode: Mode;
+  level: AiLevel;
+  human: Color;
+  engine: Engine;
+  aiFailed: boolean;
   ended: boolean;
   busy: boolean;
   playMove(from: string, to: string, promotion?: Role): Outcome | null;
   restart(fen?: string): void;
+  setMode(mode: Mode, level?: AiLevel): void;
+  takeBack(): boolean;
 }
+
+export type Mode = 'two-players' | 'computer';
+const MODE_CHOICES: { mode: Mode; level: AiLevel; label: string }[] = [
+  { mode: 'two-players', level: 1, label: 'Two Players' },
+  ...AI_LEVELS.map((l) => ({ mode: 'computer' as Mode, level: l.id as AiLevel, label: `vs ${l.name}` })),
+];
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
 function setCssVars(): void {
   const s = document.documentElement.style;
@@ -55,15 +70,26 @@ function boot(): App {
   const announce = (t: string) => (live.textContent = t);
   const text = new TextBox(() => settings.captions);
   const header = document.createElement('header');
-  header.innerHTML = '<h1>PokeFan Chess</h1><p class="turn" data-testid="turn"></p><div class="controls"><button data-testid="anim"></button><button data-testid="sound"></button></div>';
+  header.innerHTML = '<h1>PokeFan Chess</h1><p class="turn" data-testid="turn"></p><div class="controls"><button data-testid="mode"></button><button data-testid="takeback">Take back</button><button data-testid="anim"></button><button data-testid="sound"></button></div>';
   const turnEl = header.querySelector('.turn') as HTMLElement;
   const animBtn = header.querySelector('[data-testid="anim"]') as HTMLButtonElement;
   const soundBtn = header.querySelector('[data-testid="sound"]') as HTMLButtonElement;
+  const modeBtn = header.querySelector('[data-testid="mode"]') as HTMLButtonElement;
+  const backBtn = header.querySelector('[data-testid="takeback"]') as HTMLButtonElement;
   const labelControls = () => {
+    const choice = MODE_CHOICES.find((c) => c.mode === app.mode && (c.mode === 'two-players' || c.level === app.level));
+    modeBtn.textContent = choice?.label ?? 'Two Players';
+    backBtn.hidden = !canTakeBack();
     animBtn.textContent = `Anim: ${settings.anim.toUpperCase()}`;
     soundBtn.textContent = `Sound: ${settings.sound ? 'ON' : 'OFF'}`;
     sound.enabled = settings.sound;
   };
+  modeBtn.onclick = () => {
+    const i = MODE_CHOICES.findIndex((c) => c.label === modeBtn.textContent);
+    const next = MODE_CHOICES[(i + 1) % MODE_CHOICES.length] ?? MODE_CHOICES[0]!;
+    setMode(next.mode, next.level);
+  };
+  backBtn.onclick = () => takeBack();
   animBtn.onclick = () => {
     settings.anim = ANIM_MODES[(ANIM_MODES.indexOf(settings.anim) + 1) % ANIM_MODES.length] ?? 'full';
     labelControls();
@@ -72,7 +98,6 @@ function boot(): App {
     settings.sound = !settings.sound;
     labelControls();
   };
-  labelControls();
   const footer = document.createElement('footer');
   footer.textContent = fmt('footer.disclaimer');
   const modal = document.createElement('div');
@@ -86,11 +111,19 @@ function boot(): App {
     overlay,
     settings,
     mode: 'two-players',
+    level: 1,
+    human: 'w',
+    engine: new Engine(),
+    aiFailed: false,
     ended: false,
     busy: false,
     playMove,
     restart,
+    setMode,
+    takeBack,
   };
+  let gen = 0;
+  let notice: Line | null = null;
 
   const board = new Board(game, {
     onMove: (from, to) => {
@@ -135,13 +168,73 @@ function boot(): App {
     if (settings.autoFlip && !out.end) board.orientation = game.turn();
     board.render({ from, to });
     const sp = speciesFor(out.move.color, out.move.promotion ?? out.move.piece, to);
-    if (out.lines.length) text.show(out.lines);
+    const lines = notice ? [notice, ...out.lines] : out.lines;
+    notice = null;
+    if (lines.length) text.show(lines);
     else text.plain(fmt('moved', { piece: sp.name, square: to }));
     announce(`${sp.name} to ${to}. ${out.lines.map((l) => fmt(l.key, l.vars)).join(' ')}`);
     if (!out.battle) sound.step();
     if (game.checkedKing()) sound.cry(species(roster.teams[teamOf(game.turn())].pieces.k as SpeciesId).dex);
     if (out.end) finish(out);
     updateTurn();
+    void maybeAi();
+  }
+
+  function canTakeBack(): boolean {
+    if (app.mode === 'two-players') return settings.takeBack;
+    return TAKE_BACK_LEVELS.includes(app.level);
+  }
+
+  /** Computer turn: Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
+  async function maybeAi(): Promise<void> {
+    if (app.mode !== 'computer' || app.ended || game.turn() === app.human) return;
+    const g = gen;
+    app.busy = true;
+    board.locked = true;
+    const aiTeam = roster.teams[teamOf(game.turn())].label;
+    text.show([{ key: 'ai.loading', vars: { trainer: aiTeam } }]);
+    const t0 = performance.now();
+    let uci: string;
+    try {
+      uci = app.level === 1 ? youngsterMove(game.chess, rng) : await app.engine.bestMove(game.fen(), app.level);
+    } catch (err) {
+      if (g !== gen) return;
+      console.warn('computer trainer fell back to Youngster:', err instanceof Error ? err.message : err);
+      app.level = 1;
+      app.aiFailed = true;
+      notice = { key: 'ai.failed' };
+      text.show([notice]);
+      labelControls();
+      uci = youngsterMove(game.chess, rng);
+    }
+    const wait = AI_MIN_THINK_MS - (performance.now() - t0);
+    if (wait > 0) await sleep(wait);
+    if (g !== gen) return;
+    app.busy = false;
+    playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined);
+  }
+
+  function setMode(mode: Mode, level: AiLevel = 1): void {
+    app.mode = mode;
+    app.level = level;
+    app.aiFailed = false;
+    restart();
+  }
+
+  function takeBack(): boolean {
+    if (!canTakeBack() || app.busy) return false;
+    const n = app.mode === 'computer' && game.turn() === app.human ? 2 : 1;
+    let undone = 0;
+    while (undone < n && game.undo()) undone++;
+    if (!undone) return false;
+    app.ended = false;
+    board.locked = false;
+    modal.hidden = true;
+    board.resetMarks();
+    text.plain(fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket'));
+    updateTurn();
+    void maybeAi();
+    return true;
   }
 
   function finish(out: Outcome): void {
@@ -213,6 +306,8 @@ function boot(): App {
   function restart(fen?: string): void {
     if (fen) game.loadFen(fen);
     else game.reset();
+    gen++;
+    notice = null;
     overlay.skip();
     app.ended = false;
     app.busy = false;
@@ -220,8 +315,10 @@ function boot(): App {
     board.orientation = 'w';
     modal.hidden = true;
     board.render();
-    text.plain(fmt('intro.vsRocket'));
+    text.plain(fmt(app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed'));
+    labelControls();
     updateTurn();
+    void maybeAi();
   }
 
   const main = document.createElement('main');

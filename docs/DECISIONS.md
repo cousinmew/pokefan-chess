@@ -10,3 +10,6 @@
 - S2: Quick mode skips the evolution sequence (no overlay by definition); the text lines still show.
 - S2: interim header toggles for Anim (Full/Quick/Off) and Sound until the S4 settings screen; not persisted yet.
 - S2: cries play via `<audio>` with `preservesPitch=false` for the faint pitch drop; no `fetch` (G2).
+- S3: no `stockfish.worker.ts` wrapper; the Stockfish lite build is itself a worker, loaded from `engine/` on the first level 2+ request.
+- S3: interim header Mode button (Two Players, vs 4 levels), human always plays Red until S4 team select. Stockfish is GPL-3.0, combinable with AGPL-3.0 (GPLv3 §13).
+- S3: T-2 (cold engine load to first bestmove at Gym Leader, 200 ms movetime) measured 492 ms headless on the dev Mac, so about 290 ms to load.

@@ -36,6 +36,11 @@ export class Game {
     this.chess.load(fen);
   }
 
+  /** Undoes the last move. Returns false when there is nothing to undo. */
+  undo(): boolean {
+    return this.chess.undo() !== null;
+  }
+
   reset(): void {
     this.chess.reset();
   }

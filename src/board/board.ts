@@ -53,6 +53,12 @@ export class Board {
     this.selected = null;
   }
 
+  /** Clears the selection and the last move tint (restart, take back). */
+  resetMarks(): void {
+    this.lastMove = null;
+    this.clearSelection();
+  }
+
   clearSelection(): void {
     this.selected = null;
     this.render();

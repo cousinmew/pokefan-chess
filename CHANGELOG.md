@@ -11,3 +11,8 @@
 - Battle overlay on every capture: sprites, typed text, 14 procedural effects, flash, HP drain, effectiveness, faint.
 - Gen 1 type chart with the fallback rule (Pikachu uses QUICK ATTACK on Ground, Dugtrio uses SLASH on Charizard).
 - Evolution sequence on promotion, Quick and Off animation modes, tap or key to skip, cries and synth sounds.
+
+## 0.3.0 (S3)
+
+- Computer opponent: Youngster (seeded random) and Stockfish 19 lite at Gym Leader, Elite Four and Champion, loaded only when needed.
+- Minimum think time, 5 s timeout and failure fallback to Youngster with a message, take back vs Youngster and Gym Leader.
