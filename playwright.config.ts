@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 const pinned = '/opt/pw-browsers/chromium';
@@ -9,9 +9,11 @@ export default defineConfig({
   testDir: 'tests/e2e',
   reporter: 'line',
   retries: 0,
-  use: {
-    baseURL: live ?? 'http://localhost:4173',
-    launchOptions: existsSync(pinned) ? { executablePath: pinned } : {},
-  },
+  use: { baseURL: live ?? 'http://localhost:4173' },
+  projects: [
+    { name: 'chromium', grepInvert: /@webkit/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    // Mobile Safari engine: the capture battle must play on a phone (tests tagged @webkit).
+    { name: 'webkit-iphone', grep: /@webkit/, use: { ...devices['iPhone 13'] } },
+  ],
   webServer: live ? undefined : { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 30000 },
 });

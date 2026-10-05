@@ -130,10 +130,15 @@ export class Board {
   }
 
   private tryTarget(sq: string): boolean {
-    if (!this.selected || !this.game.legalFrom(this.selected).some((m) => m.to === sq)) return false;
+    if (!this.selected) return false;
+    const legal = this.game.legalFrom(this.selected);
+    // King then own rook also castles: the rook's file picks the side.
+    const castle = legal.find((m) => (m.isKingsideCastle() && sq[0] === 'h') || (m.isQueensideCastle() && sq[0] === 'a'));
+    const to = legal.some((m) => m.to === sq) ? sq : castle && this.game.pieceAt(sq)?.type === 'r' && sq[1] === castle.from[1] ? castle.to : null;
+    if (!to) return false;
     const from = this.selected;
     this.selected = null;
-    this.hooks.onMove(from, sq);
+    this.hooks.onMove(from, to);
     return true;
   }
 

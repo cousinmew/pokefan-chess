@@ -28,5 +28,5 @@ jobs:
         run: |
           if [ -z "$BRANDGUARD" ]; then echo "::warning::BRANDGUARD secret missing, G1 skipped"; exit 0; fi
           node scripts/grep-gates.mjs G1
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run e2e

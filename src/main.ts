@@ -70,13 +70,16 @@ function boot(): App {
   const root = document.getElementById('app') as HTMLElement;
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
-  if (!stored && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) settings.anim = 'quick';
+  // v1 forced Quick (no battle screen) under reduced motion and could save it. Reduced motion now keeps Full, calmer.
+  if (stored && stored.v !== DEFAULT_SETTINGS.v && stored.anim === 'quick') settings.anim = 'full';
+  settings.v = DEFAULT_SETTINGS.v;
   const applySettings = () => {
     sound.enabled = settings.sound;
     sound.volume = settings.volume;
   };
   applySettings();
   const overlay = new Overlay(rng);
+  overlay.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const unlock = () => sound.unlock();
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });

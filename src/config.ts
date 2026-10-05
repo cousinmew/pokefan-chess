@@ -13,7 +13,7 @@ export const BOARD_SIDE_GUTTER_PX = 16; // horizontal room left around the board
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, takeBack: false }; // settings defaults (reduced motion starts on Quick)
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, takeBack: false, v: 2 }; // v: settings schema // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
   // T4: about 1.9 s in all with an effectiveness line, 1.62 s without (owner call, 2026-10-05).

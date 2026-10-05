@@ -27,6 +27,8 @@ export type OverlayKind = 'none' | 'battle' | 'quick' | 'evolve';
 export class Overlay {
   readonly el: HTMLElement;
   manual = false;
+  /** prefers-reduced-motion: no screen shake and no flashes, the battle still plays. */
+  calm = false;
   kind: OverlayKind = 'none';
   lines: Line[] = [];
   sig = 0;
@@ -152,9 +154,9 @@ export class Overlay {
           this.fxT = p;
           const act = recipe.actor?.(p, aPos, dPos);
           this.place(this.att, aPos, act?.dx ?? 0, act?.dy ?? 0, act?.alpha ?? 1);
-          const shake = (recipe.shakePx ?? 0) * Math.sin(p * 60) * (1 - p);
+          const shake = this.calm ? 0 : (recipe.shakePx ?? 0) * Math.sin(p * 60) * (1 - p);
           this.screen.style.transform = shake ? `translate(${shake}px, 0)` : '';
-          this.flash = recipe.flashColor ? Math.max(0, 1 - p / BATTLE.flashFrac) : 0;
+          this.flash = recipe.flashColor && !this.calm ? Math.max(0, 1 - p / BATTLE.flashFrac) : 0;
         },
       },
       {
@@ -169,7 +171,7 @@ export class Overlay {
         },
         tick: (p) => {
           const half = Math.floor(p * BATTLE.flashCount * 2);
-          this.def.style.visibility = half % 2 === 0 && p < 1 ? 'hidden' : 'visible';
+          this.def.style.visibility = half % 2 === 0 && p < 1 && !this.calm ? 'hidden' : 'visible';
         },
       },
       {
@@ -267,7 +269,7 @@ export class Overlay {
           this.def.className = 'mon def';
           sound.sparkle();
         },
-        tick: (p) => (this.flash = 1 - p),
+        tick: (p) => (this.flash = this.calm ? 0 : 1 - p),
       },
     ]).then(() => {
       this.lines.push({ key: 'evolve.done', vars: { pawn: from.name, piece: to.name } });
