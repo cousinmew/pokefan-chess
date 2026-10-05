@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual run, for when GitHub drops a push event (cd587b2 got no runs on 2026-10-05).
+  workflow_dispatch:
 jobs:
   check:
     runs-on: ubuntu-latest

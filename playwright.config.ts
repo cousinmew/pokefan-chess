@@ -20,6 +20,6 @@ export default defineConfig({
     : [
         { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 30000 },
         // Local relay for the online tests; a 5 s reconnect window stands in for the real 60 s.
-        { command: 'npm --prefix worker run dev -- --port 8788 --inspector-port 9239 --var RECONNECT_MS:5000', url: 'http://localhost:8788/health', reuseExistingServer: true, timeout: 90000, env: { WRANGLER_SEND_METRICS: 'false' } },
+        { command: 'npm --prefix worker run dev -- --port 8788 --inspector-port 9239 --var RECONNECT_MS:5000 --var ALLOWED_ORIGINS:http://localhost:4173', url: 'http://localhost:8788/health', reuseExistingServer: true, timeout: 90000, env: { WRANGLER_SEND_METRICS: 'false' } },
       ],
 });

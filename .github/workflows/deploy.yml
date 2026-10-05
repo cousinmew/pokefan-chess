@@ -1,8 +1,10 @@
 name: deploy
+# Deploy only after ci passes on main, so nothing ships unchecked. To redeploy by hand, run ci.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 permissions:
   contents: read
   pages: write
@@ -12,10 +14,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:

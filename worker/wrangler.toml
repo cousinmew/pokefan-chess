@@ -4,7 +4,8 @@ compatibility_date = "2026-10-01"
 workers_dev = true
 
 [vars]
-ALLOWED_ORIGINS = "https://pokefanchess.com,http://pokefanchess.com,https://cousinmew.github.io,http://localhost:4173,http://localhost:5173"
+# HTTPS origins only. Local tests pass their localhost origin with --var (playwright.config.ts).
+ALLOWED_ORIGINS = "https://pokefanchess.com,https://cousinmew.github.io"
 RECONNECT_MS = "60000"
 
 [[durable_objects.bindings]]

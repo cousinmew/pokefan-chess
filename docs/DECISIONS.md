@@ -29,3 +29,5 @@
 - O1: no trainer names yet (V3 allows a fixed list; nothing to show without them). Online screens live in src/ui/online.ts, not src/ui/screens/online.ts, matching the existing layout.
 - O1: G2 now allows fetch/WebSocket only in src/net/, and config.ts absolute URLs only for the repo, Discord and RELAY_URL. Local tests run the relay on :8788 with a 5 s reconnect window.
 - Domain: pokefanchess.com via public/CNAME and the Pages API. Vite base stays './' (relative), which already serves from the domain root and from the old github.io path alike. Relay allows https and http pokefanchess.com.
+- Relay accepts HTTPS origins only; local tests add http://localhost:4173 via --var.
+- The cd587b2 push started no Actions runs (no check suite at all, triggers unchanged, no skip marker): a GitHub-side lost push event. Deploy now runs only after ci succeeds on main (workflow_run), and ci gains workflow_dispatch for a manual rerun.
