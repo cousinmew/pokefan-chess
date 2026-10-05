@@ -7,6 +7,7 @@ import type { Rng } from '../game/rng';
 import { sound } from '../audio/audio';
 import { FX, type FxRecipe, type Pt } from './fxRecipes';
 import { resolveMove } from './types';
+import type { BattleSprites } from './sprites';
 
 const W = 320;
 const H = 288;
@@ -31,8 +32,8 @@ export class Overlay {
   private readonly screen: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly quickCanvas: HTMLCanvasElement;
-  private readonly att: HTMLImageElement;
-  private readonly def: HTMLImageElement;
+  private readonly att: HTMLElement;
+  private readonly def: HTMLElement;
   private readonly hpAtt: HTMLElement;
   private readonly hpDef: HTMLElement;
   private readonly textEl: HTMLElement;
@@ -53,12 +54,12 @@ export class Overlay {
     this.el.hidden = true;
     this.el.dataset.testid = 'battle';
     this.el.innerHTML = `<div class="screen"><div class="hp hp-def"><span></span></div><div class="hp hp-att"><span></span></div>
-      <img class="mon def" alt=""><img class="mon att" alt=""><canvas width="${W}" height="${H}"></canvas>
+      <div class="mon def"></div><div class="mon att"></div><canvas width="${W}" height="${H}"></canvas>
       <div class="textbox battle-text"><p class="tb-main" data-testid="battle-text"></p></div></div>`;
     this.screen = this.el.querySelector('.screen') as HTMLElement;
     this.canvas = this.el.querySelector('canvas') as HTMLCanvasElement;
-    this.att = this.el.querySelector('.att') as HTMLImageElement;
-    this.def = this.el.querySelector('.def') as HTMLImageElement;
+    this.att = this.el.querySelector('.att') as HTMLElement;
+    this.def = this.el.querySelector('.def') as HTMLElement;
     this.hpAtt = this.el.querySelector('.hp-att span') as HTMLElement;
     this.hpDef = this.el.querySelector('.hp-def span') as HTMLElement;
     this.textEl = this.el.querySelector('.battle-text p') as HTMLElement;
@@ -86,7 +87,7 @@ export class Overlay {
   }
 
   /** Full battle screen for one capture. Resolves once the board may apply it. */
-  battle(attacker: SpeciesId, defender: SpeciesId, fxOverride?: string): Promise<void> {
+  battle(attacker: SpeciesId, defender: SpeciesId, fxOverride?: string, sprites?: BattleSprites): Promise<void> {
     const a = species(attacker);
     const d = species(defender);
     const mv = resolveMove(a, d);
@@ -101,8 +102,9 @@ export class Overlay {
         ms: BATTLE.inMs,
         enter: () => {
           this.el.hidden = false;
-          this.att.src = spriteUrl(a.dex, 'back');
-          this.def.src = spriteUrl(d.dex, 'front');
+          this.setSprite(this.att, sprites?.att ?? spriteUrl(a.dex, 'back'));
+          this.setSprite(this.def, sprites?.def ?? spriteUrl(d.dex, 'front'));
+          this.att.classList.toggle('mirror', sprites?.mirrorAtt ?? false);
           this.att.hidden = false;
           this.def.className = 'mon def';
           this.setHp(this.hpAtt, 1);
@@ -230,7 +232,7 @@ export class Overlay {
           this.setHp(this.hpDef, -1);
           this.def.className = 'mon def evo';
           this.def.style.visibility = 'visible';
-          this.def.src = spriteUrl(from.dex, 'front');
+          this.setSprite(this.def, spriteUrl(from.dex, 'front'));
           this.place(this.def, { x: W / 2, y: 110 }, 0, 0);
           this.say({ key: 'evolve.start', vars: { pawn: from.name } });
           sound.cry(from.dex);
@@ -241,7 +243,7 @@ export class Overlay {
           if (acc >= period) {
             acc = 0;
             showTarget = !showTarget;
-            this.def.src = spriteUrl((showTarget ? to : from).dex, 'front');
+            this.setSprite(this.def, spriteUrl((showTarget ? to : from).dex, 'front'));
           }
         },
       },
@@ -249,7 +251,7 @@ export class Overlay {
         id: 'evolve-flash',
         ms: EVOLVE_FLASH_MS,
         enter: () => {
-          this.def.src = spriteUrl(to.dex, 'front');
+          this.setSprite(this.def, spriteUrl(to.dex, 'front'));
           this.def.className = 'mon def';
           sound.sparkle();
         },
@@ -325,6 +327,18 @@ export class Overlay {
   private say(line: Line): void {
     this.lines.push(line);
     this.textEl.textContent = fmt(line.key, line.vars);
+  }
+
+  /** Puts a sprite in a slot: a preloaded, decoded element when we have one, else a plain img by URL. */
+  private setSprite(slot: HTMLElement, src: string | HTMLImageElement): void {
+    let img: HTMLImageElement;
+    if (typeof src === 'string') {
+      img = slot.querySelector<HTMLImageElement>('img.plain') ?? Object.assign(document.createElement('img'), { className: 'plain', alt: '' });
+      if (img.getAttribute('src') !== src) img.src = src;
+    } else {
+      img = src;
+    }
+    if (slot.firstElementChild !== img) slot.replaceChildren(img);
   }
 
   private setHp(bar: HTMLElement, frac: number): void {

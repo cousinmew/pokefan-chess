@@ -27,6 +27,7 @@ export const BATTLE = {
   tickEveryChars: 2, // text tick sound every N revealed characters
   faintPitch: 0.9, // defender cry playback rate on faint (10% lower)
   flashFrac: 0.25, // share of the FX duration a full screen flash lasts
+  spriteWaitMs: 400, // longest wait for both battle sprites to decode before the battle starts
 } as const;
 export const QUICK_FX_MS = 400; // Quick mode: effect on the board square, no overlay
 export const MAX_FRAME_MS = 100; // clamp for a real frame delta (tab switches)

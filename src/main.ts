@@ -5,6 +5,7 @@ import { AI_MIN_THINK_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS,
 import { Board } from './board/board';
 import { GLYPHS, species, speciesFor, spriteUrl, teamOf, type Color, type Role, type SpeciesId } from './board/pieces';
 import { Overlay } from './battle/overlay';
+import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { sound } from './audio/audio';
 import { rng } from './game/rng';
 import roster from './data/roster.gen1.json';
@@ -217,7 +218,10 @@ function boot(): App {
   /** Capture battle and evolution, before the board shows the result. */
   async function present(out: Outcome, from: string, to: string): Promise<void> {
     const mode = settings.anim;
-    if (out.battle && mode === 'full') await overlay.battle(out.battle.attacker, out.battle.defender);
+    if (out.battle && mode === 'full') {
+      const sprites = await prepareSprites(out.battle.attacker, out.battle.defender);
+      await overlay.battle(out.battle.attacker, out.battle.defender, undefined, sprites);
+    }
     else if (out.battle && mode === 'quick') await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
     if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);
   }
@@ -399,7 +403,13 @@ function boot(): App {
   root.replaceChildren(stage, modal, overlay.el, live);
   const params = new URLSearchParams(location.search);
   if (params.has('debug') && params.get('start') === 'two') startGame({ mode: 'two-players', human: 'w', level: 1 }, undefined, false);
-  else show(splash(goTitle));
+  else
+    show(
+      splash(() => {
+        preloadBattleSprites();
+        goTitle();
+      }),
+    );
   return app;
 }
 

@@ -3,6 +3,7 @@
 import { Chess } from 'chess.js';
 import { BATTLE, type AiLevel } from '../config';
 import { youngsterMove } from '../ai/engine';
+import { preloadSettled } from '../battle/sprites';
 import { rng } from '../game/rng';
 import { fmt } from '../game/text';
 import type { SpeciesId } from '../board/pieces';
@@ -48,6 +49,8 @@ export function installHarness(app: App): void {
       if (ov.running) throw new Error(`battle ${attacker} vs ${defender} did not finish`);
       return ov.lines.map((l) => fmt(l.key, l.vars));
     },
+    /** True once every background sprite preload has decoded. */
+    spritesReady: () => preloadSettled(),
     setMode: (mode: Mode, level?: AiLevel, human?: 'w' | 'b') => app.setMode(mode, level, human),
     takeBack: () => app.takeBack(),
     /** Asks a level for a move in `fen` (default: the board) and checks it is legal. */

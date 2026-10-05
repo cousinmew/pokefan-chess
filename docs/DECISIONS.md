@@ -17,3 +17,4 @@
 - S4: interim header Mode/Anim/Sound buttons removed; the game header is Menu, turn, Take back. `?debug=1&start=two` skips the splash for tests.
 - S4: T4 says the battle is about 1.9 s, but the §4.5 timings sum to 2.74 s (2.34 s without an effectiveness line); §4.5 ships, T4 is in the taste list.
 - S4: G6 skips binary files (wasm, images, audio); the Stockfish wasm contains the byte run "aDs" by chance.
+- fix: battle sprites are preloaded after the splash and the overlay inserts the decoded Image elements themselves (a fresh src refetches when the cache is off); wait capped by BATTLE.spriteWaitMs.
