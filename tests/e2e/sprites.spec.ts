@@ -5,7 +5,7 @@ type KC = { spritesReady(): Promise<boolean>; loadFen(f: string): string };
 
 test('battle sprites are drawn on Slow 3G with the cache disabled', async ({ page }) => {
   test.setTimeout(60_000);
-  await page.goto('/?debug=1');
+  await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   // The preload starts after the splash; a player reads the title while it finishes.
   expect(await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.spritesReady())).toBe(true);
