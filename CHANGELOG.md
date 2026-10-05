@@ -5,3 +5,9 @@
 - Scaffold: Vite, strict TypeScript, ESLint, Vitest, Playwright, husky, CI, Pages deploy.
 - Roster data, asset fetch script, grep gates, debug harness behind `?debug=1`.
 - DOM board with tap and drag, highlights, glyphs, keyboard, promotion picker, check and every end state, Two Players.
+
+## 0.2.0 (S2)
+
+- Battle overlay on every capture: sprites, typed text, 14 procedural effects, flash, HP drain, effectiveness, faint.
+- Gen 1 type chart with the fallback rule (Pikachu uses QUICK ATTACK on Ground, Dugtrio uses SLASH on Charizard).
+- Evolution sequence on promotion, Quick and Off animation modes, tap or key to skip, cries and synth sounds.

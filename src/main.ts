@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot and Two Players flow. Screens (title, team select, settings) arrive in S4.
 import './style.css';
-import { BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_HOP_PX } from './config';
+import { ANIM_MODES, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX } from './config';
 import { Board } from './board/board';
-import { GLYPHS, speciesFor, spriteUrl, type Role } from './board/pieces';
+import { GLYPHS, species, speciesFor, spriteUrl, teamOf, type Role, type SpeciesId } from './board/pieces';
+import { Overlay } from './battle/overlay';
+import { sound } from './audio/audio';
+import { rng } from './game/rng';
+import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
 import { fmt } from './game/text';
 import { TextBox } from './ui/textBox';
@@ -13,9 +17,11 @@ export interface App {
   game: Game;
   board: Board;
   text: TextBox;
+  overlay: Overlay;
   settings: typeof DEFAULT_SETTINGS;
   mode: 'two-players';
   ended: boolean;
+  busy: boolean;
   playMove(from: string, to: string, promotion?: Role): Outcome | null;
   restart(fen?: string): void;
 }
@@ -37,6 +43,11 @@ function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
   const settings = { ...DEFAULT_SETTINGS };
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) settings.anim = 'quick';
+  const overlay = new Overlay(rng);
+  const unlock = () => sound.unlock();
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
   const game = new Game();
   const live = document.createElement('div');
   live.className = 'sr-only';
@@ -44,21 +55,39 @@ function boot(): App {
   const announce = (t: string) => (live.textContent = t);
   const text = new TextBox(() => settings.captions);
   const header = document.createElement('header');
-  header.innerHTML = '<h1>PokeFan Chess</h1><p class="turn" data-testid="turn"></p>';
+  header.innerHTML = '<h1>PokeFan Chess</h1><p class="turn" data-testid="turn"></p><div class="controls"><button data-testid="anim"></button><button data-testid="sound"></button></div>';
   const turnEl = header.querySelector('.turn') as HTMLElement;
+  const animBtn = header.querySelector('[data-testid="anim"]') as HTMLButtonElement;
+  const soundBtn = header.querySelector('[data-testid="sound"]') as HTMLButtonElement;
+  const labelControls = () => {
+    animBtn.textContent = `Anim: ${settings.anim.toUpperCase()}`;
+    soundBtn.textContent = `Sound: ${settings.sound ? 'ON' : 'OFF'}`;
+    sound.enabled = settings.sound;
+  };
+  animBtn.onclick = () => {
+    settings.anim = ANIM_MODES[(ANIM_MODES.indexOf(settings.anim) + 1) % ANIM_MODES.length] ?? 'full';
+    labelControls();
+  };
+  soundBtn.onclick = () => {
+    settings.sound = !settings.sound;
+    labelControls();
+  };
+  labelControls();
   const footer = document.createElement('footer');
   footer.textContent = fmt('footer.disclaimer');
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.hidden = true;
+  const modal = document.createElement('div');
+  modal.className = 'overlay';
+  modal.hidden = true;
 
   const app: App = {
     game,
     board: undefined as unknown as Board,
     text,
+    overlay,
     settings,
     mode: 'two-players',
     ended: false,
+    busy: false,
     playMove,
     restart,
   };
@@ -70,6 +99,10 @@ function boot(): App {
     },
     settings: () => settings,
     announce,
+    onSelect: (sq) => {
+      const p = game.pieceAt(sq);
+      if (p) sound.cry(speciesFor(p.color, p.type, sq).dex, SELECT_CRY_VOLUME);
+    },
   });
   app.board = board;
 
@@ -78,9 +111,26 @@ function boot(): App {
   }
 
   function playMove(from: string, to: string, promotion?: Role): Outcome | null {
-    if (app.ended) return null;
+    if (app.ended || app.busy) return null;
     const out = game.play(from, to, promotion);
     if (!out) return null;
+    app.busy = true;
+    board.locked = true;
+    void present(out, from, to).then(() => settle(out, from, to));
+    return out;
+  }
+
+  /** Capture battle and evolution, before the board shows the result. */
+  async function present(out: Outcome, from: string, to: string): Promise<void> {
+    const mode = settings.anim;
+    if (out.battle && mode === 'full') await overlay.battle(out.battle.attacker, out.battle.defender);
+    else if (out.battle && mode === 'quick') await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
+    if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);
+  }
+
+  function settle(out: Outcome, from: string, to: string): void {
+    app.busy = false;
+    board.locked = false;
     board.setLastMove(from, to);
     if (settings.autoFlip && !out.end) board.orientation = game.turn();
     board.render({ from, to });
@@ -88,9 +138,10 @@ function boot(): App {
     if (out.lines.length) text.show(out.lines);
     else text.plain(fmt('moved', { piece: sp.name, square: to }));
     announce(`${sp.name} to ${to}. ${out.lines.map((l) => fmt(l.key, l.vars)).join(' ')}`);
+    if (!out.battle) sound.step();
+    if (game.checkedKing()) sound.cry(species(roster.teams[teamOf(game.turn())].pieces.k as SpeciesId).dex);
     if (out.end) finish(out);
     updateTurn();
-    return out;
   }
 
   function finish(out: Outcome): void {
@@ -104,8 +155,8 @@ function boot(): App {
       const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
       img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
     }
-    overlay.hidden = false;
-    overlay.innerHTML = '';
+    modal.hidden = false;
+    modal.innerHTML = '';
     const panel = document.createElement('div');
     panel.className = 'panel end';
     panel.dataset.testid = 'end-screen';
@@ -120,13 +171,13 @@ function boot(): App {
     again.textContent = fmt('end.again');
     again.onclick = () => restart();
     panel.append(p, cap, again);
-    overlay.append(panel);
+    modal.append(panel);
   }
 
   function pickPromotion(from: string, to: string): void {
     const color = game.turn();
-    overlay.hidden = false;
-    overlay.innerHTML = '';
+    modal.hidden = false;
+    modal.innerHTML = '';
     const panel = document.createElement('div');
     panel.className = 'panel promo';
     panel.setAttribute('role', 'dialog');
@@ -142,7 +193,7 @@ function boot(): App {
       btn.setAttribute('aria-label', sp.name);
       btn.innerHTML = `<img src="${spriteUrl(sp.dex)}" alt=""><span>${sp.name}</span><b>${GLYPHS[color][role]}</b>`;
       btn.onclick = () => {
-        overlay.hidden = true;
+        modal.hidden = true;
         playMove(from, to, role);
       };
       row.append(btn);
@@ -152,20 +203,22 @@ function boot(): App {
     cancel.textContent = '✕';
     cancel.setAttribute('aria-label', 'Cancel');
     cancel.onclick = () => {
-      overlay.hidden = true;
+      modal.hidden = true;
       board.clearSelection();
     };
     panel.append(title, row, cancel);
-    overlay.append(panel);
+    modal.append(panel);
   }
 
   function restart(fen?: string): void {
     if (fen) game.loadFen(fen);
     else game.reset();
+    overlay.skip();
     app.ended = false;
+    app.busy = false;
     board.locked = false;
     board.orientation = 'w';
-    overlay.hidden = true;
+    modal.hidden = true;
     board.render();
     text.plain(fmt('intro.vsRocket'));
     updateTurn();
@@ -173,7 +226,7 @@ function boot(): App {
 
   const main = document.createElement('main');
   main.append(board.el, text.el);
-  root.replaceChildren(header, main, footer, overlay, live);
+  root.replaceChildren(header, main, footer, modal, overlay.el, live);
   restart();
   return app;
 }

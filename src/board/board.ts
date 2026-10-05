@@ -11,6 +11,7 @@ export interface BoardHooks {
   onMove(from: string, to: string): void;
   settings(): { glyphs: boolean };
   announce(text: string): void;
+  onSelect?(square: string): void;
 }
 
 interface Press {
@@ -134,6 +135,7 @@ export class Board {
     this.selected = sq;
     this.focus = sq;
     this.render();
+    this.hooks.onSelect?.(sq);
     this.cells.get(sq)?.querySelector('.piece')?.classList.add('hop');
   }
 

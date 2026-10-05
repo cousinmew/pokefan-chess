@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Thin wrapper over chess.js. chess.js decides every legal move and every end (prime directive 2).
 import { Chess, type Move, type Square } from 'chess.js';
-import { species, speciesFor, teamOf, type Color, type Role } from '../board/pieces';
+import { species, speciesFor, speciesIdFor, teamOf, type Color, type Role, type SpeciesId } from '../board/pieces';
 import roster from '../data/roster.gen1.json';
 import type { Line, StringKey } from './text';
 
@@ -17,6 +17,9 @@ export interface Outcome {
   move: Move;
   lines: Line[];
   end: EndInfo | null;
+  /** Species in the capture battle, read before the move was applied. */
+  battle: { attacker: SpeciesId; defender: SpeciesId } | null;
+  evolve: { pawn: SpeciesId; into: SpeciesId } | null;
 }
 
 const DRAW_CAPTION: Record<Exclude<EndReason, 'checkmate'>, StringKey> = {
@@ -76,7 +79,13 @@ export class Game {
       if (err instanceof Error) return null;
       throw err;
     }
-    return { move, lines: this.linesFor(move), end: this.endState() };
+    const them: Color = move.color === 'w' ? 'b' : 'w';
+    const capSquare = move.isEnPassant() ? `${move.to[0]}${move.from[1]}` : move.to;
+    const battle = move.captured
+      ? { attacker: speciesIdFor(move.color, move.piece, move.from), defender: speciesIdFor(them, move.captured, capSquare) }
+      : null;
+    const evolve = move.promotion ? { pawn: speciesIdFor(move.color, 'p', move.from), into: speciesIdFor(move.color, move.promotion, move.to) } : null;
+    return { move, lines: this.linesFor(move), end: this.endState(), battle, evolve };
   }
 
   playUci(uci: string): Outcome | null {

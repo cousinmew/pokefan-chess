@@ -13,5 +13,29 @@ export const BOARD_SIDE_GUTTER_PX = 16; // horizontal room left around the board
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false }; // settings defaults
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true }; // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
+export const BATTLE = {
+  inMs: 250, // dim board, slide in sprites
+  usedMs: 450, // "{A} used {MOVE}!" typing
+  flashMs: 240, // defender flashes 3 times
+  flashCount: 3, // number of defender flashes
+  drainMs: 250, // HP bar drains to zero
+  effMs: 400, // effectiveness line, only when there is one
+  faintMs: 350, // "{D} fainted!" plus the faint drop
+  outMs: 200, // slide out, then the board applies the capture
+  tickEveryChars: 2, // text tick sound every N revealed characters
+  faintPitch: 0.9, // defender cry playback rate on faint (10% lower)
+  flashFrac: 0.25, // share of the FX duration a full screen flash lasts
+} as const;
+export const QUICK_FX_MS = 400; // Quick mode: effect on the board square, no overlay
+export const MAX_FRAME_MS = 100; // clamp for a real frame delta (tab switches)
+export const EVOLVE_MS = 1200; // whole evolution sequence
+export const EVOLVE_START_PERIOD_MS = 300; // first silhouette swap period
+export const EVOLVE_END_PERIOD_MS = 60; // last silhouette swap period
+export const EVOLVE_FLASH_MS = 150; // white flash at the end of the evolution
+export const CRY_VOLUME = 0.35; // cry volume in battles and on check
+export const SELECT_CRY_VOLUME = 0.12; // short quiet cry when a piece is selected
+export const SFX_VOLUME = 0.08; // synth blips and ticks
+export const ANIM_MODES = ['full', 'quick', 'off'] as const; // battle animation settings, Full is default
+export type AnimMode = (typeof ANIM_MODES)[number];

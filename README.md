@@ -2,7 +2,7 @@
 
 Chess where every piece is a Gen 1 Pokémon. Team Red (Pikachu, Charizard, Snorlax, Venusaur, Blastoise, Rapidash, Eevee) plays white against Team Rocket (Nidoking, Nidoqueen, Rhydon, Arbok, Weezing, Dugtrio, Rattata). The rules are real chess, enforced by chess.js.
 
-Status: early build. Two Players on one device works; battles, the computer opponent and the title screens are coming.
+Status: early build. Two Players on one device works, with capture battles and evolutions; the computer opponent and the title screens are coming.
 
 ## Run it
 
