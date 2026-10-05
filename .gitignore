@@ -1,0 +1,7 @@
+node_modules/
+dist/
+public/assets/
+test-results/
+playwright-report/
+.brandguard
+.DS_Store

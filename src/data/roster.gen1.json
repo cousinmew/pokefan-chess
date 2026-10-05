@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "source": "Learnsets: PokeAPI version_group red-blue, verified 2026-10-05. Types: Gen 1 past_types.",
+  "moves": {
+    "thunderbolt":  { "name": "THUNDERBOLT",  "type": "electric", "fx": "bolt" },
+    "quick-attack": { "name": "QUICK ATTACK", "type": "normal",   "fx": "quick" },
+    "flamethrower": { "name": "FLAMETHROWER", "type": "fire",     "fx": "flame" },
+    "body-slam":    { "name": "BODY SLAM",    "type": "normal",   "fx": "slam" },
+    "razor-leaf":   { "name": "RAZOR LEAF",   "type": "grass",    "fx": "leaf" },
+    "hydro-pump":   { "name": "HYDRO PUMP",   "type": "water",    "fx": "water" },
+    "stomp":        { "name": "STOMP",        "type": "normal",   "fx": "stomp" },
+    "horn-attack":  { "name": "HORN ATTACK",  "type": "normal",   "fx": "horn" },
+    "rock-slide":   { "name": "ROCK SLIDE",   "type": "rock",     "fx": "rockfall" },
+    "wrap":         { "name": "WRAP",         "type": "normal",   "fx": "wrap" },
+    "sludge":       { "name": "SLUDGE",       "type": "poison",   "fx": "sludge" },
+    "dig":          { "name": "DIG",          "type": "ground",   "fx": "dig" },
+    "slash":        { "name": "SLASH",        "type": "normal",   "fx": "slash" },
+    "hyper-fang":   { "name": "HYPER FANG",   "type": "normal",   "fx": "fang" }
+  },
+  "species": {
+    "pikachu":   { "dex": 25,  "name": "PIKACHU",   "types": ["electric"],         "move": "thunderbolt",  "fallback": "quick-attack" },
+    "charizard": { "dex": 6,   "name": "CHARIZARD", "types": ["fire","flying"],    "move": "flamethrower" },
+    "snorlax":   { "dex": 143, "name": "SNORLAX",   "types": ["normal"],           "move": "body-slam" },
+    "venusaur":  { "dex": 3,   "name": "VENUSAUR",  "types": ["grass","poison"],   "move": "razor-leaf" },
+    "blastoise": { "dex": 9,   "name": "BLASTOISE", "types": ["water"],            "move": "hydro-pump" },
+    "rapidash":  { "dex": 78,  "name": "RAPIDASH",  "types": ["fire"],             "move": "stomp" },
+    "eevee":     { "dex": 133, "name": "EEVEE",     "types": ["normal"],           "move": "quick-attack" },
+    "nidoking":  { "dex": 34,  "name": "NIDOKING",  "types": ["poison","ground"],  "move": "horn-attack" },
+    "nidoqueen": { "dex": 31,  "name": "NIDOQUEEN", "types": ["poison","ground"],  "move": "body-slam" },
+    "rhydon":    { "dex": 112, "name": "RHYDON",    "types": ["ground","rock"],    "move": "rock-slide" },
+    "arbok":     { "dex": 24,  "name": "ARBOK",     "types": ["poison"],           "move": "wrap" },
+    "weezing":   { "dex": 110, "name": "WEEZING",   "types": ["poison"],           "move": "sludge" },
+    "dugtrio":   { "dex": 51,  "name": "DUGTRIO",   "types": ["ground"],           "move": "dig",          "fallback": "slash" },
+    "rattata":   { "dex": 19,  "name": "RATTATA",   "types": ["normal"],           "move": "hyper-fang" }
+  },
+  "teams": {
+    "red": {
+      "label": "RED", "color": "w", "introKey": "intro.vsRed", "mateKey": "mate.redLoses",
+      "pieces": { "k": "pikachu", "q": "charizard", "r": "snorlax", "n": "rapidash", "p": "eevee",
+                  "b": { "light": "blastoise", "dark": "venusaur" } }
+    },
+    "rocket": {
+      "label": "TEAM ROCKET", "color": "b", "introKey": "intro.vsRocket", "mateKey": "mate.rocketLoses",
+      "pieces": { "k": "nidoking", "q": "nidoqueen", "r": "rhydon", "n": "dugtrio", "p": "rattata",
+                  "b": { "light": "arbok", "dark": "weezing" } }
+    }
+  }
+}

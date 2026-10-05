@@ -1,0 +1,5 @@
+msg=$(head -n1 "$1")
+if ! printf '%s' "$msg" | grep -Eq '^(feat|fix|chore|docs|test|refactor|ci|build|perf|style)(\([a-z0-9-]+\))?: .{3,72}$'; then
+  echo "commit-msg: use 'type(scope): summary' (feat, fix, chore, docs, test, refactor, ci, build, perf, style)"
+  exit 1
+fi

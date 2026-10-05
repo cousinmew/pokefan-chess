@@ -1,0 +1,32 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run assets
+      - run: npm run build
+      - name: Grep gates G3 G5
+        run: node scripts/grep-gates.mjs G3 G5
+      - name: Grep gate G1 (brand)
+        env:
+          BRANDGUARD: ${{ secrets.BRANDGUARD }}
+        run: |
+          if [ -z "$BRANDGUARD" ]; then echo "::warning::BRANDGUARD secret missing, G1 skipped"; exit 0; fi
+          node scripts/grep-gates.mjs G1
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

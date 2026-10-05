@@ -1,0 +1,2 @@
+npm run build
+node scripts/grep-gates.mjs G1 G3 G5

@@ -1,0 +1,12 @@
+version = 1
+
+[[annotations]]
+path = ["src/**", "scripts/**", "tests/**", "index.html", "*.ts", "*.js", "package.json", "package-lock.json", "tsconfig.json", ".github/**", ".husky/**", ".gitignore"]
+SPDX-FileCopyrightText = "2026 Cousin Mew"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = ["docs/**", "*.md", "src/data/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Cousin Mew"
+SPDX-License-Identifier = "CC-BY-NC-SA-4.0"
