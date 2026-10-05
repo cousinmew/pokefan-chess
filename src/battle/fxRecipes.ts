@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// The 14 procedural effects (§4.5). Drawn in a 320x288 canvas. Randomness only from the rng passed in.
+// The 14 procedural effects (§4.5), each BATTLE.fxMs long. Drawn in a 320x288 canvas. Randomness only from the rng passed in.
+import { BATTLE } from '../config';
 
 export interface Pt {
   x: number;
@@ -46,7 +47,7 @@ const star = (ctx: CanvasRenderingContext2D, p: Pt, r: number, color: string) =>
 export const FX: Record<string, FxRecipe> = {
   bolt: {
     id: 'bolt',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     flashColor: '#ffffff',
     draw(ctx, t, _a, d, rng) {
       if (Math.floor(t * 12) % 2) return;
@@ -66,7 +67,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   flame: {
     id: 'flame',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, a, d, rng) {
       for (let i = 0; i < 24; i++) {
         const s = t * 1.6 - i / 24;
@@ -80,7 +81,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   slam: {
     id: 'slam',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     shakePx: 6,
     actor: lunge(0.6),
     draw(ctx, t, _a, d) {
@@ -94,7 +95,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   leaf: {
     id: 'leaf',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, a, d) {
       ctx.fillStyle = '#40b040';
       for (let i = 0; i < 10; i++) {
@@ -115,7 +116,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   water: {
     id: 'water',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, a, d, rng) {
       const head = lerp(a, d, clamp01(t * 2));
       ctx.strokeStyle = '#3070e0';
@@ -129,7 +130,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   stomp: {
     id: 'stomp',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     shakePx: 4,
     draw(ctx, t, _a, d) {
       ctx.globalAlpha = 1 - t;
@@ -143,7 +144,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   quick: {
     id: 'quick',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     actor: lunge(0.85),
     draw(ctx, t, a, d, rng) {
       ctx.strokeStyle = '#ffffff';
@@ -160,7 +161,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   horn: {
     id: 'horn',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     actor: lunge(0.6),
     draw(ctx, t, _a, d) {
       if (t > 0.4 && t < 0.85) star(ctx, d, 12 + (t - 0.4) * 50, '#f8f080');
@@ -168,7 +169,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   rockfall: {
     id: 'rockfall',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     shakePx: 3,
     draw(ctx, t, _a, d) {
       ctx.fillStyle = '#808080';
@@ -189,7 +190,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   dig: {
     id: 'dig',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     shakePx: 3,
     actor(t, a, d) {
       if (t < 0.35) return { dx: 0, dy: (t / 0.35) * 40, alpha: 1 - t / 0.35 };
@@ -205,7 +206,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   wrap: {
     id: 'wrap',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, _a, d) {
       ctx.strokeStyle = '#9040c0';
       ctx.lineWidth = 4;
@@ -219,7 +220,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   sludge: {
     id: 'sludge',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, a, d) {
       for (let i = 0; i < 6; i++) {
         const s = clamp01(t * 1.6 - i * 0.1);
@@ -235,7 +236,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   fang: {
     id: 'fang',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, _a, d) {
       const gap = 36 * (1 - clamp01(t * 2));
       ctx.fillStyle = '#ffffff';
@@ -251,7 +252,7 @@ export const FX: Record<string, FxRecipe> = {
   },
   slash: {
     id: 'slash',
-    durationMs: 600,
+    durationMs: BATTLE.fxMs,
     draw(ctx, t, _a, d) {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 3;

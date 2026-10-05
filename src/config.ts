@@ -16,14 +16,16 @@ export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, fille
 export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, takeBack: false }; // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
-  inMs: 250, // dim board, slide in sprites
-  usedMs: 450, // "{A} used {MOVE}!" typing
-  flashMs: 240, // defender flashes 3 times
+  // T4: about 1.9 s in all with an effectiveness line, 1.62 s without (owner call, 2026-10-05).
+  inMs: 175, // dim board, slide in sprites
+  usedMs: 310, // "{A} used {MOVE}!" typing
+  fxMs: 415, // the move's effect
+  flashMs: 165, // defender flashes 3 times
   flashCount: 3, // number of defender flashes
-  drainMs: 250, // HP bar drains to zero
-  effMs: 400, // effectiveness line, only when there is one
-  faintMs: 350, // "{D} fainted!" plus the faint drop
-  outMs: 200, // slide out, then the board applies the capture
+  drainMs: 175, // HP bar drains to zero
+  effMs: 280, // effectiveness line, only when there is one
+  faintMs: 240, // "{D} fainted!" plus the faint drop
+  outMs: 140, // slide out, then the board applies the capture
   tickEveryChars: 2, // text tick sound every N revealed characters
   faintPitch: 0.9, // defender cry playback rate on faint (10% lower)
   flashFrac: 0.25, // share of the FX duration a full screen flash lasts

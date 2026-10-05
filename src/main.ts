@@ -219,8 +219,11 @@ function boot(): App {
   async function present(out: Outcome, from: string, to: string): Promise<void> {
     const mode = settings.anim;
     if (out.battle && mode === 'full') {
-      const sprites = await prepareSprites(out.battle.attacker, out.battle.defender);
-      await overlay.battle(out.battle.attacker, out.battle.defender, undefined, sprites);
+      // The player's Pokémon is always the near one. Two Players: the side that just moved.
+      const attackerNear = app.mode === 'two-players' || out.move.color === app.human;
+      const { attacker, defender } = out.battle;
+      const sprites = attackerNear ? await prepareSprites(attacker, defender) : await prepareSprites(defender, attacker);
+      await overlay.battle(attacker, defender, undefined, sprites, attackerNear);
     }
     else if (out.battle && mode === 'quick') await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
     if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);

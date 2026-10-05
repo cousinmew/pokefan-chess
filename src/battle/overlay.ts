@@ -11,8 +11,9 @@ import type { BattleSprites } from './sprites';
 
 const W = 320;
 const H = 288;
-const ATT: Pt = { x: 84, y: 168 };
-const DEF: Pt = { x: 236, y: 84 };
+// Gen 1 layout: the player's Pokémon near (bottom left, seen from behind), the opponent's far (top right).
+const NEAR: Pt = { x: 84, y: 168 };
+const FAR: Pt = { x: 236, y: 84 };
 
 interface Phase {
   id: string;
@@ -34,8 +35,8 @@ export class Overlay {
   private readonly quickCanvas: HTMLCanvasElement;
   private readonly att: HTMLElement;
   private readonly def: HTMLElement;
-  private readonly hpAtt: HTMLElement;
-  private readonly hpDef: HTMLElement;
+  private readonly hpNear: HTMLElement;
+  private readonly hpFar: HTMLElement;
   private readonly textEl: HTMLElement;
   private phases: Phase[] = [];
   private i = 0;
@@ -47,21 +48,23 @@ export class Overlay {
   private flash = 0;
   private qa: Pt = { x: 0, y: 0 };
   private qd: Pt = { x: 0, y: 0 };
+  private ba: Pt = NEAR;
+  private bd: Pt = FAR;
 
   constructor(private readonly rng: Rng) {
     this.el = document.createElement('div');
     this.el.className = 'battle';
     this.el.hidden = true;
     this.el.dataset.testid = 'battle';
-    this.el.innerHTML = `<div class="screen"><div class="hp hp-def"><span></span></div><div class="hp hp-att"><span></span></div>
+    this.el.innerHTML = `<div class="screen"><div class="hp hp-far"><span></span></div><div class="hp hp-near"><span></span></div>
       <div class="mon def"></div><div class="mon att"></div><canvas width="${W}" height="${H}"></canvas>
       <div class="textbox battle-text"><p class="tb-main" data-testid="battle-text"></p></div></div>`;
     this.screen = this.el.querySelector('.screen') as HTMLElement;
     this.canvas = this.el.querySelector('canvas') as HTMLCanvasElement;
     this.att = this.el.querySelector('.att') as HTMLElement;
     this.def = this.el.querySelector('.def') as HTMLElement;
-    this.hpAtt = this.el.querySelector('.hp-att span') as HTMLElement;
-    this.hpDef = this.el.querySelector('.hp-def span') as HTMLElement;
+    this.hpNear = this.el.querySelector('.hp-near span') as HTMLElement;
+    this.hpFar = this.el.querySelector('.hp-far span') as HTMLElement;
     this.textEl = this.el.querySelector('.battle-text p') as HTMLElement;
     this.quickCanvas = document.createElement('canvas');
     this.quickCanvas.className = 'quick-fx';
@@ -86,8 +89,8 @@ export class Overlay {
     return { phase: id, t: Math.round(this.t) / 1000 };
   }
 
-  /** Full battle screen for one capture. Resolves once the board may apply it. */
-  battle(attacker: SpeciesId, defender: SpeciesId, fxOverride?: string, sprites?: BattleSprites): Promise<void> {
+  /** Full battle screen for one capture. `attackerNear`: the attacker is the player's Pokémon. Resolves once the board may apply it. */
+  battle(attacker: SpeciesId, defender: SpeciesId, fxOverride?: string, sprites?: BattleSprites, attackerNear = true): Promise<void> {
     const a = species(attacker);
     const d = species(defender);
     const mv = resolveMove(a, d);
@@ -96,26 +99,35 @@ export class Overlay {
     const used: Line = { key: 'battle.used', vars: { attacker: a.name, move: mv.name } };
     const usedText = fmt(used.key, used.vars);
     let shown = 0;
+    const aPos = attackerNear ? NEAR : FAR;
+    const dPos = attackerNear ? FAR : NEAR;
+    const hpA = attackerNear ? this.hpNear : this.hpFar;
+    const hpD = attackerNear ? this.hpFar : this.hpNear;
+    const view = (near: boolean) => (near ? 'back' : 'front');
+    this.ba = aPos;
+    this.bd = dPos;
     const phases: Phase[] = [
       {
         id: 'in',
         ms: BATTLE.inMs,
         enter: () => {
           this.el.hidden = false;
-          this.setSprite(this.att, sprites?.att ?? spriteUrl(a.dex, 'back'));
-          this.setSprite(this.def, sprites?.def ?? spriteUrl(d.dex, 'front'));
-          this.att.classList.toggle('mirror', sprites?.mirrorAtt ?? false);
+          this.setSprite(this.att, (attackerNear ? sprites?.near : sprites?.far) ?? spriteUrl(a.dex, view(attackerNear)));
+          this.setSprite(this.def, (attackerNear ? sprites?.far : sprites?.near) ?? spriteUrl(d.dex, view(!attackerNear)));
           this.att.hidden = false;
           this.def.className = 'mon def';
-          this.setHp(this.hpAtt, 1);
-          this.setHp(this.hpDef, 1);
+          this.att.classList.toggle('mirror', attackerNear && (sprites?.mirrorNear ?? false));
+          this.def.classList.toggle('mirror', !attackerNear && (sprites?.mirrorNear ?? false));
+          this.setHp(hpA, 1);
+          this.setHp(hpD, 1);
           this.textEl.textContent = '';
         },
         tick: (p) => {
           this.el.style.opacity = '1';
           this.screen.style.setProperty('--dim', String(p));
-          this.place(this.att, ATT, -(1 - p) * 180, 0);
-          this.place(this.def, DEF, (1 - p) * 180, 0);
+          const slide = (near: boolean) => (near ? -1 : 1) * (1 - p) * 180;
+          this.place(this.att, aPos, slide(attackerNear), 0);
+          this.place(this.def, dPos, slide(!attackerNear), 0);
         },
       },
       {
@@ -138,8 +150,8 @@ export class Overlay {
         },
         tick: (p) => {
           this.fxT = p;
-          const act = recipe.actor?.(p, ATT, DEF);
-          this.place(this.att, ATT, act?.dx ?? 0, act?.dy ?? 0, act?.alpha ?? 1);
+          const act = recipe.actor?.(p, aPos, dPos);
+          this.place(this.att, aPos, act?.dx ?? 0, act?.dy ?? 0, act?.alpha ?? 1);
           const shake = (recipe.shakePx ?? 0) * Math.sin(p * 60) * (1 - p);
           this.screen.style.transform = shake ? `translate(${shake}px, 0)` : '';
           this.flash = recipe.flashColor ? Math.max(0, 1 - p / BATTLE.flashFrac) : 0;
@@ -152,7 +164,7 @@ export class Overlay {
           this.fx = null;
           this.flash = 0;
           this.screen.style.transform = '';
-          this.place(this.att, ATT, 0, 0);
+          this.place(this.att, aPos, 0, 0);
           sound.hit();
         },
         tick: (p) => {
@@ -164,7 +176,7 @@ export class Overlay {
         id: 'drain',
         ms: BATTLE.drainMs,
         enter: () => (this.def.style.visibility = 'visible'),
-        tick: (p) => this.setHp(this.hpDef, 1 - p),
+        tick: (p) => this.setHp(hpD, 1 - p),
       },
     ];
     if (mv.effKey) phases.push({ id: 'eff', ms: BATTLE.effMs, enter: () => this.say({ key: mv.effKey! }) });
@@ -176,7 +188,7 @@ export class Overlay {
           this.say({ key: 'battle.fainted', vars: { defender: d.name } });
           sound.cry(d.dex, undefined, BATTLE.faintPitch);
         },
-        tick: (p) => this.place(this.def, DEF, 0, p * 70, 1 - p),
+        tick: (p) => this.place(this.def, dPos, 0, p * 70, 1 - p),
       },
       { id: 'out', ms: BATTLE.outMs, tick: (p) => (this.el.style.opacity = String(1 - p)) },
     );
@@ -228,8 +240,8 @@ export class Overlay {
           this.el.style.opacity = '1';
           this.screen.style.setProperty('--dim', '1');
           this.att.hidden = true;
-          this.setHp(this.hpAtt, -1);
-          this.setHp(this.hpDef, -1);
+          this.setHp(this.hpNear, -1);
+          this.setHp(this.hpFar, -1);
           this.def.className = 'mon def evo';
           this.def.style.visibility = 'visible';
           this.setSprite(this.def, spriteUrl(from.dex, 'front'));
@@ -367,7 +379,7 @@ export class Overlay {
         return v;
       };
       ctx.save();
-      this.fx.draw(ctx, this.fxT, quick ? this.qa : ATT, quick ? this.qd : DEF, rnd);
+      this.fx.draw(ctx, this.fxT, quick ? this.qa : this.ba, quick ? this.qd : this.bd, rnd);
       ctx.restore();
     }
     if (this.flash > 0) {

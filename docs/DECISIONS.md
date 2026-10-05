@@ -18,3 +18,6 @@
 - S4: T4 says the battle is about 1.9 s, but the §4.5 timings sum to 2.74 s (2.34 s without an effectiveness line); §4.5 ships, T4 is in the taste list.
 - S4: G6 skips binary files (wasm, images, audio); the Stockfish wasm contains the byte run "aDs" by chance.
 - fix: battle sprites are preloaded after the splash and the overlay inserts the decoded Image elements themselves (a fresh src refetches when the cache is off); wait capped by BATTLE.spriteWaitMs.
+- T4 (owner, 2026-10-05): battle shortened to 1.9 s with an effectiveness line (1.62 s without); §4.5 steps scaled by 0.69, effects now BATTLE.fxMs.
+- Owner, 2026-10-05: the battle screen is player-perspective, as in Gen 1: the player's Pokémon is always near (back view) and the opponent's far (front view), whoever attacks. Two Players: the side that just moved is near.
+- Owner, 2026-10-05: PokeAPI's black-white animated back/19.gif is Alolan Rattata; fetch-assets takes the Showdown animated back sprite for #19 instead. The other 13 backs were checked by eye.

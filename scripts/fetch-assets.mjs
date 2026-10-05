@@ -10,9 +10,13 @@ const CRIES = 'https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemo
 const roster = JSON.parse(readFileSync('src/data/roster.gen1.json', 'utf8'));
 const dexes = [...new Set(Object.values(roster.species).map((s) => s.dex))].sort((a, b) => a - b);
 
+// Upstream errors, checked by eye 2026-10-05: black-white/animated/back/19.gif is Alolan Rattata (dark fur, Sun and Moon).
+// The Showdown animated back sprite is the Kanto form.
+const BACK_OVERRIDE = { 19: 'other/showdown/back/19.gif' };
+
 const jobs = dexes.flatMap((d) => [
   [`${SPRITES}versions/generation-v/black-white/animated/${d}.gif`, `front/${d}.gif`],
-  [`${SPRITES}versions/generation-v/black-white/animated/back/${d}.gif`, `back/${d}.gif`],
+  [`${SPRITES}${BACK_OVERRIDE[d] ?? `versions/generation-v/black-white/animated/back/${d}.gif`}`, `back/${d}.gif`],
   [`${SPRITES}versions/generation-i/red-blue/transparent/${d}.png`, `retro/${d}.png`],
   [`${CRIES}${d}.ogg`, `cries/${d}.ogg`],
 ]);

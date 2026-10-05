@@ -44,23 +44,24 @@ export async function preloadSettled(): Promise<boolean> {
 }
 
 export interface BattleSprites {
-  att: HTMLImageElement;
-  def: HTMLImageElement;
-  mirrorAtt: boolean;
+  near: HTMLImageElement;
+  far: HTMLImageElement;
+  mirrorNear: boolean;
 }
 
-/** Waits up to BATTLE.spriteWaitMs for both sprites. Back unavailable: mirrored front. Both unavailable: retro PNG. */
-export async function prepareSprites(attacker: SpeciesId, defender: SpeciesId): Promise<BattleSprites> {
-  const a = species(attacker).dex;
-  const d = species(defender).dex;
-  const back = entry(spriteUrl(a, 'back'));
-  const front = entry(spriteUrl(a, 'front'));
-  const def = entry(spriteUrl(d, 'front'));
-  const state = new Map<Entry, boolean | null>([[back, null], [front, null], [def, null]]);
+/** Waits up to BATTLE.spriteWaitMs for both sprites: the player's Pokémon from behind (near), the opponent's front (far).
+ * Back unavailable: mirrored front. Nothing available: retro PNG. */
+export async function prepareSprites(nearId: SpeciesId, farId: SpeciesId): Promise<BattleSprites> {
+  const n = species(nearId).dex;
+  const f = species(farId).dex;
+  const back = entry(spriteUrl(n, 'back'));
+  const front = entry(spriteUrl(n, 'front'));
+  const far = entry(spriteUrl(f, 'front'));
+  const state = new Map<Entry, boolean | null>([[back, null], [front, null], [far, null]]);
   const all = Promise.all([...state.keys()].map((e) => e.ok.then((ok) => state.set(e, ok))));
   await Promise.race([all, new Promise((r) => window.setTimeout(r, BATTLE.spriteWaitMs))]);
   // A back sprite still loading loses to a front sprite that is ready.
   const backOk = state.get(back) === true || (state.get(back) === null && state.get(front) !== true);
-  const att = backOk ? { att: back.img, mirrorAtt: false } : state.get(front) !== false ? { att: front.img, mirrorAtt: true } : { att: entry(spriteUrl(a, 'retro')).img, mirrorAtt: false };
-  return { ...att, def: state.get(def) === false ? entry(spriteUrl(d, 'retro')).img : def.img };
+  const near = backOk ? { near: back.img, mirrorNear: false } : state.get(front) !== false ? { near: front.img, mirrorNear: true } : { near: entry(spriteUrl(n, 'retro')).img, mirrorNear: false };
+  return { ...near, far: state.get(far) === false ? entry(spriteUrl(f, 'retro')).img : far.img };
 }

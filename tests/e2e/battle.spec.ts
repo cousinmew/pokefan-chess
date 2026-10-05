@@ -70,3 +70,24 @@ test('a real capture plays the battle, tap skips it in under 100 ms', async ({ p
   await expect(page.locator('[data-square="d5"] img')).toHaveAttribute('alt', 'EEVEE');
   await expect(page.getByTestId('text-main')).toHaveText('RATTATA fainted!');
 });
+
+test("computer captures: the player's Pokémon stays near (back view), the attacker is far (front view)", async ({ page }) => {
+  await page.goto('/?debug=1&start=two');
+  await page.evaluate(() => {
+    const kc = (window as unknown as { __kc: { setMode(m: string, l: number, h: string): void; loadFen(f: string): string } }).__kc;
+    kc.setMode('computer', 1, 'w');
+    // Black's only legal move is Kxg7: NIDOKING takes the player's CHARIZARD.
+    kc.loadFen('7k/6Q1/8/8/8/8/8/4K3 b - - 0 1');
+  });
+  await expect(page.getByTestId('battle')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('battle-text')).toContainText('NIDOKING used', { timeout: 3000 });
+  const view = await page.evaluate(() =>
+    ['.mon.att', '.mon.def'].map((s) => {
+      const slot = document.querySelector(s) as HTMLElement;
+      return { src: (slot.querySelector('img') as HTMLImageElement).src.split('/').slice(-2).join('/'), top: parseFloat(slot.style.top) };
+    }),
+  );
+  expect(view[0]!.src).toBe('front/34.gif');
+  expect(view[1]!.src).toBe('back/6.gif');
+  expect(view[0]!.top).toBeLessThan(view[1]!.top);
+});
