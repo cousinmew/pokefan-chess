@@ -18,7 +18,7 @@
     "gates:ci": "node scripts/grep-gates.mjs G1 G3 G5",
     "prepare": "husky",
     "postinstall": "node scripts/copy-engine.mjs",
-    "e2e:live": "LIVE_URL=https://cousinmew.github.io/pokefan-chess/ playwright test shell.spec.ts -g @live",
+    "e2e:live": "LIVE_URL=https://pokefanchess.com/ playwright test shell.spec.ts -g @live",
     "gates:dist": "node scripts/grep-gates.mjs",
     "deploy:relay": "npm --prefix worker run deploy"
   },

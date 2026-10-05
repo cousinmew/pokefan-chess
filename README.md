@@ -2,7 +2,7 @@
 
 Real chess where every piece is a Gen 1 Pokémon. Red's champion team (Pikachu as king, Charizard as queen, Snorlax, Venusaur, Blastoise, Rapidash and a row of Eevee) plays white against Giovanni and the Rocket crew (Nidoking, Nidoqueen, Rhydon, Arbok, Weezing, Dugtrio and the Rattata swarm). Every capture is a tiny Gen 1 battle, every promotion is an evolution, and chess.js keeps the rules honest. Play a friend on one device, or the computer at four levels from Youngster to Champion.
 
-Play it: https://cousinmew.github.io/pokefan-chess/
+Play it: https://pokefanchess.com
 
 <!-- Screenshot: added by the owner. -->
 

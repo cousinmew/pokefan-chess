@@ -27,7 +27,8 @@ function sessionToken(code: string): string {
     console.warn('sessionStorage blocked:', err instanceof Error ? err.name : err);
   }
   // A reopened tab has an empty sessionStorage; the per room copy in localStorage resumes the seat.
-  token ??= load<string>(`room:${code}`) ?? crypto.randomUUID();
+  // crypto.randomUUID needs HTTPS; plain http (before HTTPS is enforced) falls back to getRandomValues.
+  token ??= load<string>(`room:${code}`) ?? (crypto.randomUUID?.() || [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join(''));
   try {
     window.sessionStorage.setItem(key, token);
   } catch (err) {
