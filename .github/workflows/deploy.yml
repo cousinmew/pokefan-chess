@@ -13,8 +13,24 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  build:
+  # GitHub can deliver a push event late (cd587b2 arrived 10 min after the next commit). Only the commit that is
+  # still the tip of main deploys, so a late ci run can never roll the site back.
+  latest:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      is_tip: ${{ steps.tip.outputs.is_tip }}
+    steps:
+      - id: tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          TIP=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha)
+          if [ "$TIP" = "$SHA" ]; then echo "is_tip=true" >> "$GITHUB_OUTPUT"; else echo "::notice::$SHA is not the tip of main ($TIP), skipping deploy"; echo "is_tip=false" >> "$GITHUB_OUTPUT"; fi
+  build:
+    needs: latest
+    if: needs.latest.outputs.is_tip == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
