@@ -18,8 +18,12 @@ import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/scree
 import { settingsScreen } from './ui/settings';
 import { load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
+import { OnlineGame } from './net/onlineGame';
+import { createRoom } from './net/online';
+import { message, onlineMenu } from './ui/online';
+import { CODE_RE } from '../worker/src/protocol';
 
-export type Mode = 'two-players' | 'computer';
+export type Mode = 'two-players' | 'computer' | 'online';
 export interface Setup {
   mode: Mode;
   human: Color;
@@ -40,6 +44,7 @@ export interface App {
   level: AiLevel;
   human: Color;
   engine: Engine;
+  online: OnlineGame;
   aiFailed: boolean;
   ended: boolean;
   busy: boolean;
@@ -102,6 +107,7 @@ function boot(): App {
     level: 1,
     human: 'w',
     engine: new Engine(),
+    online: undefined as unknown as OnlineGame,
     aiFailed: false,
     ended: false,
     busy: false,
@@ -117,7 +123,7 @@ function boot(): App {
   const board = new Board(game, {
     onMove: (from, to) => {
       if (game.isPromotion(from, to)) pickPromotion(from, to);
-      else playMove(from, to);
+      else submit(from, to);
     },
     settings: () => settings,
     announce,
@@ -138,7 +144,28 @@ function boot(): App {
   const gameView = el('div', 'game-view');
   gameView.dataset.testid = 'screen-game';
   const main = el('main');
-  main.append(board.el, text.el);
+  const online = new OnlineGame({
+    app,
+    show,
+    goTitle,
+    startBoard: (moves, human) => {
+      configure({ mode: 'online', human, level: 1 });
+      show(gameView);
+      restart(undefined, undefined, false, moves);
+      text.plain(fmt('online.you', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }));
+      lockForTurn();
+    },
+    applyRemote: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
+    endWith: (key) => {
+      app.ended = true;
+      board.locked = true;
+      text.show([{ key }]);
+      showEnd({ key });
+    },
+    say: (key) => text.plain(fmt(key)),
+  });
+  app.online = online;
+  main.append(board.el, text.el, online.bar);
   gameView.append(header, main);
 
   function show(view: HTMLElement): void {
@@ -157,6 +184,7 @@ function boot(): App {
   }
 
   function goTitle(): void {
+    online.close();
     show(
       title({
         canContinue: savedGame() !== null,
@@ -168,6 +196,23 @@ function boot(): App {
         computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
         twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
         howTo: () => show(howTo(goTitle)),
+        online: () =>
+          show(
+            onlineMenu(
+              () => {
+                show(message('online.joining', goTitle, { code: '...' }));
+                createRoom().then(
+                  (code) => online.join(code),
+                  (err: unknown) => {
+                    console.warn('relay unavailable:', err instanceof Error ? err.message : err);
+                    show(message('online.offline', goTitle));
+                  },
+                );
+              },
+              (code) => online.join(code),
+              goTitle,
+            ),
+          ),
         settings: () =>
           show(
             settingsScreen(
@@ -185,7 +230,7 @@ function boot(): App {
 
   function configure(setup: Setup): void {
     app.mode = setup.mode;
-    app.human = setup.mode === 'computer' ? setup.human : 'w';
+    app.human = setup.mode === 'two-players' ? 'w' : setup.human;
     app.level = setup.level;
     app.aiFailed = false;
   }
@@ -198,6 +243,7 @@ function boot(): App {
   }
 
   function persistGame(): void {
+    if (app.mode === 'online') return;
     if (app.ended || game.chess.history().length === 0) remove('game');
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
@@ -250,9 +296,24 @@ function boot(): App {
     persistGame();
     updateTurn();
     void maybeAi();
+    if (app.mode === 'online') {
+      lockForTurn();
+      online.drain();
+    }
+  }
+
+  /** Online: only the player whose turn it is may touch the board. */
+  function lockForTurn(): void {
+    board.locked = app.ended || app.busy || (app.mode === 'online' && game.turn() !== app.human);
+  }
+
+  function submit(from: string, to: string, promotion?: Role): void {
+    if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
+    else playMove(from, to, promotion);
   }
 
   function canTakeBack(): boolean {
+    if (app.mode === 'online') return false;
     if (app.mode === 'two-players') return settings.takeBack;
     return TAKE_BACK_LEVELS.includes(app.level);
   }
@@ -316,19 +377,39 @@ function boot(): App {
       const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
       img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
     }
+    showEnd(end.line);
+  }
+
+  function showEnd(line: Line): void {
     const panel = el('div', 'panel end');
     panel.dataset.testid = 'end-screen';
-    panel.dataset.endKey = end.line.key;
-    const p = el('p', '', end.line.key);
+    panel.dataset.endKey = line.key;
+    const p = el('p', '', line.key);
     p.dataset.testid = 'end-text';
     const cap = el('p', 'tb-caption');
-    if (end.line.caption && settings.captions) cap.textContent = fmt(end.line.caption);
+    if (line.caption && settings.captions) cap.textContent = fmt(line.caption);
     const row = el('div', 'end-buttons');
-    row.append(
-      button('end.rematch', () => startGame({ mode: app.mode, human: app.human, level: app.level }), 'rematch'),
-      button('end.menu', () => goTitle(), 'end-menu'),
-    );
-    panel.append(p, cap, row);
+    if (app.mode === 'online') {
+      const swap = el('label', 'swap');
+      const box = el('input');
+      box.type = 'checkbox';
+      box.dataset.testid = 'swap-sides';
+      swap.append(box, el('span', '', 'online.swap'));
+      row.append(
+        button('end.rematch', () => {
+          modal.hidden = true;
+          online.rematch(box.checked);
+        }, 'rematch'),
+        button('end.menu', () => goTitle(), 'end-menu'),
+      );
+      panel.append(p, cap, swap, row);
+    } else {
+      row.append(
+        button('end.rematch', () => startGame({ mode: app.mode, human: app.human, level: app.level }), 'rematch'),
+        button('end.menu', () => goTitle(), 'end-menu'),
+      );
+      panel.append(p, cap, row);
+    }
     modal.replaceChildren(panel);
     modal.hidden = false;
   }
@@ -354,7 +435,7 @@ function boot(): App {
       btn.append(img, name, glyph);
       btn.onclick = () => {
         modal.hidden = true;
-        playMove(from, to, role);
+        submit(from, to, role);
       };
       row.append(btn);
     }
@@ -371,13 +452,14 @@ function boot(): App {
   }
 
   /** New game in the current mode (or a FEN / PGN to restore), optionally with the intro card. */
-  function restart(fen?: string, pgn?: string, withIntro = false): void {
+  function restart(fen?: string, pgn?: string, withIntro = false, moves?: string[]): void {
     gen++;
     notice = null;
     overlay.skip();
     if (pgn) game.loadPgn(pgn);
     else if (fen) game.loadFen(fen);
     else game.reset();
+    for (const uci of moves ?? []) game.playUci(uci);
     app.ended = false;
     app.busy = false;
     board.locked = false;
@@ -408,7 +490,11 @@ function boot(): App {
 
   root.replaceChildren(stage, modal, overlay.el, live);
   const params = new URLSearchParams(location.search);
-  if (params.has('debug') && params.get('start') === 'two') startGame({ mode: 'two-players', human: 'w', level: 1 }, undefined, false);
+  const room = (params.get('room') ?? '').toUpperCase();
+  if (CODE_RE.test(room)) {
+    preloadBattleSprites();
+    online.join(room);
+  } else if (params.has('debug') && params.get('start') === 'two') startGame({ mode: 'two-players', human: 'w', level: 1 }, undefined, false);
   else
     show(
       splash(() => {

@@ -3,7 +3,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', 'public/', 'test-results/', 'playwright-report/'] },
+  { ignores: ['dist/', 'node_modules/', 'public/', 'test-results/', 'playwright-report/', 'worker/node_modules/', 'worker/.wrangler/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

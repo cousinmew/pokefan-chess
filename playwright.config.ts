@@ -15,5 +15,11 @@ export default defineConfig({
     // Mobile Safari engine: the capture battle must play on a phone (tests tagged @webkit).
     { name: 'webkit-iphone', grep: /@webkit/, use: { ...devices['iPhone 13'] } },
   ],
-  webServer: live ? undefined : { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 30000 },
+  webServer: live
+    ? undefined
+    : [
+        { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 30000 },
+        // Local relay for the online tests; a 5 s reconnect window stands in for the real 60 s.
+        { command: 'npm --prefix worker run dev -- --port 8788 --inspector-port 9239 --var RECONNECT_MS:5000', url: 'http://localhost:8788/health', reuseExistingServer: true, timeout: 90000, env: { WRANGLER_SEND_METRICS: 'false' } },
+      ],
 });

@@ -42,6 +42,7 @@ export interface TitleActions {
   twoPlayers(): void;
   howTo(): void;
   settings(): void;
+  online(): void;
 }
 
 export function title(a: TitleActions): HTMLElement {
@@ -53,6 +54,7 @@ export function title(a: TitleActions): HTMLElement {
   list.append(
     button('title.vsComputer', a.computer, 'vs-computer'),
     button('title.twoPlayers', a.twoPlayers, 'two-players'),
+    button('title.online', a.online, 'play-online'),
     button('title.howTo', a.howTo, 'how-to'),
     button('title.settings', a.settings, 'settings'),
     button('title.share', share, 'share'),

@@ -22,3 +22,7 @@
 - Splash, title with one tap Battle! quick play and Continue, team and level select, intro card, How to Play, settings screen, end screen with Rematch and Menu.
 - Settings, the game in progress and the last quick play are saved locally; everything still works with storage blocked.
 - Share button, footer disclaimer and GitHub link, full README and CREDITS. Board palette set to the T3 default.
+
+## 1.1.0 (O1)
+
+- Play Online with a friend: create a room, share the 4 letter code or link, the relay checks every move. Six preset reactions, give up, rematch with swap sides, 60 s to reconnect.

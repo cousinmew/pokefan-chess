@@ -1,6 +1,6 @@
 {
   "name": "pokefan-chess",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "PokeFan Chess: Red vs Rocket. An unofficial, free, noncommercial fan chess game.",
   "license": "AGPL-3.0-only",
@@ -11,7 +11,7 @@
     "build": "node scripts/copy-engine.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm --prefix worker run typecheck",
     "test": "vitest run",
     "e2e": "playwright test",
     "gates": "node scripts/grep-gates.mjs",
@@ -19,7 +19,8 @@
     "prepare": "husky",
     "postinstall": "node scripts/copy-engine.mjs",
     "e2e:live": "LIVE_URL=https://cousinmew.github.io/pokefan-chess/ playwright test shell.spec.ts -g @live",
-    "gates:dist": "node scripts/grep-gates.mjs"
+    "gates:dist": "node scripts/grep-gates.mjs",
+    "deploy:relay": "npm --prefix worker run deploy"
   },
   "dependencies": {
     "chess.js": "1.4.0",

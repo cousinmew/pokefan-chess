@@ -51,6 +51,9 @@ export function installHarness(app: App): void {
     },
     /** True once every background sprite preload has decoded. */
     spritesReady: () => preloadSettled(),
+    /** Sends a raw message to the relay (illegal move gate) and reads the last rejection. */
+    netSend: (msg: unknown) => app.online.send(msg),
+    lastReject: () => app.online.lastReject,
     setMode: (mode: Mode, level?: AiLevel, human?: 'w' | 'b') => app.setMode(mode, level, human),
     takeBack: () => app.takeBack(),
     /** Asks a level for a move in `fen` (default: the board) and checks it is legal. */

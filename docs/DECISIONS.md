@@ -24,3 +24,7 @@
 - Mobile fix: prefers-reduced-motion no longer switches battles to Quick (no overlay); it keeps Full and drops shake and flashes. Settings saved by v1 with Quick are reset once (settings `v: 2`).
 - WebKit iPhone 13 project runs tests tagged @webkit (capture battle, with and without reduced motion); WebKit showed no other failure.
 - Castling: tapping the king then its own rook castles toward that rook; the king's dots already showed g1/c1 (g8/c8).
+- O1: relay = Worker + SQLite-backed Durable Object (free plan), hibernating WebSockets, state in DO storage, one alarm for the 60 s reconnect deadline and 24 h room expiry.
+- O1: the per tab session token is mirrored in localStorage per room so a closed and reopened tab resumes its seat; the same token from a new tab takes the seat over (the old tab sees "carried on in another tab").
+- O1: no trainer names yet (V3 allows a fixed list; nothing to show without them). Online screens live in src/ui/online.ts, not src/ui/screens/online.ts, matching the existing layout.
+- O1: G2 now allows fetch/WebSocket only in src/net/, and config.ts absolute URLs only for the repo, Discord and RELAY_URL. Local tests run the relay on :8788 with a 5 s reconnect window.

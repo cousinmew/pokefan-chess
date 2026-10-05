@@ -59,3 +59,5 @@ export const INTRO_MS = 1200; // "X wants to battle!" card, tap to skip
 export const TOAST_MS = 1600; // "Link copied" toast
 export const DISCORD_URL = ''; // optional project Discord, link shown only when set
 export const STORAGE_NS = 'kc:v1:'; // localStorage namespace
+export const RELAY_URL = 'https://pokefan-chess-relay.cousinmew.workers.dev'; // the only runtime network origin (V7, G2)
+export const RECONNECT_BACKOFF_MS = [500, 1000, 2000, 4000, 5000]; // client socket retry delays

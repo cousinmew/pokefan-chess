@@ -45,9 +45,19 @@ if (run('G1')) {
   }
 }
 if (run('G2')) {
+  // V7: runtime network only to the relay origin. fetch/WebSocket live in src/net/ only; config.ts holds the
+  // only absolute URLs, and those must be the repo link, the optional Discord link or the relay.
+  const cfg = read('src/config.ts');
+  const relay = /RELAY_URL = '(https:\/\/[^']+)'/.exec(cfg)?.[1];
+  if (!relay) fails.push('G2: RELAY_URL missing from src/config.ts');
+  for (const url of cfg.match(/https?:\/\/[^'"\s)]+/g) ?? []) {
+    if (url !== relay && !url.startsWith('https://github.com/cousinmew/') && !url.startsWith('https://discord.')) fails.push(`G2: unexpected origin in config.ts: ${url}`);
+  }
   for (const f of src.filter((f) => !f.endsWith('config.ts'))) {
     const t = read(f).replaceAll('http://www.w3.org/2000/svg', '');
-    if (/\bfetch\(|XMLHttpRequest|WebSocket|https?:\/\//.test(t)) fails.push(`G2: network or absolute URL in ${f}`);
+    if (/https?:\/\//.test(t)) fails.push(`G2: absolute URL in ${f}`);
+    if (!f.startsWith('src/net/') && /\bfetch\(|XMLHttpRequest|WebSocket/.test(t)) fails.push(`G2: network call outside src/net/ in ${f}`);
+    if (/XMLHttpRequest/.test(t)) fails.push(`G2: XMLHttpRequest in ${f}`);
   }
 }
 if (run('G3')) for (const f of src) if (read(f).includes('Math.random')) fails.push(`G3: Math.random in ${f}`);

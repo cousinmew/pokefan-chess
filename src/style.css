@@ -112,3 +112,13 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .end-buttons { display: flex; gap: 8px; justify-content: center; }
 .end-buttons button { padding: 0 14px; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 60; }
+
+.reactions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; width: calc(var(--sq) * 8); }
+.reactions[hidden] { display: none; }
+.reactions button { min-height: 44px; font: inherit; font-size: 12px; border: 2px solid var(--ink); background: #fff; border-radius: 4px; padding: 0 8px; cursor: pointer; }
+.reactions .resign { background: #f0d0d0; }
+.code-row { display: flex; gap: 8px; width: 100%; }
+.code-input { flex: 1; min-height: 48px; font: inherit; font-size: 22px; letter-spacing: 6px; text-transform: uppercase; text-align: center; border: 3px solid var(--ink); border-radius: 6px; }
+.room-code { font-size: 44px; letter-spacing: 10px; font-weight: 700; margin: 8px 0; }
+.online-message { font-size: 16px; text-align: center; }
+.swap { display: flex; gap: 6px; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 14px; }
