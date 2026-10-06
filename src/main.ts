@@ -20,11 +20,12 @@ import { settingsScreen } from './ui/settings';
 import { load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
+import { PuzzleGame } from './campaign/puzzleGame';
 import { createRoom } from './net/online';
 import { message, onlineMenu } from './ui/online';
 import { CODE_RE } from '../worker/src/protocol';
 
-export type Mode = 'two-players' | 'computer' | 'online';
+export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle';
 export interface Setup {
   mode: Mode;
   human: Color;
@@ -46,6 +47,7 @@ export interface App {
   human: Color;
   engine: Engine;
   online: OnlineGame;
+  puzzle: PuzzleGame;
   aiFailed: boolean;
   ended: boolean;
   busy: boolean;
@@ -110,6 +112,7 @@ function boot(): App {
     human: 'w',
     engine: new Engine(),
     online: undefined as unknown as OnlineGame,
+    puzzle: undefined as unknown as PuzzleGame,
     aiFailed: false,
     ended: false,
     busy: false,
@@ -170,7 +173,22 @@ function boot(): App {
     say: (key) => text.plain(fmt(key)),
   });
   app.online = online;
-  main.append(board.el, text.el, online.bar);
+  const puzzle = new PuzzleGame({
+    app,
+    startBoard: (fen, human) => {
+      configure({ mode: 'puzzle', human, level: 1 });
+      show(gameView);
+      restart(fen);
+    },
+    applyMove: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
+    say: (key, vars) => text.plain(fmt(key, vars)),
+    hint: (squares) => {
+      board.hints = squares;
+      board.render();
+    },
+  });
+  app.puzzle = puzzle;
+  main.append(board.el, text.el, online.bar, puzzle.bar);
   gameView.append(header, main);
 
   function show(view: HTMLElement): void {
@@ -191,6 +209,7 @@ function boot(): App {
 
   function goTitle(): void {
     online.close();
+    puzzle.stop();
     music.play('title');
     show(
       title({
@@ -202,6 +221,7 @@ function boot(): App {
         },
         computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
         twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+        puzzles: () => void puzzle.start(),
         howTo: () => show(howTo(goTitle)),
         online: () =>
           show(
@@ -250,7 +270,7 @@ function boot(): App {
   }
 
   function persistGame(): void {
-    if (app.mode === 'online') return;
+    if (app.mode === 'online' || app.mode === 'puzzle') return;
     if (app.ended || game.chess.history().length === 0) remove('game');
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
@@ -311,6 +331,7 @@ function boot(): App {
       lockForTurn();
       online.drain();
     }
+    if (app.mode === 'puzzle') puzzle.settled();
   }
 
   /** Online: only the player whose turn it is may touch the board. */
@@ -320,11 +341,12 @@ function boot(): App {
 
   function submit(from: string, to: string, promotion?: Role): void {
     if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
+    else if (app.mode === 'puzzle') puzzle.submit(from + to + (promotion ?? ''));
     else playMove(from, to, promotion);
   }
 
   function canTakeBack(): boolean {
-    if (app.mode === 'online') return false;
+    if (app.mode === 'online' || app.mode === 'puzzle') return false;
     if (app.mode === 'two-players') return settings.takeBack;
     return TAKE_BACK_LEVELS.includes(app.level);
   }
@@ -382,6 +404,8 @@ function boot(): App {
     if (!end) return;
     app.ended = true;
     board.locked = true;
+    // A puzzle that ends in mate is finished by the puzzle player, not the end screen.
+    if (app.mode === 'puzzle') return;
     text.show([end.line]);
     music.stop();
     if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');

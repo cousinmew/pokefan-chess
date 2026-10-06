@@ -68,3 +68,10 @@ export type MusicCue = 'title' | 'board' | 'battle' | 'victory' | 'defeat' | 'ev
 export const MUSIC_LOOPS: Partial<Record<MusicCue, [number, number]>> = { title: [0, 0], board: [0, 0] }; // loop [start, end] s in the mp3; 0 = whole file
 export const MUSIC_STING_GAIN = 0.7; // one-shot cues relative to the sound effects volume
 export const HP_TICK_MS = 45; // HP drain tick sound interval
+export const RATING_START = { r: 600, rd: 350, vol: 0.06 }; // Trainer Rating start: 600 for this audience (Lichess starts at 1500)
+export const RATING_TAU = 0.5; // Glicko-2 system constant
+export const PUZZLE_RD = 75; // assumed deviation of a well played Lichess puzzle (the JSON keeps only its rating)
+export const PUZZLE_WINDOW = 150; // serve puzzles within this many points of the Trainer Rating
+export const PUZZLE_WIDEN = 100; // widen the window by this much when a theme runs dry
+export const PUZZLE_SEEN_MAX = 400; // remember this many solved or missed puzzle ids to avoid repeats
+export const PUZZLE_REPLY_MS = 450; // pause before the puzzle's own moves auto play

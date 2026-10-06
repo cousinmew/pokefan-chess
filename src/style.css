@@ -122,3 +122,13 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .room-code { font-size: 44px; letter-spacing: 10px; font-weight: 700; margin: 8px 0; }
 .online-message { font-size: 16px; text-align: center; }
 .swap { display: flex; gap: 6px; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 14px; }
+
+.sq.hint::after { content: ''; position: absolute; inset: 2px; border: 4px solid #f0a020; border-radius: 4px; pointer-events: none; z-index: 2; animation: blink 0.8s steps(2) infinite; }
+.puzzle-bar { display: flex; flex-direction: column; gap: 4px; width: calc(var(--sq) * 8); font-size: 12px; }
+.puzzle-bar[hidden] { display: none; }
+.puzzle-bar p { margin: 0; }
+.puzzle-bar .rating { font-weight: 700; }
+.puzzle-buttons { display: flex; gap: 4px; }
+.puzzle-buttons select, .puzzle-buttons button { min-height: 44px; font: inherit; border: 2px solid var(--ink); background: #fff; border-radius: 4px; }
+.puzzle-buttons select { flex: 1; min-width: 0; }
+.puzzle-buttons button { padding: 0 10px; cursor: pointer; }

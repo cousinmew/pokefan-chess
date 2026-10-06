@@ -31,3 +31,7 @@
 
 - Battle effects twice as large and outlined, with a short flash tinted by move type; FX gallery and review sheet.
 - Music: title and board loops, battle, victory, defeat and evolution cues, chiptune placeholders until the real tracks land; music volume slider. New sounds for pick up, place, check, HP drain, castling and evolution.
+
+## 1.3.0 (C1)
+
+- Puzzles: 8,035 Lichess puzzles in 18 themes, served near your Trainer Rating (an honest estimate), with hints, auto played replies and saved progress.

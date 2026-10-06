@@ -43,6 +43,7 @@ export interface TitleActions {
   howTo(): void;
   settings(): void;
   online(): void;
+  puzzles(): void;
 }
 
 export function title(a: TitleActions): HTMLElement {
@@ -55,6 +56,7 @@ export function title(a: TitleActions): HTMLElement {
     button('title.vsComputer', a.computer, 'vs-computer'),
     button('title.twoPlayers', a.twoPlayers, 'two-players'),
     button('title.online', a.online, 'play-online'),
+    button('title.puzzles', a.puzzles, 'puzzles'),
     button('title.howTo', a.howTo, 'how-to'),
     button('title.settings', a.settings, 'settings'),
     button('title.share', share, 'share'),
