@@ -26,6 +26,7 @@ async function playThrough(page: Page) {
     else if (await vis('goal-card')) await page.getByTestId('goal-card').click();
     else if (await vis('trainer-intro')) await page.getByTestId('trainer-intro').click();
     else if (await vis('lesson-ok')) await page.getByTestId('lesson-ok').click();
+    else if (await vis('review-continue')) await page.getByTestId('review-continue').click();
     else if (await page.locator('[data-testid^="choose-"]').first().isVisible()) await page.locator('[data-testid^="choose-"]').first().click();
     else if ((await kc<string>(page, 'puzzlePhase')) === 'player' && (await page.getByTestId('screen-game').isVisible())) {
       const uci = (await kc<string>(page, 'puzzleAnswer'))!;
@@ -41,7 +42,7 @@ async function playThrough(page: Page) {
 
 test.use({ viewport: { width: 360, height: 640 } });
 
-test('gyms 1 to 8 and the Elite Four complete via the harness; badges, gifts and the queen slot', async ({ page }) => {
+test('@slow gyms 1 to 8 and the Elite Four complete via the harness; badges, gifts and the queen slot', async ({ page }) => {
   test.setTimeout(600_000);
   await open(page);
   const gyms = ['pewter-gym', 'cerulean-gym', 'vermilion-gym', 'celadon-gym', 'fuchsia-gym', 'saffron-gym', 'cinnabar-gym', 'viridian-gym'];

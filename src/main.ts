@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { AI_MIN_THINK_MS, CHALLENGE_END_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, REVIEW_COLORS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -23,6 +23,7 @@ import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
 import { drillStatus, type DrillStatus } from './campaign/drill';
+import type { Frame } from './campaign/review';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { createRoom } from './net/online';
@@ -208,6 +209,14 @@ function boot(): App {
       board.hints = squares;
       board.render();
     },
+    showFrame: (frame) => {
+      game.loadFen(frame.fen);
+      board.locked = true;
+      board.resetMarks();
+      drawReview(frame);
+    },
+    clearFrames: () => reviewLayer.replaceChildren(),
+    engineReply: (fen) => app.engine.bestMove(fen, REFUTATION_LEVEL),
   });
   app.puzzle = puzzle;
   const journey = new JourneyGame({
@@ -221,7 +230,53 @@ function boot(): App {
   });
   app.journey = journey;
   app.campaignRng = journey.rng;
-  main.append(board.el, text.el, online.bar, puzzle.bar);
+  // Review arrows and marks (§B15) sit on an SVG layer over the board.
+  const boardWrap = el('div', 'board-wrap');
+  const reviewLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  reviewLayer.setAttribute('class', 'review-layer');
+  reviewLayer.dataset.testid = 'review-layer';
+  boardWrap.append(board.el, reviewLayer);
+  main.append(boardWrap, text.el, online.bar, puzzle.bar);
+
+  function drawReview(frame: Frame): void {
+    const ns = 'http://www.w3.org/2000/svg';
+    const box = boardWrap.getBoundingClientRect();
+    reviewLayer.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
+    const centre = (sq: string) => {
+      const r = board.squareEl(sq)?.getBoundingClientRect();
+      return r ? { x: r.left - box.left + r.width / 2, y: r.top - box.top + r.height / 2, s: r.width } : { x: 0, y: 0, s: 0 };
+    };
+    const parts: SVGElement[] = [];
+    const defs = document.createElementNS(ns, 'defs');
+    for (const c of REVIEW_COLORS) {
+      const m = document.createElementNS(ns, 'marker');
+      Object.entries({ id: `head-${c[0]}`, viewBox: '0 0 10 10', refX: '5', refY: '5', markerWidth: '3', markerHeight: '3', orient: 'auto-start-reverse' }).forEach(([k, v]) => m.setAttribute(k, v));
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      path.setAttribute('fill', c[1]);
+      m.append(path);
+      defs.append(m);
+    }
+    parts.push(defs);
+    for (const a of frame.arrows) {
+      const p = centre(a.from);
+      const q = centre(a.to);
+      const line = document.createElementNS(ns, 'line');
+      const color = REVIEW_COLORS.find((c) => c[0] === a.color)?.[1] ?? '#30a030';
+      Object.entries({ x1: p.x, y1: p.y, x2: q.x, y2: q.y, stroke: color, 'stroke-width': p.s * 0.16, 'stroke-linecap': 'round', opacity: '0.85', 'marker-end': `url(#head-${a.color})` }).forEach(([k, v]) => line.setAttribute(k, String(v)));
+      line.dataset.arrow = `${a.from}${a.to}`;
+      line.dataset.color = a.color;
+      parts.push(line);
+    }
+    for (const sq of frame.marks) {
+      const c = centre(sq);
+      const ring = document.createElementNS(ns, 'circle');
+      Object.entries({ cx: c.x, cy: c.y, r: c.s * 0.38, fill: 'none', stroke: '#e03030', 'stroke-width': c.s * 0.08, opacity: '0.85' }).forEach(([k, v]) => ring.setAttribute(k, String(v)));
+      ring.dataset.mark = sq;
+      parts.push(ring);
+    }
+    reviewLayer.replaceChildren(...parts);
+  }
   gameView.append(header, main);
 
   function show(view: HTMLElement): void {

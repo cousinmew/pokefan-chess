@@ -34,6 +34,15 @@ describe('queen grandfathering (C3 quick fix)', () => {
   });
 });
 
+describe('gym needs (C4)', () => {
+  it('gyms 1 to 4 need 3 of 5, gyms 5 to 8 need 4 of 5, as config.ts says and the journey data mirrors', async () => {
+    const { GYM_NEED_EARLY, GYM_NEED_LATE } = await import('../../src/config');
+    const gyms = PLACES.filter((p) => p.kind === 'gym');
+    expect(gyms.map((g) => g.trainers![0]!.need)).toEqual([...Array(4).fill(GYM_NEED_EARLY), ...Array(4).fill(GYM_NEED_LATE)]);
+    expect([GYM_NEED_EARLY, GYM_NEED_LATE]).toEqual([3, 4]);
+  });
+});
+
 describe('gyms block the journey (C3)', () => {
   it('Route 3 opens only with the BOULDERBADGE; a place cleared before C3 stays open', () => {
     let c = chooseStarter(loadCampaign(), 'squirtle');

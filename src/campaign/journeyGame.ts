@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Kanto Journey controller (§B11, §B12): Oak's intro, the map, trainer and rival battles (the C1 puzzle player in a
 // battle context), towns, tall grass encounters, the Trainer Card, Training, the Pokédex with candy, and My Team.
-import { DRILL_LEVEL, ENCOUNTER_PAUSE_MS, INTRO_CARD_MS, PLAYTIME_TICK_MS, TRAINER_NEXT_MS } from '../config';
+import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TICK_MS } from '../config';
 import { SPECIES } from '../board/pieces';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
@@ -176,7 +176,7 @@ export class JourneyGame {
       if (stage !== 0) return;
       stage = 1;
       const leads = t.themes === 'learned' ? fmt('goal.rivalLeads', { starter: SPECIES[team[0]!]!.name }) : undefined;
-      modal.replaceChildren(goalCard(theme, t.puzzles, t.need, leads));
+      modal.replaceChildren(goalCard(theme, t.puzzles, this.needOf(p, t), leads));
     };
     const timer = window.setTimeout(goal, INTRO_CARD_MS);
     modal.onclick = () => {
@@ -197,14 +197,21 @@ export class JourneyGame {
     this.host.show(lessonScreen(theme, exampleOf(rows), done, personSprite('oak')));
   }
 
+  /** Solves needed: gyms 1 to 4 take GYM_NEED_EARLY, gyms 5 to 8 GYM_NEED_LATE (config.ts), others their own. */
+  needOf(p: Place, t: Trainer): number {
+    if (p.kind !== 'gym') return t.need;
+    return PLACES.filter((x) => x.kind === 'gym').indexOf(p) < 4 ? GYM_NEED_EARLY : GYM_NEED_LATE;
+  }
+
   private runBattle(p: Place, t: Trainer, theme: string): void {
+    const need = this.needOf(p, t);
     let played = 0;
     let won = 0;
     const who = `${fmt(t.class)} ${fmt(t.name)}`;
     const pips: string[] = [];
     // The banner stays above the board (§B14): your side and goal, then the trainer and the pips.
     const text = (side: 'w' | 'b') =>
-      `${fmt('lesson.play', { side: fmt(`side.${side}` as StringKey), goal: fmt(`lesson.${theme}.banner` as StringKey) })}\n${who}: ${pips.join('')}${'○'.repeat(t.puzzles - pips.length)} ${fmt('trainer.progress', { n: String(Math.min(played + 1, t.puzzles)), total: String(t.puzzles), won: String(won), need: String(t.need) })}`;
+      `${fmt('lesson.play', { side: fmt(`side.${side}` as StringKey), goal: fmt(`lesson.${theme}.banner` as StringKey) })}\n${who}: ${pips.join('')}${'○'.repeat(t.puzzles - pips.length)} ${fmt('trainer.progress', { n: String(Math.min(played + 1, t.puzzles)), total: String(t.puzzles), won: String(won), need: String(need) })}`;
     const banner = () => this.host.puzzle.refreshBanner();
     const next = () => {
       banner();
@@ -221,14 +228,10 @@ export class JourneyGame {
         if (r !== 'missed') won++;
         pips.push(r === 'missed' ? '✕' : '●');
         banner();
-        // Each puzzle restarts the board, so the generation is taken now, not when the battle began.
-        const g = this.host.gen();
-        window.setTimeout(() => {
-          if (g !== this.host.gen()) return;
-          if (won >= t.need) return this.win(p, t);
-          if (played - won > t.puzzles - t.need) return this.lose(p, t);
-          next();
-        }, TRAINER_NEXT_MS);
+        // Called on Continue after the review (§B15): no timer, the player decides when to move on.
+        if (won >= need) return this.win(p, t);
+        if (played - won > t.puzzles - need) return this.lose(p, t);
+        next();
       },
     });
     banner();
@@ -376,12 +379,13 @@ export class JourneyGame {
   private walkGrass(p: Place, route: Route): void {
     void this.host.puzzle.start({
       themes: route.themes,
+      ownsNext: true,
       onLeave: () => this.showRoute(p),
+      // Called on Continue after the review (§B15): a miss walks on to a fresh puzzle, a solve meets a Pokémon.
       onResult: (result) => {
         this.set(recordRoute(this.campaign, route.id, result));
-        if (result === 'missed') return;
-        const g = this.host.gen();
-        window.setTimeout(() => g === this.host.gen() && this.encounter(p, route, result === 'solved' ? 'first' : 'hint'), ENCOUNTER_PAUSE_MS);
+        if (result === 'missed') return void this.host.puzzle.start();
+        this.encounter(p, route, result === 'solved' ? 'first' : 'hint');
       },
     });
   }

@@ -153,7 +153,7 @@
      ],
      "defeat": "line.gym-brock",
      "puzzles": 5,
-     "need": 4,
+     "need": 3,
      "topics": [
       "castling",
       "hangingPiece"
@@ -294,7 +294,7 @@
      ],
      "defeat": "line.gym-misty",
      "puzzles": 5,
-     "need": 4,
+     "need": 3,
      "topics": [
       "hangingPiece",
       "trappedPiece",
@@ -356,7 +356,7 @@
      ],
      "defeat": "line.gym-ltsurge",
      "puzzles": 5,
-     "need": 4,
+     "need": 3,
      "topics": [
       "fork"
      ],
@@ -451,7 +451,7 @@
      ],
      "defeat": "line.gym-erika",
      "puzzles": 5,
-     "need": 4,
+     "need": 3,
      "topics": [
       "promotion",
       "advancedPawn"

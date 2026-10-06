@@ -11,7 +11,8 @@ export default defineConfig({
   retries: 0,
   use: { baseURL: live ?? 'http://localhost:4173' },
   projects: [
-    { name: 'chromium', grepInvert: /@webkit|@fxsheet|@spritesheet/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    // @slow (the full gym walk, ~3 min) runs only in CI, before every deploy; the local gate skips it.
+    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet/ : /@webkit|@fxsheet|@spritesheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
     // Review sheets for docs/, only with SHEETS=1 (npm run sheets), so the gate never rewrites them.
     ...(process.env.SHEETS
       ? [

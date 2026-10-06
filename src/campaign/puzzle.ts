@@ -22,6 +22,10 @@ export class PuzzleRun {
   private readonly line: string[];
   private readonly chess: Chess;
   private idx = 0;
+  /** The position after the set up move: where the player starts (review frame 0, §B15). */
+  startFen = '';
+  /** Moves actually played from startFen: yours (a mate on the last move counts) and the replies. */
+  readonly played: string[] = [];
 
   constructor(row: PuzzleRow) {
     [this.id, this.fen] = row;
@@ -35,6 +39,7 @@ export class PuzzleRun {
     const uci = this.line[0]!;
     this.chess.move(asMove(uci));
     this.idx = 1;
+    this.startFen = this.chess.fen();
     return uci;
   }
 
@@ -45,6 +50,16 @@ export class PuzzleRun {
 
   expected(): string {
     return this.line[this.idx] ?? '';
+  }
+
+  /** The current position, before your next move. */
+  currentFen(): string {
+    return this.chess.fen();
+  }
+
+  /** The rest of the correct line from here (Show answer, §B15). */
+  rest(): string[] {
+    return this.line.slice(this.idx);
   }
 
   expectedSan(): string {
@@ -66,10 +81,12 @@ export class PuzzleRun {
     }
     if (uci !== this.expected() && !mates) return { ok: false, done: true };
     this.chess.move(asMove(uci));
+    this.played.push(uci);
     this.idx++;
     if (this.idx >= this.line.length) return { ok: true, done: true };
     const reply = this.line[this.idx]!;
     this.chess.move(asMove(reply));
+    this.played.push(reply);
     this.idx++;
     return { ok: true, done: false, reply };
   }

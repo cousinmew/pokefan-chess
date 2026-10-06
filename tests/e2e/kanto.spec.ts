@@ -6,13 +6,15 @@ const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).
 
 async function solve(page: Page) {
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
-  for (let i = 0; i < 6 && (await phase(page)) !== 'over'; i++) {
+  for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     const uci = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzleAnswer()))!;
     await page.click(`[data-square="${uci.slice(0, 2)}"]`);
     await page.click(`[data-square="${uci.slice(2, 4)}"]`);
     if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply/);
   }
+  // The review moment (§B15) waits for Continue before the encounter.
+  await page.getByTestId('review-continue').click();
 }
 
 test.use({ viewport: { width: 360, height: 640 } });

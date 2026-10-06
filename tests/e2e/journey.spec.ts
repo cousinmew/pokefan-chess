@@ -12,8 +12,11 @@ async function solveOne(page: Page) {
     await page.click(`[data-square="${uci.slice(0, 2)}"]`);
     await page.click(`[data-square="${uci.slice(2, 4)}"]`);
     if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    await expect.poll(() => phase(page), { timeout: 10_000 }).toMatch(/player|over/);
+    await expect.poll(() => phase(page), { timeout: 10_000 }).toMatch(/player|review/);
   }
+  // The review moment (§B15) waits for Continue.
+  await expect.poll(() => phase(page), { timeout: 10_000 }).toBe('review');
+  await page.getByTestId('review-continue').click();
 }
 
 /** A whole trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */

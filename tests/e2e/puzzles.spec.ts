@@ -33,12 +33,13 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   page.on('pageerror', (e) => errors.push(e.message));
   await openPuzzles(page);
   await expect(page.getByTestId('trainer-rating')).toHaveText('Trainer Rating: about 600 (an estimate, not an official chess rating)');
-  for (let i = 0; i < 6 && (await phase(page)) !== 'over'; i++) {
+  for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     await playAnswer(page);
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('checking');
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('reply');
   }
   await expect(page.getByTestId('text-main')).toContainText('Solved!');
+  await expect(page.getByTestId('review')).toBeVisible();
   await expect(page.getByTestId('trainer-rating')).not.toHaveText(/about 600 /);
   expect(errors).toEqual([]);
 });
@@ -69,5 +70,6 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
   }
   expect(played).toBe(true);
   await expect(page.getByTestId('text-main')).toContainText('Not quite. The answer was');
-  expect(await phase(page)).toBe('over');
+  expect(await phase(page)).toBe('review');
+  await expect(page.getByTestId('review-answer')).toBeVisible();
 });

@@ -227,3 +227,14 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .kanto-map .node.challenge, .kanto-map .node.drill { background: #fff4e0; }
 .kanto-map .node.league, .kanto-map .node.champion { background: #f8e0e0; }
 .badge-line.won { color: #307030; font-weight: 700; }
+
+.board-wrap { position: relative; }
+.review-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+.review { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 3px solid var(--ink); border-radius: 6px; background: #fff; }
+.review[hidden] { display: none; }
+.review-text { margin: 0; font-weight: 700; font-size: 13px; }
+.review-nav, .review-acts { display: flex; gap: 6px; }
+.review-btn { min-height: 48px; min-width: 56px; font: inherit; font-size: 15px; font-weight: 700; border: 3px solid var(--ink); background: #fff; border-radius: 6px; cursor: pointer; flex: 1; }
+.review-btn[hidden] { display: none; }
+.review-btn.continue { background: #f8d030; }
+.review-btn:disabled { opacity: 0.4; }

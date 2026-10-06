@@ -56,3 +56,8 @@
 - The eight gyms with their leaders and badges, Victory Road checkmate drills, the Elite Four, Champion BLUE as a full game, and the Hall of Fame.
 - Every way to complete the Pokédex: starters from your rival, gifts, fossils, a prize, trade evolutions after online wins, the legendary birds, Mewtwo after the Champion, and Mew at 150.
 - Players from before the team rules keep their queen.
+
+## 1.8.0 (C4)
+
+- After every puzzle the game waits for you: the winning line replays with arrows and the key idea is drawn, or your mistake is shown with the reply that punishes it and a Show answer button. Step through with ◀ ▶.
+- The first four gyms need 3 of 5 to win.

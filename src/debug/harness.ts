@@ -87,6 +87,8 @@ export function installHarness(app: App): void {
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,
+    /** The last refutation shown in a review (§B15): position, reply, and whether Stockfish found it. */
+    refutation: () => app.puzzle.lastRefutation,
     /** True once every background sprite preload has decoded. */
     spritesReady: () => preloadSettled(),
     /** Sends a raw message to the relay (illegal move gate) and reads the last rejection. */
