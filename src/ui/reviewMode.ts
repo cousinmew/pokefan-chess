@@ -75,9 +75,9 @@ function panel(lang: string, key: StringKey): void {
   send.dataset.testid = 'i18n-send';
   send.onclick = async () => {
     send.disabled = true;
-    const ok = await sendFeedback({ kind: 'translation', ...context(lang), key, current: rawString(key), suggestion: better.value, note: note.value });
-    toast(ok ? 'feedback.thanks' : 'feedback.failed');
-    if (ok) p.remove();
+    const res = await sendFeedback({ kind: 'translation', ...context(lang), key, current: rawString(key), suggestion: better.value, note: note.value });
+    toast(res === 'sent' ? 'feedback.thanks' : 'relay.queued');
+    p.remove();
     send.disabled = false;
   };
   const close = el('button', 'secondary');

@@ -2,6 +2,7 @@
 // One Durable Object per room: the server is the source of truth (V4). Hibernating WebSockets, state in storage.
 import { DurableObject } from 'cloudflare:workers';
 import { EXPIRE_MS, nextAlarm } from './alarm';
+import { alarmAllowed, utcDay } from './budget';
 import { Chess } from 'chess.js';
 import { enforce } from './team';
 import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin, type Look } from './protocol';
@@ -14,11 +15,14 @@ export interface Env {
   FEEDBACK_TOKEN?: string;
   /** Local tests only (--var TEST_CLIENTS:1): X-Test-Client names the client for the rate limit. Never set in production. */
   TEST_CLIENTS?: string;
+  BUDGET: DurableObjectNamespace<import('./BudgetCounter').Budget>;
   ALLOWED_ORIGINS: string;
   RECONNECT_MS: string;
 }
 
 interface Data {
+  /** Alarms this room has had (§B23 item 3: at most ALARM_CAP in its life). */
+  alarms?: number;
   created: number;
   touched: number;
   moves: string[];
@@ -48,7 +52,9 @@ export class Room extends DurableObject<Env> {
   private async store(d: Data, touch = true): Promise<void> {
     if (touch) d.touched = Date.now();
     await this.ctx.storage.put('room', d);
-    await this.ctx.storage.setAlarm(nextAlarm(d, this.reconnectMs(), Date.now()));
+    // At most ALARM_CAP alarms in a room's life (§B23 item 3); after that it simply waits to be cleared.
+    if (alarmAllowed(d.alarms ?? 0)) await this.ctx.storage.setAlarm(nextAlarm(d, this.reconnectMs(), Date.now()));
+    else await this.ctx.storage.deleteAlarm();
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -91,7 +97,19 @@ export class Room extends DurableObject<Env> {
     }
   }
 
+  /** The room's own Durable Object requests for the day's budget (§B23 item 3): WebSocket messages bill 20 to 1. */
+  private used = 0;
+  private bill(n: number): void {
+    this.used += n;
+    if (this.used < 25) return;
+    const k = Math.floor(this.used);
+    this.used -= k;
+    const counter = this.env.BUDGET.get(this.env.BUDGET.idFromName('budget'));
+    this.ctx.waitUntil(counter.fetch(`https://budget/add?n=${k}&day=${utcDay(Date.now())}`).then(() => undefined, (err: unknown) => console.warn('budget add failed:', err instanceof Error ? err.message : err)));
+  }
+
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
+    this.bill(1 / 20);
     if (typeof raw !== 'string' || raw.length > 512) return;
     let msg: ClientMsg;
     try {
@@ -212,8 +230,15 @@ export class Room extends DurableObject<Env> {
 
   /** Reconnect deadline (V6) and room expiry. */
   async alarm(): Promise<void> {
+    this.bill(1);
     const d = await this.load();
     if (!d) return;
+    d.alarms = (d.alarms ?? 0) + 1;
+    if (!alarmAllowed(d.alarms)) {
+      // The 10th alarm: this room has had its life; clear it.
+      await this.ctx.storage.deleteAll();
+      return;
+    }
     const now = Date.now();
     if (now - d.touched >= EXPIRE_MS) {
       await this.ctx.storage.deleteAll();

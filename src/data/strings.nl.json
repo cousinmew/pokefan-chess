@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPTIES",
   "startmenu.quit": "OPSLAAN & STOPPEN",
-  "quick.note": "Spelen zonder opslag: er wordt niets bewaard en je reis blijft zoals hij is."
+  "quick.note": "Spelen zonder opslag: er wordt niets bewaard en je reis blijft zoals hij is.",
+  "relay.queued": "De server is nu niet bereikbaar. Je bericht is bewaard en wordt later verstuurd.",
+  "relay.down": "De server is nu niet bereikbaar. Probeer het later nog eens."
 }

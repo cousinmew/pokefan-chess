@@ -50,6 +50,7 @@ export class Feedback extends DurableObject<Env> {
     const hour = Math.floor(Date.now() / 3_600_000);
     const old = [...(await this.ctx.storage.list({ prefix: 'rl:' })).keys()].filter((k) => Number(k.split(':').pop()) < hour);
     if (old.length) await this.ctx.storage.delete(old);
-    await this.ctx.storage.setAlarm(Date.now() + 3_600_000);
+    // Only while there are counters to clear: an idle relay costs nothing.
+    if ((await this.ctx.storage.list({ prefix: 'rl:', limit: 1 })).size) await this.ctx.storage.setAlarm(Date.now() + 3_600_000);
   }
 }

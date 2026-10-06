@@ -20,6 +20,10 @@ class_name = "Vault"
 name = "FEEDBACK"
 class_name = "Feedback"
 
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "Budget"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
@@ -31,3 +35,7 @@ new_sqlite_classes = ["Vault"]
 [[migrations]]
 tag = "v3"
 new_sqlite_classes = ["Feedback"]
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["Budget"]

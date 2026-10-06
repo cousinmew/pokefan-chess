@@ -139,5 +139,17 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
     sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
     rows.prepend(sw);
   }
-  return screen('settings', el('h2', '', 'title.settings'), rows, ...extra, button('back', back, 'back', 'secondary'));
+  const view = screen('settings', el('h2', '', 'title.settings'), rows, ...extra, button('back', back, 'back', 'secondary'));
+  // B and Escape go back too (§B23 item 1), unless the player is typing.
+  const onKey = (e: KeyboardEvent) => {
+    if (!view.isConnected) return window.removeEventListener('keydown', onKey);
+    const t = e.target;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || document.querySelector('.start-overlay')) return;
+    if (e.key === 'Escape' || e.code === 'KeyB' || e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      back();
+    }
+  };
+  window.addEventListener('keydown', onKey);
+  return view;
 }

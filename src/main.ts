@@ -42,6 +42,7 @@ import { setCssVars } from './ui/cssVars';
 import { StartButton, type StartActions } from './ui/startButton';
 import { meirJoins } from './look';
 import { feedbackButton } from './ui/feedbackPanel';
+import { startFeedbackRetry } from './net/feedback';
 import { reviewFromUrl } from './ui/reviewMode';
 import { Fitter } from './ui/fit';
 import { firstYellowDefaults } from './cartridgeDefaults';
@@ -132,6 +133,7 @@ function boot(): App {
   applySettings();
   overlay.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   prewarmAudio(); // §B21 item 2: the first tap only resumes audio
+  startFeedbackRetry(); // feedback that could not be sent waits on the device (§B23 item 2)
   const unlock = () => sound.unlock();
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
@@ -323,7 +325,10 @@ function boot(): App {
   }
   if (cart) setCart(cart);
 
-  function showSettings(back: () => void = goTitle): void {
+  /** OPTION returns to where it was opened (§B23 item 1); a click handler passes its event as `backTo`, hence the check. */
+  function showSettings(backTo?: unknown): void {
+    const from = stage.firstElementChild as HTMLElement | null, id = from?.dataset.testid ?? '';
+    const back = typeof backTo === 'function' ? (backTo as () => void) : !from || ['screen-title', 'screen-yellow', 'screen-settings'].includes(id) ? goTitle : () => show(from);
     const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) };
     const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()];
     show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
@@ -378,10 +383,7 @@ function boot(): App {
   const vsComputer = () => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)));
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
-    online.close();
-    puzzle.stop();
-    path.stop();
-    leaveGuest();
+    for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest]) stop();
     journey.campaign = loadCampaign();
     flow.menu();
   }

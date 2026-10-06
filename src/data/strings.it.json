@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPZIONI",
   "startmenu.quit": "SALVA ED ESCI",
-  "quick.note": "Gioca senza salvataggio: non si salva nulla e il tuo viaggio resta com'è."
+  "quick.note": "Gioca senza salvataggio: non si salva nulla e il tuo viaggio resta com'è.",
+  "relay.queued": "Il server non è raggiungibile ora. Il tuo messaggio è salvato e partirà più tardi.",
+  "relay.down": "Il server non è raggiungibile ora. Riprova più tardi."
 }

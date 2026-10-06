@@ -9,3 +9,4 @@
 - Russian native review needed (strings.ru.json, glossary.ru.md): a few lines assume a boy ("ты добрался"); badges and generic place words are translated while proper names stay Latin; check that sentences around undeclined Latin names read naturally. Screenshots in docs/i18n/*-ru.png.
 - §B21: the new review lines, the FEEDBACK menu and "Board coordinates" are drafts in every language (Hebrew and Russian verbs assume a boy). Reviewer links: https://pokefanchess.com/?review=<lang>, then npm run feedback:pull.
 - §B22: try NEW GAME then BACK on a phone (the button is top left), and the START button on every screen. New strings (BACK, PLAY CHESS, the START items, the guest note) are drafts in every language.
+- §B23: the two relay messages are drafts in every language.

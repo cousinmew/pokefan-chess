@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPTIONS",
   "startmenu.quit": "SAUVER ET QUITTER",
-  "quick.note": "Joue sans sauvegarde : rien n'est gardé, et ton voyage ne change pas."
+  "quick.note": "Joue sans sauvegarde : rien n'est gardé, et ton voyage ne change pas.",
+  "relay.queued": "Impossible de joindre le serveur pour l'instant. Ton message est gardé et partira plus tard.",
+  "relay.down": "Impossible de joindre le serveur pour l'instant. Réessaie plus tard."
 }

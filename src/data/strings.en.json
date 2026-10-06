@@ -859,5 +859,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPTION",
   "startmenu.quit": "SAVE & QUIT",
-  "quick.note": "Play without a save: nothing is kept, and your Journey stays as it is."
+  "quick.note": "Play without a save: nothing is kept, and your Journey stays as it is.",
+  "relay.queued": "Can't reach the server right now. Your message is saved and will send later.",
+  "relay.down": "Can't reach the server right now. Please try again later."
 }

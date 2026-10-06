@@ -129,3 +129,9 @@
 - Change your mind during NEW GAME: BACK returns to the start menu with nothing saved.
 - A START button on every screen after the intro: Journey, VS Computer, VS Friend, Online, Pokédex, Option, Save & Quit.
 - PLAY CHESS: a quick game without a save.
+
+## 2.11.0 (options and relay)
+
+- BACK in OPTION works from everywhere (it did nothing from the YELLOW gear), and B or Escape go back too.
+- When the server can't be reached the game says so; feedback waits on the device and sends later.
+- The server protects its free daily allowance: past 80%, new rooms and feedback wait for tomorrow while games in progress finish.

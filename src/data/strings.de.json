@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPTIONEN",
   "startmenu.quit": "SPEICHERN & BEENDEN",
-  "quick.note": "Spielen ohne Spielstand: Nichts wird gespeichert, deine Reise bleibt, wie sie ist."
+  "quick.note": "Spielen ohne Spielstand: Nichts wird gespeichert, deine Reise bleibt, wie sie ist.",
+  "relay.queued": "Der Server ist gerade nicht erreichbar. Deine Nachricht ist gespeichert und wird später gesendet.",
+  "relay.down": "Der Server ist gerade nicht erreichbar. Versuch es später noch einmal."
 }

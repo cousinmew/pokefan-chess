@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPÇÕES",
   "startmenu.quit": "SALVAR E SAIR",
-  "quick.note": "Jogue sem salvar: nada fica guardado e sua jornada continua igual."
+  "quick.note": "Jogue sem salvar: nada fica guardado e sua jornada continua igual.",
+  "relay.queued": "Não dá para falar com o servidor agora. Sua mensagem está guardada e será enviada depois.",
+  "relay.down": "Não dá para falar com o servidor agora. Tente de novo mais tarde."
 }

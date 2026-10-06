@@ -54,7 +54,10 @@ export class OnlineGame {
     this.queue = [];
     this.applied = [];
     this.host.show(message('online.joining', () => this.leave(), { code }));
-    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'), this.host.mySkin(), this.host.myLook());
+    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'), this.host.mySkin(), this.host.myLook(), () => {
+      this.client = null;
+      this.host.show(message('relay.down', () => this.host.goTitle()));
+    });
   }
 
   close(): void {

@@ -30,7 +30,7 @@ export class Modes {
             (code) => online.join(code),
             (err: unknown) => {
               console.warn('relay unavailable:', err instanceof Error ? err.message : err);
-              show(message('online.offline', goTitle));
+              show(message('relay.down', goTitle));
             },
           );
         },

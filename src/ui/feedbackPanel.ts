@@ -18,9 +18,10 @@ export function feedbackButton(): HTMLElement {
     text.placeholder = fmt('feedback.hint');
     text.dataset.testid = 'feedback-text';
     const send = (kind: FeedbackNote['kind']) => async () => {
-      const ok = await sendFeedback({ kind, ...context(currentLang()), text: text.value.slice(0, FEEDBACK_TEXT_MAX) });
-      toast(ok ? 'feedback.thanks' : 'feedback.failed');
-      if (ok) box.replaceChildren(open);
+      // Sent, or kept on the device to send later (§B23 item 2): either way the note is safe.
+      const res = await sendFeedback({ kind, ...context(currentLang()), text: text.value.slice(0, FEEDBACK_TEXT_MAX) });
+      toast(res === 'sent' ? 'feedback.thanks' : 'relay.queued');
+      box.replaceChildren(open);
     };
     const row = el('div', 'feedback-kinds');
     row.append(button('feedback.bug', send('bug'), 'feedback-bug'), button('feedback.hard', send('hard'), 'feedback-hard'), button('feedback.fun', send('fun'), 'feedback-fun'));

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Relay client: create a room, one WebSocket per player, automatic reconnect with a per tab session token (V6).
 import { RECONNECT_BACKOFF_MS, RELAY_URL } from '../config';
+
+const RELAY_DOWN_TRIES = 3;
 import { load, save } from '../store/persist';
 import type { ClientMsg, Look, ServerMsg, Skin } from '../../worker/src/protocol';
 
@@ -52,6 +54,7 @@ export class OnlineClient {
   private ws: WebSocket | null = null;
   private stopped = false;
   private tries = 0;
+  private opened = false;
   private readonly token: string;
 
   constructor(
@@ -60,6 +63,8 @@ export class OnlineClient {
     private readonly onLink: (up: boolean) => void,
     private readonly skin: Skin = {},
     private readonly look: Look = {},
+    /** The relay never answered (§B23 item 2): called once after RELAY_DOWN_TRIES failed connects, then it stops. */
+    private readonly onDown: () => void = () => undefined,
   ) {
     this.token = sessionToken(code);
     this.connect();
@@ -80,6 +85,7 @@ export class OnlineClient {
     this.ws = ws;
     ws.onopen = () => {
       this.tries = 0;
+      this.opened = true;
       this.onLink(true);
       ws.send(JSON.stringify({ type: 'join', token: this.token, skin: this.skin, look: this.look } satisfies ClientMsg));
     };
@@ -101,6 +107,11 @@ export class OnlineClient {
       // full (4409). Reconnecting would take the seat back and start a loop between the two tabs, each round a
       // Durable Object request, enough to use up the free daily allowance. Stop instead.
       if (e.code === 4000 || e.code === 4409) return void (this.stopped = true);
+      // Never reached at all (the relay is down or over its daily budget): say so instead of retrying forever.
+      if (!this.opened && this.tries >= RELAY_DOWN_TRIES) {
+        this.stopped = true;
+        return this.onDown();
+      }
       const delay = RECONNECT_BACKOFF_MS[Math.min(this.tries++, RECONNECT_BACKOFF_MS.length - 1)];
       window.setTimeout(() => !this.stopped && this.connect(), delay);
     };

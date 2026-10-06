@@ -860,5 +860,7 @@
   "startmenu.dex": "POKéDEX",
   "startmenu.option": "OPCIONES",
   "startmenu.quit": "GUARDAR Y SALIR",
-  "quick.note": "Juega sin partida guardada: no se guarda nada y tu viaje sigue igual."
+  "quick.note": "Juega sin partida guardada: no se guarda nada y tu viaje sigue igual.",
+  "relay.queued": "No se puede conectar con el servidor ahora. Tu mensaje está guardado y se enviará más tarde.",
+  "relay.down": "No se puede conectar con el servidor ahora. Inténtalo más tarde."
 }

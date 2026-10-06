@@ -50,7 +50,7 @@ export function saveSection(a: SaveActions): HTMLElement {
       showCode(code);
     } catch (err) {
       console.warn('save code upload failed:', err instanceof Error ? err.message : err);
-      toast('save.code.offline');
+      toast('relay.down');
     }
     make.disabled = false;
   }, 'save-code-make');
@@ -74,7 +74,7 @@ export function saveSection(a: SaveActions): HTMLElement {
       a.restored();
     } catch (err) {
       console.warn('save code restore failed:', err instanceof Error ? err.message : err);
-      toast('save.code.offline');
+      toast('relay.down');
     }
   }, 'save-code-restore', 'secondary');
   const restoreRow = el('div', 'save-row');
