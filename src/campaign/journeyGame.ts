@@ -73,8 +73,15 @@ export class JourneyGame {
     const lines = PLACES[0]!.story!.map((k) => fmt(k));
     const afterIntro = () => {
       this.set({ ...this.campaign, introSeen: true });
+      // Typing MEIR at the name step unlocks MEIR as your trainer too (fix 1).
+      const meir = () => {
+        save('trainer', 'meir');
+        sound.shimmer();
+        toast('secret.meir');
+      };
       this.host.show(
         nameScreen((name) => {
+          if (name === 'MEIR') meir();
           this.set({ ...this.campaign, name });
           this.host.show(
             oakScreen((id) => {
@@ -85,7 +92,7 @@ export class JourneyGame {
               personSprite('oak'));
             }, () => this.host.goTitle()),
           );
-        }, () => this.host.goTitle(), personSprite('red')),
+        }, () => this.host.goTitle(), personSprite('red'), true),
       );
     };
     this.host.show(oakIntro(lines, personSprite('oak'), this.campaign.introSeen, afterIntro));

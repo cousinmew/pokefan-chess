@@ -100,3 +100,9 @@
 - The level pickers show who you will face at each level, and your own trainer opposite.
 - Trainers step into the battle screen behind their Pokémon ("Go!", "Oh no!"); in Quick mode the reactions show on the name plates.
 - Name plates show titles: "GIOVANNI · Boss", "MEIR · Trainer".
+
+## 2.6.0 (three fixes)
+
+- The secret code works on every keyboard and layout, shows its progress as ten dots, and typing MEIR at the name step works too.
+- Menus and starters appear sooner on slow connections: one icon sheet, starters first, battle sprites in idle time, smaller WebP sprites where they help, and a sprite cache after the first visit.
+- YELLOW has My Team: pick stickers for each piece, with 30 stickers unlocked in a fixed order by lessons and then wins.

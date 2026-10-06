@@ -1,0 +1,8 @@
+{
+  "_note": "YELLOW's linear sticker unlocks (fix 3): one per finished Pikachu's Path lesson, then one per win vs Computer. Mixed first stages (pawns) and final forms (rooks, knights, bishops, queen) so every slot gets an option early. No randomness.",
+  "unlocks": [
+    "bulbasaur", "squirtle", "charmander", "onix", "meowth", "snorlax", "psyduck", "machamp", "jigglypuff", "gengar",
+    "clefairy", "lapras", "abra", "dragonite", "geodude", "gyarados", "vulpix", "alakazam", "growlithe", "arcanine",
+    "oddish", "golem", "cubone", "ninetales", "magikarp", "scyther", "poliwag", "tauros", "dratini", "mewtwo"
+  ]
+}

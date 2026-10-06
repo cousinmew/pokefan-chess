@@ -805,5 +805,13 @@
   "say.go": "Vai!",
   "say.ohno": "Oh no!",
   "say.yes": "Sì!",
-  "level.vs": "VS"
+  "level.vs": "VS",
+  "yellow.team": "La mia squadra",
+  "yellow.team.sub": "Scegli i Pokémon!",
+  "yellow.team.pick": "Tocca un pezzo, poi un adesivo.",
+  "yellow.classic": "Squadra classica",
+  "yellow.next.lesson": "Finisci la lezione per avere {name}!",
+  "yellow.next.win": "Vinci una partita per {name}!",
+  "yellow.unlocked": "Hai preso {name}!",
+  "yellow.none": "Ancora nessun adesivo qui."
 }

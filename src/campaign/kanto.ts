@@ -111,6 +111,9 @@ export interface Campaign {
   rewards: string[];
   /** Pikachu's Path lessons finished (YELLOW, §B17). */
   path: number;
+  /** YELLOW wins vs Computer after the 12 lessons, and how many linear unlocks are already in the sticker book. */
+  yellowWins: number;
+  yellowGiven: number;
 }
 
 export const TEAM_RULES_VERSION = 2;
@@ -125,7 +128,7 @@ const fresh = (): Campaign => ({
   v: CAMPAIGN_VERSION, name: '', starter: null, caught: {}, shiny: {}, oak: {}, candy: {}, seen: [], caughtAt: {}, routes: {},
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
   badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
-  queenOpen: false, champion: false, hallOfFame: [], rewards: [], path: 0,
+  queenOpen: false, champion: false, hallOfFame: [], rewards: [], path: 0, yellowWins: 0, yellowGiven: 0,
 });
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:

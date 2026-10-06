@@ -5,7 +5,7 @@ import { LESSON_COUNT } from '../campaign/path';
 import { LANGS, fmt, type Lang, type StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 import { pixelIcon } from './icons';
-import { codeReader, dpad, listenForCode } from './secret';
+import { codeDots, codeReader, dpad, listenForCode } from './secret';
 import { faceoff, opponentTag } from './ladder';
 import type { Faces } from './screens';
 import { mon } from './kanto';
@@ -16,12 +16,12 @@ export type Cartridge = 'yellow' | 'blue';
 const LABEL_TAPS = 3;
 const LABEL_TAP_MS = 400;
 
-function cartridge(kind: Cartridge, pick: () => void, secret?: () => void): HTMLElement {
+function cartridge(kind: Cartridge, pick: () => void, secret?: () => void, dots?: HTMLElement): HTMLElement {
   const b = el('button', `cartridge ${kind}`);
   b.type = 'button';
   b.dataset.testid = `cart-${kind}`;
   const label = el('span', 'cart-label');
-  label.append(el('b', '', `shelf.${kind}.name` as StringKey), el('small', '', `shelf.${kind}.sub` as StringKey));
+  label.append(el('b', '', `shelf.${kind}.name` as StringKey), el('small', '', `shelf.${kind}.sub` as StringKey), ...(dots ? [dots] : []));
   b.append(el('span', 'cart-notch'), label, el('span', 'cart-pins'));
   let taps = 0;
   let timer = 0;
@@ -82,12 +82,13 @@ export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTML
 export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void, unlock: () => void): HTMLElement {
   const row = el('div', 'shelf');
   const read = codeReader();
+  const dots = codeDots();
   const view = screen('shelf');
-  const openPad = () => view.querySelector('.dpad') ?? row.after(dpad(read, unlock));
-  row.append(cartridge('yellow', () => pick('yellow'), openPad), cartridge('blue', () => pick('blue')));
+  const openPad = () => view.querySelector('.dpad') ?? row.after(dpad(read, unlock, dots));
+  row.append(cartridge('yellow', () => pick('yellow'), openPad, dots.el), cartridge('blue', () => pick('blue')));
   const picker = langPicker(current, lang);
   view.append(langButton(current, lang, picker), el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
-  listenForCode(view, unlock, read);
+  listenForCode(view, unlock, read, dots);
   return view;
 }
 
@@ -119,16 +120,18 @@ export interface YellowActions {
   unlock(): void;
   learn(): void;
   friend(): void;
+  /** My Team (fix 3). */
+  team(): void;
   settings(): void;
 }
 
-/** YELLOW home: three huge tiles and a small gear. No Online, Training, My Team or Trainer Card. */
+/** YELLOW home: four huge tiles (Play, Learn, Friend, My Team) and a small gear. No Online, Training or Trainer Card. */
 export function yellowHome(a: YellowActions): HTMLElement {
-  const tile = (id: 'play' | 'learn' | 'friend', icon: string, fn: () => void) => {
+  const tile = (id: 'play' | 'learn' | 'friend' | 'team', icon: string, fn: () => void) => {
     const t = el('button', `big-tile big-${id}`);
     t.type = 'button';
     t.dataset.testid = `yellow-${id}`;
-    t.append(mon(icon, 'big-mon', false, false, true), el('b', '', `yellow.${id}` as StringKey), el('span', '', `yellow.${id}.sub` as StringKey));
+    t.append(icon === 'book' ? pixelIcon('book', 'big-mon book-icon') : mon(icon, 'big-mon', false, false, true), el('b', '', `yellow.${id}` as StringKey), el('span', '', `yellow.${id}.sub` as StringKey));
     t.onclick = fn;
     return t;
   };
@@ -140,8 +143,10 @@ export function yellowHome(a: YellowActions): HTMLElement {
   gear.onclick = a.settings;
   const top = el('div', 'yellow-top');
   top.append(a.lang, gear);
-  const view = screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend));
-  listenForCode(view, a.unlock);
+  const dots = codeDots();
+  top.prepend(dots.el);
+  const view = screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend), tile('team', 'book', a.team));
+  listenForCode(view, a.unlock, undefined, dots);
   return view;
 }
 

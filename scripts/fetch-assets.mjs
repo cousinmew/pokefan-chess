@@ -36,7 +36,8 @@ const trainerMap = JSON.parse(readFileSync('src/data/trainers.json', 'utf8'));
 for (const sprite of new Set([...Object.values(trainerMap.people), ...Object.values(trainerMap.classes)])) jobs.push([`${TRAINERS}${sprite}.png`, `trainers/${sprite}.png`]);
 
 // Hub icons (§B16 addendum): PokeAPI item sprites, checked 6 Oct 2026. The rest are original SVGs in src/ui/icons.ts.
-const ITEMS = ['town-map', 'teachy-tv', 'poke-ball', 'vs-seeker', 'card-key', 'tm-normal', 'oaks-parcel'];
+const HUB = JSON.parse(readFileSync('src/data/hub-items.json', 'utf8'));
+const ITEMS = HUB.items;
 for (const item of ITEMS) jobs.push([`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${item}.png`, `items/${item}.png`]);
 
 let hasFfmpeg = true;
@@ -77,6 +78,39 @@ if (missing.length) {
   console.error(`fetch-assets: missing ${missing.length}: ${missing.join(', ')}`);
   process.exit(1);
 }
+
+// Faster first paint (load fix): the hub's item icons packed into one sheet (one request, preloaded by index.html),
+// and an animated WebP next to every Pokémon GIF where it is smaller (the GIF stays as the fallback).
+const sharp = (await import('sharp')).default;
+const cell = HUB.cell;
+const sheet = join(OUT, 'items/hub-sheet.png');
+await sharp({ create: { width: cell * ITEMS.length, height: cell, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+  .composite(
+    await Promise.all(
+      ITEMS.map(async (item, i) => {
+        const m = await sharp(join(OUT, `items/${item}.png`)).metadata();
+        return { input: join(OUT, `items/${item}.png`), left: i * cell + Math.floor((cell - m.width) / 2), top: Math.floor((cell - m.height) / 2) };
+      }),
+    ),
+  )
+  .png()
+  .toFile(sheet);
+let webp = 0;
+for (const sub of ['front', 'back', 'shiny/front', 'shiny/back']) {
+  const dir = join(OUT, sub);
+  if (!existsSync(dir)) continue;
+  for (const f of execFileSync('ls', [dir], { encoding: 'utf8' }).split('\n').filter((x) => x.endsWith('.gif'))) {
+    const gif = join(dir, f);
+    const out = gif.replace(/\.gif$/, '.webp');
+    if (existsSync(out)) continue;
+    const buf = await sharp(gif, { animated: true }).webp({ lossless: true, effort: 6, minSize: true }).toBuffer();
+    if (buf.length < statSync(gif).size) {
+      writeFileSync(out, buf);
+      webp++;
+    }
+  }
+}
+console.log(`fetch-assets: hub sheet ${ITEMS.length} icons, ${webp} new WebP sprites`);
 
 const files = [];
 const walk = (dir) => {

@@ -3,7 +3,7 @@
 import './style.css';
 import { LEGEND_FIRST_GAMES, YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
-import { speciesFor, teamOf, type Color, type Role } from './board/pieces';
+import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { sound } from './audio/audio';
@@ -39,13 +39,16 @@ import { profileScreen } from './ui/profiles';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
+import { YellowMode } from './campaign/yellowMode';
+import { warmHubSheet } from './ui/icons';
+import { preloadNow, releaseIdle } from './ui/loader';
 import { endPanel, promotionPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
 import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
-import { loadCampaign, saveCampaign } from './campaign/kanto';
+import { loadCampaign, saveCampaign, STARTERS } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { normalizeCode } from './net/online';
@@ -114,6 +117,11 @@ function boot(): App {
   // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
   bootProfiles();
   registerShell();
+  // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
+  warmHubSheet();
+  preloadNow(STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)]), releaseIdle);
+  // An animated WebP the browser cannot show falls back to its GIF.
+  document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
   applyLanguage(savedLang(), false);
   let cart = load<Cartridge>('cartridge');
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
@@ -301,6 +309,7 @@ function boot(): App {
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
     plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks }, (k) => fmt(k as StringKey)), board.orientation);
+  const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
   const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey));
   const unlockMeir = () => {
     save('trainer', 'meir');
@@ -390,6 +399,7 @@ function boot(): App {
   const tryMode = (p: Page) => modes.tryIt(p);
 
   function goTitle(): void {
+    journey.campaign = loadCampaign(); // YELLOW's path and team write the save directly
     online.close();
     puzzle.stop();
     path.stop();
@@ -404,6 +414,7 @@ function boot(): App {
         play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))),
         learn: () => path.open(),
         friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+        team: () => yellowMode.team(),
         settings: showSettings,
       });
       return show(decorateHome(home, el('span')));
@@ -440,7 +451,9 @@ function boot(): App {
 
   function configure(setup: Setup): void {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
-    if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
+    const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
+    if (ys) setSkins(ys);
+    else if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
@@ -648,6 +661,7 @@ function boot(): App {
     // An online win evolves trade Pokémon on your team (§B12).
     if (app.mode === 'online' && end.winner === app.human) journey.onlineWin();
     if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
+    if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
     if (end.reason === 'checkmate') {
       const king = game.checkedKing();
       const img = king ? board.squareEl(king)?.querySelector('.piece') : null;

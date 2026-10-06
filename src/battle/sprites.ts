@@ -3,6 +3,7 @@
 import roster from '../data/roster.gen1.json';
 import { BATTLE } from '../config';
 import { species, spriteUrl, type SpeciesId } from '../board/pieces';
+import { idleDrained, whenIdle } from '../ui/loader';
 
 interface Entry {
   img: HTMLImageElement;
@@ -30,16 +31,18 @@ function entry(url: string): Entry {
   return e;
 }
 
-/** Starts loading all 28 battle GIFs (14 front, 14 back) in the background. */
+/** Queues all 28 battle sprites (14 front, 14 back) for idle time, after the menus (load fix). A battle that starts
+ * first loads its own two sprites straight away. */
 export function preloadBattleSprites(): void {
   for (const s of Object.values(roster.species)) {
-    entry(spriteUrl(s.dex, 'front'));
-    entry(spriteUrl(s.dex, 'back'));
+    whenIdle(() => entry(spriteUrl(s.dex, 'front')).ok);
+    whenIdle(() => entry(spriteUrl(s.dex, 'back')).ok);
   }
 }
 
 /** Resolves when every preload started so far has settled; true when all decoded. */
 export async function preloadSettled(): Promise<boolean> {
+  await idleDrained();
   return (await Promise.all([...cache.values()].map((e) => e.ok))).every(Boolean);
 }
 

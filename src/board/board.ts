@@ -266,6 +266,8 @@ function pieceImg(sp: Species, animate: boolean, faded: boolean): HTMLImageEleme
   img.className = `piece${faded ? ' faded' : ''}`;
   img.alt = sp.name;
   img.draggable = false;
+  // Lazy: the board is built before it is shown, and its sprites must not hold up the menu's (load fix).
+  img.loading = 'lazy';
   const set = animate ? (sp.shiny ? 'shiny/front' : 'front') : sp.shiny ? 'static/shiny' : 'static/front';
   img.src = animate ? spriteUrl(sp.dex, 'front', sp.shiny) : `${ASSET_BASE}static/${sp.shiny ? 'shiny' : 'front'}/${sp.dex}.png`;
   const b = TRIM[set]?.[String(sp.dex)];

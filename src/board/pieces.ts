@@ -139,7 +139,11 @@ export function speciesFor(color: Color, role: Role, square: string): Species {
   return species(speciesIdFor(color, role, square));
 }
 
+const WEBP = new Set<string>(typeof __WEBP__ === 'undefined' ? [] : __WEBP__);
+
+/** Animated sprites are WebP where that file is smaller, else GIF; a WebP that fails falls back to the GIF (main.ts). */
 export function spriteUrl(dex: number, kind: 'front' | 'back' | 'retro' = 'front', shiny = false): string {
   if (kind === 'retro') return `${ASSET_BASE}retro/${dex}.png`;
-  return `${ASSET_BASE}${shiny ? 'shiny/' : ''}${kind}/${dex}.gif`;
+  const path = `${shiny ? 'shiny/' : ''}${kind}/${dex}`;
+  return `${ASSET_BASE}${path}.${WEBP.has(path) ? 'webp' : 'gif'}`;
 }

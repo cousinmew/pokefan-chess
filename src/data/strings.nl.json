@@ -805,5 +805,13 @@
   "say.go": "Ga!",
   "say.ohno": "O nee!",
   "say.yes": "Ja!",
-  "level.vs": "VS"
+  "level.vs": "VS",
+  "yellow.team": "Mijn team",
+  "yellow.team.sub": "Kies je Pokémon!",
+  "yellow.team.pick": "Tik een stuk, dan een sticker.",
+  "yellow.classic": "Klassiek team",
+  "yellow.next.lesson": "Maak de les af voor {name}!",
+  "yellow.next.win": "Win een potje voor {name}!",
+  "yellow.unlocked": "Je hebt {name}!",
+  "yellow.none": "Nog geen sticker hiervoor."
 }

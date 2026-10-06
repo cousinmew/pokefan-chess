@@ -805,5 +805,13 @@
   "say.go": "いけ！",
   "say.ohno": "ああっ！",
   "say.yes": "やった！",
-  "level.vs": "VS"
+  "level.vs": "VS",
+  "yellow.team": "マイチーム",
+  "yellow.team.sub": "ポケモンをえらぼう！",
+  "yellow.team.pick": "こま→シールをタッチ！",
+  "yellow.classic": "いつものチーム",
+  "yellow.next.lesson": "つぎのレッスンで{name}！",
+  "yellow.next.win": "かつと{name}がもらえる！",
+  "yellow.unlocked": "{name}をゲット！",
+  "yellow.none": "まだシールがないよ。"
 }

@@ -292,6 +292,7 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 /* Item sprites are 30 px (shown 2x); pixel SVGs are 16 px wide (shown 3x). */
 .tile-icon { image-rendering: pixelated; }
 .tile-icon.item-icon { width: 60px; height: 60px; object-fit: contain; }
+.sheet-icon { display: inline-block; flex: none; background-repeat: no-repeat; image-rendering: pixelated; }
 .tile-icon.pixel-svg { flex: none; }
 .help-icon { width: 30px; height: 30px; image-rendering: pixelated; }
 .tile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -498,3 +499,25 @@ body.cart-yellow .textbox { min-height: 56px; }
 .big-level .opponent { margin: 0; }
 .big-level .opponent-sprite { width: 56px; height: 56px; }
 
+/* Secret code progress (fix 1): ten dots under the YELLOW label that fill, and shake and clear on a slip. */
+.code-dots { display: flex; justify-content: center; gap: 3px; margin-top: 4px; opacity: 0.35; }
+.code-dots.active { opacity: 1; }
+.code-dot { width: 7px; height: 7px; border: 1.5px solid var(--ink); border-radius: 50%; background: #fff; }
+.code-dot.on { background: var(--ink); }
+.code-dots.shake { animation: plate-shake 360ms linear; }
+.yellow-top .code-dots { margin: 0 auto 0 0; align-self: center; }
+/* YELLOW My Team (fix 3). */
+.big-team { background: #f8c0d8; }
+.book-icon { width: 80px; height: 80px; }
+.yslots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
+.yslot { position: relative; display: flex; flex-direction: column; align-items: center; padding: 4px 0; font: inherit; border: 3px solid var(--ink); border-radius: 12px; background: #fff; cursor: pointer; }
+.yslot.on { background: #f8d030; box-shadow: 0 0 0 3px #3050f0; }
+.yslot .menu-sprite { width: 56px; height: 56px; }
+.yslot-glyph { font-size: 22px; line-height: 1; }
+.ystickers { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; width: 100%; }
+.ysticker { padding: 2px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; cursor: pointer; }
+.ysticker.on { background: #c8e8a0; }
+.ysticker .menu-sprite { width: 56px; height: 56px; }
+.ynext { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; box-sizing: border-box; border: 3px dashed var(--ink); border-radius: 12px; background: #fffbe0; }
+.ynext p { margin: 0; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .code-dots.shake { animation: none; } }

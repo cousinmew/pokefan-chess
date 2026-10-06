@@ -805,5 +805,13 @@
   "say.go": "קדימה!",
   "say.ohno": "אוי לא!",
   "say.yes": "יש!",
-  "level.vs": "VS"
+  "level.vs": "VS",
+  "yellow.team": "הקבוצה שלי",
+  "yellow.team.sub": "בחרו פוקימונים!",
+  "yellow.team.pick": "געו בכלי, ואז במדבקה.",
+  "yellow.classic": "הקבוצה הרגילה",
+  "yellow.next.lesson": "סיימו את השיעור הבא וקבלו את {name}!",
+  "yellow.next.win": "נצחו משחק וקבלו את {name}!",
+  "yellow.unlocked": "קיבלתם את {name}!",
+  "yellow.none": "עוד אין מדבקה לכלי הזה."
 }

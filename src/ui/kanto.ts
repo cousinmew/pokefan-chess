@@ -9,6 +9,7 @@ import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
 import { whyNot } from '../../worker/src/team';
 import { myTrainer, trainerSpriteId } from '../look';
+import { listenForWord } from './secret';
 
 /** A Pokémon sprite that is never an empty box (§B14 bug): the tiny Gen 1 sprite shows while the animated GIF
  * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. */
@@ -87,12 +88,14 @@ export function story(host: HTMLElement, texts: string[], done: () => void, spri
   host.hidden = false;
 }
 
-export function nameScreen(pick: (name: string) => void, back: () => void, red?: string): HTMLElement {
+export function nameScreen(pick: (name: string) => void, back: () => void, red?: string, meir = false): HTMLElement {
   const row = el('div', 'buttons');
   for (let i = 1; i <= 6; i++) row.append(button(`name.${i}` as StringKey, () => pick(fmt(`name.${i}` as StringKey)), `name-${i}`));
   const side = el('div', 'name-step');
   side.append(trainerSprite(red, 'trainer-sprite slide-in'), row);
-  return screen('name', el('h2', '', 'name.choose'), side, button('back', back, 'back', 'secondary'));
+  const view = screen('name', el('h2', '', 'name.choose'), side, button('back', back, 'back', 'secondary'));
+  if (meir) listenForWord(view, 'MEIR', () => pick('MEIR'));
+  return view;
 }
 
 export function oakScreen(pick: (id: string) => void, back: () => void): HTMLElement {

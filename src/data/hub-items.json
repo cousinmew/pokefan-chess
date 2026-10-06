@@ -1,0 +1,5 @@
+{
+  "_note": "Order of the PokeAPI item icons in assets/items/hub-sheet.png (30 px cells), packed by scripts/fetch-assets.mjs",
+  "cell": 30,
+  "items": ["town-map", "teachy-tv", "poke-ball", "vs-seeker", "card-key", "tm-normal", "oaks-parcel"]
+}

@@ -72,7 +72,7 @@ if (run('G5')) {
 }
 if (run('G6')) {
   const re = /\b(ads|donate|sponsor|paypal|ko-fi|analytics|gtag)\b/i;
-  const text = (f) => !/\.(wasm|png|gif|ogg|mp3|ico)$/.test(f); // binaries hold random byte runs like "aDs"
+  const text = (f) => !/\.(wasm|png|gif|webp|ogg|mp3|ico)$/.test(f); // binaries hold random byte runs like "aDs"
   for (const f of [...src, ...dist].filter(text)) if (re.test(read(f))) fails.push(`G6: forbidden string in ${f}`);
 }
 

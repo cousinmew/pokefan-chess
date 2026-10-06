@@ -6,7 +6,8 @@ import type { Rng } from '../game/rng';
 import { fmt, type StringKey } from '../game/text';
 import { button, el } from '../ui/dom';
 import { pathScreen, stickerPanel } from '../ui/shelf';
-import { addCatch, loadCampaign, rollSlot, ROUTES, saveCampaign, type Campaign } from './kanto';
+import { loadCampaign, saveCampaign, type Campaign } from './kanto';
+import { grantUnlocks, UNLOCKS } from './yellowTeam';
 import { AUTHORED, hintMove, meets, mateLessons, type Lesson, type PathPuzzle } from './path';
 import { pool } from './trainer';
 
@@ -118,16 +119,17 @@ export class PathGame {
     this.finish(this.lesson.n);
   }
 
-  /** Lesson done: one guaranteed sticker from Route 1 or Viridian Forest, then back to the path. */
+  /** Lesson done: the next sticker from YELLOW's fixed list (fix 3, no chance), then back to the path. A replayed
+   * lesson shows the sticker it gave the first time. */
   private finish(n: number): void {
     this.stop();
-    const route = ROUTES[this.host.rng.next() < 0.5 ? 0 : 1]!;
-    const slot = rollSlot(route, this.host.rng);
     const c = this.campaign;
-    saveCampaign({ ...addCatch(c, slot.species, false, route.id), path: Math.max(c.path, n) });
+    const { campaign, got } = grantUnlocks({ ...c, path: Math.max(c.path, n) });
+    saveCampaign(campaign);
+    const id = got[0] ?? UNLOCKS[Math.min(n, UNLOCKS.length) - 1]!;
     const modal = this.host.modal;
     modal.replaceChildren(
-      stickerPanel(slot.species, SPECIES[slot.species]!.name, () => {
+      stickerPanel(id, SPECIES[id]!.name, () => {
         modal.hidden = true;
         this.open();
       }),

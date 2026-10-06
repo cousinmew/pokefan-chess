@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Home hub icons (§B16 addendum): PokeAPI item sprites where one exists, else original 16 px pixel art drawn here
 // in the same style. Every icon renders at 2x or 3x, pixelated.
+import hubItems from '../data/hub-items.json';
 const PAL: Record<string, string> = { K: '#181818', R: '#e03030', W: '#f8f8f8', G: '#a0a0a0', B: '#58a8f8', S: '#b8e0a0', D: '#802020', Y: '#f0c020' };
 
 const BALL = ['..KKK..', '.KRRRK.', 'KRRRRRK', 'KKKWKKK', 'KWWWWWK', '.KWWWK.', '..KKK..'];
@@ -16,6 +17,8 @@ const ART: Record<string, string[]> = {
   // A row of six Poké Balls (My Team): six 4 px balls, so the row is 29 px wide (drawn at 2x).
   'six-balls': [...['.KK.', 'KRRK', 'KKKK', 'KWWK', '.KK.'].map((r) => [r, r, r, r, r, r].join('.'))],
   // A simple gear (Settings).
+  // A sticker book with a star (YELLOW My Team).
+  book: ['................', '..KKKKKKKKKKKK..', '.KYYYYYYYYYYYYK.', '.KYYYYYKYYYYYYK.', '.KYYYYKRKYYYYYK.', '.KYKKKRRRKKKYYK.', '.KYKRRRRRRRKYYK.', '.KYYKRRRRRKYYYK.', '.KYYKRRKRRKYYYK.', '.KYKRKYYYKRKYYK.', '.KYKKYYYYYKKYYK.', '.KYYYYYYYYYYYYK.', '.KKKKKKKKKKKKKK.', '.KWWWWWWWWWWWWK.', '..KKKKKKKKKKKK..', '................'],
   gear: ['.......KK.......', '....K..KK..K....', '...KKKKKKKKKK...', '....KGGGGGGK....', '..KKGGGKKGGGKK..', '..KGGKK..KKGGK..', 'KKKGGK....KGGKKK', 'KKKGGK....KGGKKK', '..KGGKK..KKGGK..', '..KKGGGKKGGGKK..', '....KGGGGGGK....', '...KKKKKKKKKK...', '....K..KK..K....', '.......KK.......', '................', '................'],
 };
 
@@ -52,11 +55,26 @@ export function pixelIcon(name: PixelIcon, cls = 'tile-icon'): SVGSVGElement {
 }
 
 /** A PokeAPI item sprite from assets/items/ (fetched at build time, never hotlinked). */
-export function itemIcon(item: string, cls = 'tile-icon'): HTMLImageElement {
-  const img = document.createElement('img');
-  img.className = `${cls} item-icon`;
-  img.src = `assets/items/${item}.png`;
-  img.alt = '';
-  img.dataset.icon = item;
-  return img;
+/** The hub's item icons come from one sheet (assets/items/hub-sheet.png, preloaded by index.html). */
+export const HUB_SHEET = 'assets/items/hub-sheet.png';
+
+export function itemIcon(item: string, cls = 'tile-icon'): HTMLElement {
+  const i = hubItems.items.indexOf(item);
+  const n = hubItems.items.length;
+  const span = document.createElement('span');
+  span.className = `${cls} item-icon sheet-icon`;
+  span.setAttribute('aria-hidden', 'true');
+  span.dataset.icon = item;
+  span.style.backgroundImage = `url("${HUB_SHEET}")`;
+  span.style.backgroundSize = `${n * 100}% 100%`;
+  span.style.backgroundPosition = `${n > 1 ? (i / (n - 1)) * 100 : 0}% 0`;
+  return span;
+}
+
+/** Marks the page when the sheet is in, so the first screens know their icons are ready. */
+export function warmHubSheet(): void {
+  const img = new Image();
+  img.fetchPriority = 'high';
+  img.onload = () => (document.documentElement.dataset.hubSheet = 'ready');
+  img.src = HUB_SHEET;
 }

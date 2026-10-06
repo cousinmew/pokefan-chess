@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { stageEvolutions, stageFor, stageSkin } from '../../src/board/stages';
 import { defaultSpecies, setStages, speciesIdFor, SPECIES } from '../../src/board/pieces';
-import { codeReader, SECRET, type CodeKey } from '../../src/ui/secret';
+import { codeKey, codeReader, SECRET, type CodeKey } from '../../src/ui/secret';
 import { AnimeLayer, FlashGuard } from '../../src/battle/anime';
 
 describe('BLUE story stages (§B18 item 5)', () => {
@@ -31,13 +31,16 @@ describe('BLUE story stages (§B18 item 5)', () => {
 });
 
 describe('secret code (§B18 item 7)', () => {
-  it('opens only on the full sequence, and recovers from a slip', () => {
+  it('opens only on the full sequence, keeps what still matches after a slip, and reports progress', () => {
     const read = codeReader();
-    expect(SECRET.map(read).at(-1)).toBe(true);
+    expect(SECRET.map(read)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     const r2 = codeReader();
-    expect((['up', 'down', ...SECRET] as CodeKey[]).map((k) => r2(k)).at(-1)).toBe(true);
+    expect((['up', 'up', 'up', ...SECRET.slice(2)] as CodeKey[]).map((k) => r2(k)).at(-1)).toBe(10);
     const r3 = codeReader();
-    expect((SECRET.slice(0, 9).concat(['b']) as CodeKey[]).some((k) => r3(k))).toBe(false);
+    expect((SECRET.slice(0, 9).concat(['b']) as CodeKey[]).map((k) => r3(k)).at(-1)).toBe(0);
+    expect(codeKey({ key: 'נ', code: 'KeyB' })).toBe('b');
+    expect(codeKey({ key: 'ф' })).toBe('a');
+    expect(codeKey({ key: 'B' })).toBe('b');
   });
 });
 

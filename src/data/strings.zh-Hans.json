@@ -805,5 +805,13 @@
   "say.go": "上！",
   "say.ohno": "糟了！",
   "say.yes": "好耶！",
-  "level.vs": "VS"
+  "level.vs": "VS",
+  "yellow.team": "我的队伍",
+  "yellow.team.sub": "选你的宝可梦！",
+  "yellow.team.pick": "先点棋子，再点贴纸。",
+  "yellow.classic": "经典队伍",
+  "yellow.next.lesson": "下一课得到{name}！",
+  "yellow.next.win": "赢一局得到{name}！",
+  "yellow.unlocked": "得到了{name}！",
+  "yellow.none": "还没有贴纸。"
 }

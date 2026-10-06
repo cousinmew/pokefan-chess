@@ -28,5 +28,6 @@ test('battle sprites are drawn on Slow 3G with the cache disabled', async ({ pag
   );
   expect(await page.getByTestId('battle').isVisible()).toBe(true);
   for (const i of imgs) expect(i.w, JSON.stringify(i)).toBeGreaterThan(0);
-  expect(imgs.map((i) => i.src)).toEqual(['back/133.gif', 'front/19.gif']);
+  // Animated WebP where it is smaller than the GIF (load fix).
+  expect(imgs.map((i) => i.src?.replace(/\.(gif|webp)$/, ''))).toEqual(['back/133', 'front/19']);
 });

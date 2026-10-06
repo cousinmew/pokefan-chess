@@ -18,7 +18,7 @@ export default defineConfig({
   },
   projects: [
     // @slow (the full gym walk, ~3 min) runs only in CI, before every deploy; the local gate skips it.
-    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet|@perf/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet|@slow|@perf/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
     // Review sheets for docs/, only with SHEETS=1 (npm run sheets), so the gate never rewrites them.
     ...(process.env.SHEETS
       ? [
@@ -29,6 +29,8 @@ export default defineConfig({
           { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium' as const, viewport: { width: 360, height: 640 } } },
         ]
       : []),
+    // Slow 4G sprite timings (§ load fix), only with PERF=1.
+    ...(process.env.PERF ? [{ name: 'perf', grep: /@perf/, use: { browserName: 'chromium' as const } }] : []),
     // Mobile Safari engine: tests tagged @webkit run only here, @both run here and in chromium.
     { name: 'webkit-iphone', grep: /@webkit|@both/, use: { ...devices['iPhone 13'] } },
   ],
