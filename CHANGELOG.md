@@ -112,3 +112,7 @@
 - Game screens always fit the window, from 320x480 to 2560x1440, with no scrolling; your name plate and the message box are one bar.
 - Each computer trainer brings their own Pokémon: Brock's Geodude and Onix, Jessie & James's Meowth and Arbok, Giovanni's Nidoking, and more.
 - A Gen 1 style start menu: CONTINUE, NEW GAME, OPTION and SWITCH TRAINER, with each player's own save, and Two Players where each side plays as their own save.
+
+## 2.8.0 (Russian)
+
+- Русский: the whole game in Russian, with Pokémon names in English as PokéAPI has no Russian ones.

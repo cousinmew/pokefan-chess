@@ -6,7 +6,7 @@ const load = (l: string) => JSON.parse(readFileSync(`src/data/strings.${l}.json`
 const en = load('en');
 const holes = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
-const OTHERS = ['fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans'];
+const OTHERS = ['fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans', 'ru'];
 
 describe('i18n phases 1 and 2 (§B17)', () => {
   it.each(OTHERS)('%s has every key, the same placeholders, and is marked for native review', (l) => {

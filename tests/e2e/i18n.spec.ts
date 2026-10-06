@@ -130,3 +130,11 @@ test('phase 2: Japanese uses kana Pokémon names and the system CJK fonts; Chine
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('lang-button')).toHaveText('DE');
 });
+
+test('Russian (§B20 item 4): Cyrillic interface, English Pokémon names in Latin script', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('kc:v1:lang', JSON.stringify('ru')));
+  await page.goto('./?debug=1&start=two');
+  await expect(page.locator('[data-square="e1"]')).toHaveAttribute('aria-label', /PIKACHU/);
+  expect(await page.evaluate(() => [document.documentElement.lang, document.documentElement.dir])).toEqual(['ru', 'ltr']);
+  await expect(page.getByTestId('menu')).toHaveText(/[А-Яа-яЁё]/);
+});

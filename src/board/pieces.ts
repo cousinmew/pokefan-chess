@@ -27,7 +27,7 @@ export const SPECIES: Record<SpeciesId, Species> = { ...(kanto.species as Record
 export const MOVES: Record<MoveId, MoveInfo> = { ...(kanto.moves as Record<string, MoveInfo>), ...(roster.moves as Record<string, MoveInfo>) };
 
 const EN_NAMES = { species: Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.name])), moves: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.name])) };
-// nl, pt and he have no localized names in PokéAPI: they use the English ones (§B17).
+// nl, pt, he and ru have no localized names in PokéAPI: they use the English ones, in Latin script (§B17, §B20 item 4).
 const LOCAL: Record<string, { species: Record<string, string>; moves: Record<string, string> }> = { fr: namesFr, es: namesEs, de: namesDe, it: namesIt, ja: namesJa, 'zh-Hans': namesZh };
 
 /** Species and move names for a language (§B17): PokéAPI's names for fr, es, de, it, ja (kana) and zh-Hans; English otherwise. */

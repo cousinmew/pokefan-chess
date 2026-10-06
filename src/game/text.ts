@@ -12,7 +12,7 @@ export interface Line {
 }
 
 /** Phase 1 and 2 languages (§B17). Language names are written in their own language (strings "lang.<code>"). */
-export const LANGS = ['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans'] as const;
+export const LANGS = ['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans', 'ru'] as const;
 export type Lang = (typeof LANGS)[number];
 export const RTL: readonly Lang[] = ['he'];
 /** No spaces between words: YELLOW's limit is 16 characters, and inserted names must never break across lines. */

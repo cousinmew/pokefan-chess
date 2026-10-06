@@ -3,7 +3,7 @@
 // for review (§B17, §B18). Run: npm run sheets
 import { test } from '@playwright/test';
 
-for (const lang of (process.env.SHEET_LANGS ?? 'en,fr,he,es,de,it,nl,pt,ja,zh-Hans').split(',')) {
+for (const lang of (process.env.SHEET_LANGS ?? 'en,fr,he,es,de,it,nl,pt,ja,zh-Hans,ru').split(',')) {
   for (const view of ['shelf', 'yellow', 'blue', 'levels', 'players', 'save'] as const) {
     test(`@i18nsheet ${view} ${lang}`, async ({ page }) => {
       await page.setViewportSize({ width: 360, height: 640 });
