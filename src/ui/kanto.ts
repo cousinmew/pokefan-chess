@@ -31,6 +31,9 @@ export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny =
 }
 
 /** A trainer sprite from assets/trainers/, or a CSS silhouette when it is missing (§B14). */
+/** URL of a trainer sprite: MEIR is original art in public/art, the rest are fetched at build time. */
+export const trainerSrc = (sprite: string) => (sprite === 'meir' ? 'art/meir.png' : `assets/trainers/${sprite}.png`);
+
 export function trainerSprite(sprite: string | undefined, cls = 'trainer-sprite'): HTMLElement {
   const box = el('div', cls);
   if (!sprite) {
@@ -45,7 +48,7 @@ export function trainerSprite(sprite: string | undefined, cls = 'trainer-sprite'
     box.classList.add('sil');
   };
   // MEIR is original art shipped with the game (§B18 item 7); every other trainer is fetched at build time.
-  img.src = sprite === 'meir' ? 'art/meir.png' : `assets/trainers/${sprite}.png`;
+  img.src = trainerSrc(sprite);
   box.append(img);
   return box;
 }

@@ -24,7 +24,7 @@ import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
 import { furthest, PLACES } from './campaign/journey';
 import { hubData } from './ui/hubData';
-import { placeName } from './ui/kanto';
+import { placeName, trainerSrc } from './ui/kanto';
 import type { Page } from './ui/manual';
 import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
@@ -41,7 +41,7 @@ import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
 import { endPanel, promotionPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
-import { applyLooks, myLook, standing, storyStage } from './look';
+import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
@@ -301,6 +301,7 @@ function boot(): App {
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
     plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks }, (k) => fmt(k as StringKey)), board.orientation);
+  const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey));
   const unlockMeir = () => {
     save('trainer', 'meir');
     journey.campaign = { ...journey.campaign, name: 'MEIR' };
@@ -400,7 +401,7 @@ function boot(): App {
         lang: langBtn(),
         unlock: unlockMeir,
         // Play opens the level picker (§B18 item 4), Youngster first.
-        play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle)),
+        play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))),
         learn: () => path.open(),
         friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
         settings: showSettings,
@@ -427,7 +428,7 @@ function boot(): App {
       dex: () => journey.openFromHub('dex', goTitle),
       team: () => journey.openFromHub('team', goTitle),
       card: () => journey.openFromHub('card', goTitle),
-      computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
+      computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)),
       twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
       kanto: () => journey.open(),
       howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
@@ -490,9 +491,19 @@ function boot(): App {
       const attackerNear = app.mode === 'two-players' || out.move.color === app.human;
       const { attacker, defender } = out.battle;
       const sprites = attackerNear ? await prepareSprites(attacker, defender) : await prepareSprites(defender, attacker);
+      // Both trainers step in behind their Pokémon with a one word reaction (§B20 item 2).
+      const them: Color = out.move.color === 'w' ? 'b' : 'w';
+      const src = (c: Color) => (plates.spriteOf(c) ? trainerSrc(plates.spriteOf(c)!) : null);
+      const [near, far] = attackerNear ? [out.move.color, them] : [them, out.move.color];
+      overlay.trainers(src(near), src(far), { near: fmt(near === out.move.color ? 'say.go' : 'say.ohno'), far: fmt(far === out.move.color ? 'say.go' : 'say.ohno') });
       await overlay.battle(attacker, defender, undefined, sprites, attackerNear);
     }
-    else if (out.battle && mode === 'quick') await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
+    else if (out.battle && mode === 'quick') {
+      // Quick mode: no battle screen, the reactions show on the name plates (§B20 item 2).
+      plates.say(out.move.color, fmt('say.go'));
+      plates.say(out.move.color === 'w' ? 'b' : 'w', fmt('say.ohno'));
+      await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
+    }
     if (out.evolve && mode === 'full') music.play('evolution');
     if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);
   }

@@ -69,6 +69,10 @@ export const YOUNGSTER_CAPTURE_BIAS = 0.5; // chance Youngster takes a capture w
 export const TAKE_BACK_LEVELS: readonly number[] = [1, 2]; // levels that allow take back
 export const ENGINE_URL = 'engine/stockfish-19-lite-single.js'; // same origin worker, copied at build
 export const SPLASH_AUTO_MS = 2500; // splash moves on by itself after this, or on the first tap
+/** Trainers on the battle screen (§B20 item 2): they slide in over the first TRAINER_SLIDE_MS of the battle (the intro
+ * step, 175 ms, plus the start of the "used" line, so the battle is no longer) and slide out early in the move. */
+export const TRAINER_SLIDE_MS = 250;
+export const TRAINER_OUT_SHARE = 0.4; // share of the effect phase used to slide out
 export const INTRO_MS = 1200; // "X wants to battle!" card, tap to skip
 export const TOAST_MS = 1600; // "Link copied" toast
 export const DISCORD_URL = ''; // optional project Discord, link shown only when set

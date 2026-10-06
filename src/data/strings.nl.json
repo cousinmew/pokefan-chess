@@ -793,5 +793,17 @@
   "settings.battleStyle": "Gevechtsstijl",
   "battleStyle.classic": "Klassiek",
   "battleStyle.anime": "Anime",
-  "anime.super": "SUPEREFFECTIEF!"
+  "anime.super": "SUPEREFFECTIEF!",
+  "title.trainer": "Trainer",
+  "title.boss": "Baas",
+  "title.rocket": "Team Rocket",
+  "title.gymLeader": "Gymleider",
+  "title.rival": "Rivaal",
+  "title.champion": "Kampioen",
+  "plate.youngster": "YOUNGSTER",
+  "plate.brock": "BROCK",
+  "say.go": "Ga!",
+  "say.ohno": "O nee!",
+  "say.yes": "Ja!",
+  "level.vs": "VS"
 }

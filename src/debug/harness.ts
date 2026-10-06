@@ -74,6 +74,8 @@ export function installHarness(app: App): void {
       const p95 = costs[Math.min(costs.length - 1, Math.floor(costs.length * 0.95))] ?? 0;
       return { style: used, p95, frames: costs.length, totalMs: Math.round((costs.length * 1000) / 60), flashes: ov.flashes.onsets.length, worstSecond: ov.flashes.worstSecond() };
     },
+    /** Puts trainers on the next staged battle (§B20 item 2). */
+    trainers: (near: string | null, far: string | null) => ov.trainers(near, far, { near: 'Go!', far: 'Oh no!' }),
     /** Starts a battle in `style` and steps it to the first frame of `phase`; reports the Anime layers on screen. */
     battleTo: (phase: string, attacker: SpeciesId = 'pikachu', defender: SpeciesId = 'blastoise', style: 'anime' | 'classic' = 'anime') => {
       ov.manual = true;

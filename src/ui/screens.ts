@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Splash, title, team select, level select, How to Play and the intro card (Part I §5).
 import { AI_LEVELS, INTRO_MS, SPLASH_AUTO_MS, type AiLevel } from '../config';
+import { faceoff, opponentTag } from './ladder';
+import type { Side } from '../look';
 import { speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
 import { fmt, type StringKey } from '../game/text';
 import { sound } from '../audio/audio';
@@ -193,14 +195,21 @@ export function teamSelect(pick: (c: Color) => void, back: () => void): HTMLElem
   return screen('team', el('h2', '', 'team.pick'), row, button('back', back, 'back', 'secondary'));
 }
 
-export function levelSelect(pick: (l: AiLevel) => void, back: () => void): HTMLElement {
+/** Who stands at each level, and you (§B20 item 1). */
+export interface Faces {
+  me: Side;
+  them(level: AiLevel): Side;
+}
+
+export function levelSelect(pick: (l: AiLevel) => void, back: () => void, faces?: Faces): HTMLElement {
   const list = el('div', 'buttons');
   for (const lvl of AI_LEVELS) {
     const b = button(`level.${lvl.id}` as StringKey, () => pick(lvl.id), `level-${lvl.id}`, 'level');
     b.append(el('small', '', `level.${lvl.id}.feel` as StringKey));
+    if (faces) b.append(opponentTag(faces.them(lvl.id), lvl.id));
     list.append(b);
   }
-  return screen('level', el('h2', '', 'level.pick'), list, button('back', back, 'back', 'secondary'));
+  return screen('level', el('h2', '', 'level.pick'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
 }
 
 /** How to Play is now the manual (§B16), open on `page`. */

@@ -793,5 +793,17 @@
   "settings.battleStyle": "对战风格",
   "battleStyle.classic": "经典",
   "battleStyle.anime": "动画",
-  "anime.super": "效果绝佳！"
+  "anime.super": "效果绝佳！",
+  "title.trainer": "训练家",
+  "title.boss": "首领",
+  "title.rocket": "火箭队",
+  "title.gymLeader": "道馆馆主",
+  "title.rival": "劲敌",
+  "title.champion": "冠军",
+  "plate.youngster": "短裤小子",
+  "plate.brock": "小刚",
+  "say.go": "上！",
+  "say.ohno": "糟了！",
+  "say.yes": "好耶！",
+  "level.vs": "VS"
 }

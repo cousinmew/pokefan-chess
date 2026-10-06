@@ -793,5 +793,17 @@
   "settings.battleStyle": "Kampfstil",
   "battleStyle.classic": "Klassisch",
   "battleStyle.anime": "Anime",
-  "anime.super": "SEHR EFFEKTIV!"
+  "anime.super": "SEHR EFFEKTIV!",
+  "title.trainer": "Trainer",
+  "title.boss": "Boss",
+  "title.rocket": "Team Rocket",
+  "title.gymLeader": "Arenaleiter",
+  "title.rival": "Rivale",
+  "title.champion": "Champ",
+  "plate.youngster": "KNIRPS",
+  "plate.brock": "ROCKO",
+  "say.go": "Los!",
+  "say.ohno": "Oh nein!",
+  "say.yes": "Ja!",
+  "level.vs": "VS"
 }

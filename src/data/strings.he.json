@@ -793,5 +793,17 @@
   "settings.battleStyle": "סגנון קרב",
   "battleStyle.classic": "קלאסי",
   "battleStyle.anime": "אנימה",
-  "anime.super": "יעיל במיוחד!"
+  "anime.super": "יעיל במיוחד!",
+  "title.trainer": "מאמן",
+  "title.boss": "בוס",
+  "title.rocket": "צוות רוקט",
+  "title.gymLeader": "מנהיג מכון",
+  "title.rival": "יריב",
+  "title.champion": "אלוף",
+  "plate.youngster": "צעיר",
+  "plate.brock": "BROCK",
+  "say.go": "קדימה!",
+  "say.ohno": "אוי לא!",
+  "say.yes": "יש!",
+  "level.vs": "VS"
 }

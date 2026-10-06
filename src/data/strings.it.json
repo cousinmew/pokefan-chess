@@ -793,5 +793,17 @@
   "settings.battleStyle": "Stile delle lotte",
   "battleStyle.classic": "Classico",
   "battleStyle.anime": "Anime",
-  "anime.super": "SUPEREFFICACE!"
+  "anime.super": "SUPEREFFICACE!",
+  "title.trainer": "Allenatore",
+  "title.boss": "Capo",
+  "title.rocket": "Team Rocket",
+  "title.gymLeader": "Capopalestra",
+  "title.rival": "Rivale",
+  "title.champion": "Campione",
+  "plate.youngster": "BULLO",
+  "plate.brock": "BROCK",
+  "say.go": "Vai!",
+  "say.ohno": "Oh no!",
+  "say.yes": "Sì!",
+  "level.vs": "VS"
 }

@@ -793,5 +793,17 @@
   "settings.battleStyle": "Estilo de batalha",
   "battleStyle.classic": "Clássico",
   "battleStyle.anime": "Anime",
-  "anime.super": "SUPEREFICAZ!"
+  "anime.super": "SUPEREFICAZ!",
+  "title.trainer": "Treinador",
+  "title.boss": "Chefe",
+  "title.rocket": "Equipe Rocket",
+  "title.gymLeader": "Líder de Ginásio",
+  "title.rival": "Rival",
+  "title.champion": "Campeão",
+  "plate.youngster": "JOVEM",
+  "plate.brock": "BROCK",
+  "say.go": "Vai!",
+  "say.ohno": "Ah não!",
+  "say.yes": "Isso!",
+  "level.vs": "VS"
 }

@@ -6,10 +6,7 @@ import type { Color } from '../board/pieces';
 import { el } from './dom';
 import { trainerSprite } from './kanto';
 
-export interface Side {
-  sprite: string;
-  name: string;
-}
+import type { Side } from '../look';
 
 export class Plates {
   readonly top = el('div', 'plate plate-top');
@@ -36,6 +33,19 @@ export class Plates {
     this.fill(this.top, bottom === 'w' ? 'b' : 'w');
   }
 
+  /** The sprite standing on a side, for the battle screen (§B20 item 2). */
+  spriteOf(c: Color): string | undefined {
+    return this.sides[c]?.sprite;
+  }
+
+  /** A one word reaction bubble over a side's trainer ("Go!", "Oh no!", "Yes!"), for a moment. */
+  say(c: Color, word: string): void {
+    const plate = this.plateOf(c);
+    const bubble = plate.querySelector('.plate-say') ?? plate.appendChild(el('span', 'plate-say'));
+    bubble.textContent = word;
+    this.pulse(plate, 'saying');
+  }
+
   private plateOf(c: Color): HTMLElement {
     return c === this.bottomColor ? this.bottom : this.top;
   }
@@ -43,12 +53,16 @@ export class Plates {
   private fill(plate: HTMLElement, c: Color): void {
     const s = this.sides[c];
     plate.dataset.color = c;
-    plate.className = plate.className.replace(/ (won|lost|check|hop|shake)\b/g, '');
+    plate.className = plate.className.replace(/ (won|lost|check|hop|shake|saying)\b/g, '');
     if (!s) return plate.replaceChildren();
     const sprite = trainerSprite(s.sprite, 'trainer-sprite plate-sprite');
     sprite.dataset.trainer = s.sprite;
-    const name = el('b', 'plate-name');
-    name.textContent = s.name;
+    const name = el('span', 'plate-name');
+    const b = el('b');
+    b.textContent = s.name;
+    const title = el('small', 'plate-title');
+    title.textContent = s.title;
+    name.append(b, ' · ', title);
     const bubble = el('span', 'plate-bubble');
     bubble.textContent = '!';
     bubble.setAttribute('aria-hidden', 'true');
@@ -75,7 +89,7 @@ export class Plates {
     this.plateOf(winner === 'w' ? 'b' : 'w').classList.add('lost');
   }
 
-  private pulse(plate: HTMLElement, cls: 'hop' | 'shake'): void {
+  private pulse(plate: HTMLElement, cls: 'hop' | 'shake' | 'saying'): void {
     plate.classList.remove(cls);
     void plate.offsetWidth; // restart the animation
     plate.classList.add(cls);

@@ -6,6 +6,8 @@ import { LANGS, fmt, type Lang, type StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 import { pixelIcon } from './icons';
 import { codeReader, dpad, listenForCode } from './secret';
+import { faceoff, opponentTag } from './ladder';
+import type { Faces } from './screens';
 import { mon } from './kanto';
 
 export type Cartridge = 'yellow' | 'blue';
@@ -90,7 +92,7 @@ export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (
 }
 
 /** YELLOW's Play tile opens this (§B18 item 4): the four levels as big buttons with 1 to 4 stars, Youngster first. */
-export function yellowLevels(pick: (level: 1 | 2 | 3 | 4) => void, back: () => void): HTMLElement {
+export function yellowLevels(pick: (level: 1 | 2 | 3 | 4) => void, back: () => void, faces?: Faces): HTMLElement {
   const list = el('div', 'yellow-levels');
   for (const n of [1, 2, 3, 4] as const) {
     const b = el('button', `big-level${n === 1 ? ' default' : ''}`);
@@ -100,11 +102,12 @@ export function yellowLevels(pick: (level: 1 | 2 | 3 | 4) => void, back: () => v
     stars.textContent = '★'.repeat(n);
     stars.setAttribute('aria-hidden', 'true');
     b.append(el('b', '', `yellow.level.${n}` as StringKey), stars);
+    if (faces) b.prepend(opponentTag(faces.them(n), n, false));
     b.setAttribute('aria-label', `${fmt(`yellow.level.${n}` as StringKey)}, ${fmt('yellow.stars', { n: String(n) })}`);
     b.onclick = () => pick(n);
     list.append(b);
   }
-  const view = screen('yellow-levels', el('h2', '', 'yellow.levels'), list, button('back', back, 'back', 'secondary'));
+  const view = screen('yellow-levels', el('h2', '', 'yellow.levels'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
   window.setTimeout(() => (list.firstElementChild as HTMLElement | null)?.focus(), 0);
   return view;
 }

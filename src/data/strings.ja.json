@@ -793,5 +793,17 @@
   "settings.battleStyle": "バトルのスタイル",
   "battleStyle.classic": "クラシック",
   "battleStyle.anime": "アニメ",
-  "anime.super": "こうかはばつぐんだ！"
+  "anime.super": "こうかはばつぐんだ！",
+  "title.trainer": "トレーナー",
+  "title.boss": "ボス",
+  "title.rocket": "ロケットだん",
+  "title.gymLeader": "ジムリーダー",
+  "title.rival": "ライバル",
+  "title.champion": "チャンピオン",
+  "plate.youngster": "たんパンこぞう",
+  "plate.brock": "タケシ",
+  "say.go": "いけ！",
+  "say.ohno": "ああっ！",
+  "say.yes": "やった！",
+  "level.vs": "VS"
 }

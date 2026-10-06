@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
-import { ANIME, BATTLE, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
+import { ANIME, BATTLE, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
 import { MOVES, species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
@@ -73,6 +73,9 @@ export class Overlay {
   private impact = false;
   private zoom = 0;
   private typeFlash = false;
+  private readonly tNear: HTMLElement;
+  private cast: { near: string | null; far: string | null; words: { near: string; far: string } } | null = null;
+  private readonly tFar: HTMLElement;
 
   constructor(private readonly rng: Rng) {
     this.el = document.createElement('div');
@@ -80,13 +83,15 @@ export class Overlay {
     this.el.hidden = true;
     this.el.dataset.testid = 'battle';
     this.el.innerHTML = `<div class="screen"><div class="hp hp-far"><span></span></div><div class="hp hp-near"><span></span></div>
-      <div class="cam"><canvas class="anime-bg" width="${W}" height="${H}"></canvas><div class="mon def"></div><div class="mon att"></div><canvas class="fx" width="${W}" height="${H}"></canvas></div><div class="anime-banner" data-testid="anime-banner" hidden></div>
+      <div class="cam"><canvas class="anime-bg" width="${W}" height="${H}"></canvas><div class="trainer t-far"><img alt=""><span class="say"></span></div><div class="trainer t-near"><img alt=""><span class="say"></span></div><div class="mon def"></div><div class="mon att"></div><canvas class="fx" width="${W}" height="${H}"></canvas></div><div class="anime-banner" data-testid="anime-banner" hidden></div>
       <div class="textbox battle-text"><p class="tb-main" data-testid="battle-text"></p></div></div>`;
     this.screen = this.el.querySelector('.screen') as HTMLElement;
     this.canvas = this.el.querySelector('canvas.fx') as HTMLCanvasElement;
     this.bg = this.el.querySelector('canvas.anime-bg') as HTMLCanvasElement;
     this.banner = this.el.querySelector('.anime-banner') as HTMLElement;
     this.cam = this.el.querySelector('.cam') as HTMLElement;
+    this.tNear = this.el.querySelector('.t-near') as HTMLElement;
+    this.tFar = this.el.querySelector('.t-far') as HTMLElement;
     this.att = this.el.querySelector('.att') as HTMLElement;
     this.def = this.el.querySelector('.def') as HTMLElement;
     this.hpNear = this.el.querySelector('.hp-near span') as HTMLElement;
@@ -122,6 +127,34 @@ export class Overlay {
   }
 
   /** Full battle screen for one capture. `attackerNear`: the attacker is the player's Pokémon. Resolves once the board may apply it. */
+  /** Trainers (§B20 item 2): a sprite URL per side, or none. Anime slides them in; Classic shows the bubbles only. */
+  trainers(near: string | null, far: string | null, words: { near: string; far: string }): void {
+    this.cast = { near, far, words };
+  }
+
+  /** Puts the trainers set for this battle on screen; they are cleared when it ends. */
+  private showTrainers(): void {
+    const c = this.cast;
+    this.cast = null;
+    for (const [t, src, word] of [[this.tNear, c?.near ?? null, c?.words.near ?? ''], [this.tFar, c?.far ?? null, c?.words.far ?? '']] as const) {
+      const img = t.querySelector('img') as HTMLImageElement;
+      if (src && img.getAttribute('src') !== src) img.src = src;
+      img.hidden = !src;
+      (t.querySelector('.say') as HTMLElement).textContent = word;
+      t.hidden = !src && !word;
+      t.style.opacity = '';
+    }
+  }
+
+  private slideTrainers(k: number): void {
+    // k: 0 off screen, 1 in place. Classic and reduced motion: no slide, the bubbles only.
+    const off = this.style ? 1 - k : 0;
+    this.tNear.style.transform = `translate(${-off * 160}%, 0)`;
+    this.tFar.style.transform = `translate(${off * 160}%, 0)`;
+    this.tNear.classList.toggle('still', !this.style);
+    this.tFar.classList.toggle('still', !this.style);
+  }
+
   battle(attacker: SpeciesId, defender: SpeciesId, fxOverride?: string, sprites?: BattleSprites, attackerNear = true): Promise<void> {
     const a = species(attacker);
     const d = species(defender);
@@ -155,6 +188,7 @@ export class Overlay {
         ms: BATTLE.inMs,
         enter: () => {
           this.el.hidden = false;
+          this.showTrainers();
           this.setSprite(this.att, (attackerNear ? sprites?.near : sprites?.far) ?? spriteUrl(a.dex, view(attackerNear), a.shiny));
           this.setSprite(this.def, (attackerNear ? sprites?.far : sprites?.near) ?? spriteUrl(d.dex, view(!attackerNear), d.shiny));
           this.att.hidden = false;
@@ -170,6 +204,7 @@ export class Overlay {
         },
         tick: (p) => {
           this.el.style.opacity = '1';
+          this.slideTrainers(Math.min(1, this.clock / TRAINER_SLIDE_MS));
           if (this.style) this.backdropK = p * 0.4;
           this.screen.style.setProperty('--dim', String(p));
           const slide = (near: boolean) => (near ? -1 : 1) * (1 - p) * 180;
@@ -186,6 +221,7 @@ export class Overlay {
           if (Math.floor(n / BATTLE.tickEveryChars) > Math.floor(shown / BATTLE.tickEveryChars)) sound.tick();
           shown = n;
           this.textEl.textContent = usedText.slice(0, n);
+          this.slideTrainers(Math.min(1, this.clock / TRAINER_SLIDE_MS));
           if (this.style) {
             this.backdropK = 0.4 + 0.3 * p;
             this.zoom = ANIME.zoom * 0.4 * p;
@@ -205,6 +241,10 @@ export class Overlay {
         tick: (p) => {
           // Anime: the effect slows down just before it lands.
           const q = this.style ? AnimeLayer.slowBeat(p) : p;
+          // The trainers step out as the move plays.
+          const out = Math.min(1, p / TRAINER_OUT_SHARE);
+          if (this.style) this.slideTrainers(1 - out);
+          else this.tNear.style.opacity = this.tFar.style.opacity = String(1 - out);
           this.fxT = q;
           const act = recipe.actor?.(q, aPos, dPos);
           const dx = act?.dx ?? 0;
@@ -450,6 +490,10 @@ export class Overlay {
     this.att.style.transform = '';
     this.def.style.transform = '';
     this.bg.getContext('2d')?.clearRect(0, 0, W, H);
+    for (const t of [this.tNear, this.tFar]) {
+      t.hidden = true;
+      t.style.opacity = '';
+    }
     const res = this.resolve;
     this.resolve = null;
     res?.();

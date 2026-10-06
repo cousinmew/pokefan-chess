@@ -94,3 +94,9 @@
 
 - Six more languages: Deutsch, Italiano, Nederlands, Português, 日本語 and 简体中文, with official Pokémon and move names where the games have them (kana in Japanese).
 - Japanese and Chinese use the device's own fonts, and Pokémon names never break across lines.
+
+## 2.5.0 (C8)
+
+- The level pickers show who you will face at each level, and your own trainer opposite.
+- Trainers step into the battle screen behind their Pokémon ("Go!", "Oh no!"); in Quick mode the reactions show on the name plates.
+- Name plates show titles: "GIOVANNI · Boss", "MEIR · Trainer".

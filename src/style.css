@@ -75,6 +75,17 @@ main { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .hp-near { right: 6%; top: 56%; }
 .battle-text { position: absolute; left: 2%; right: 2%; bottom: 2%; width: auto; min-height: 22%; }
 .cam { position: absolute; inset: 0; }
+/* Trainers on the battle screen (§B20 item 2): behind their Pokémon, sliding in from their own side. */
+.trainer { position: absolute; width: 30%; aspect-ratio: 1; }
+.trainer[hidden] { display: none; }
+.trainer img { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+.trainer img[hidden] { display: none; }
+.t-near { left: -2%; top: 34%; }
+.t-far { right: -2%; top: 4%; }
+.trainer .say { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); padding: 1px 6px; font-size: clamp(11px, 3.4vw, 15px); font-weight: 700; white-space: nowrap; background: #fff; border: 2px solid var(--ink); border-radius: 10px; }
+.trainer .say:empty { display: none; }
+.trainer.still img { display: none; }
+.trainer.still .say { top: 40%; }
 .screen .hp { z-index: 1; }
 .screen.impact { background: #fff; }
 .screen.impact .mon img { filter: brightness(0); }
@@ -443,7 +454,12 @@ body.cart-yellow .textbox { min-height: 56px; }
 .plate-bottom { margin-top: 4px; flex-direction: row-reverse; }
 .plate .plate-sprite { width: 48px; height: 48px; flex: none; }
 .plate .plate-sprite img { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
-.plate-name { font-size: 15px; }
+.plate-name { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plate-title { font-size: 12px; }
+/* One word reactions on the plates in Quick mode (§B20 item 2). */
+.plate-say { position: absolute; top: -12px; inset-inline-start: 56px; display: none; padding: 1px 8px; font-size: 13px; font-weight: 700; background: #fff; border: 2px solid var(--ink); border-radius: 10px; }
+.plate.saying .plate-say { display: block; animation: say-fade 1.4s forwards; }
+@keyframes say-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 .plate-bubble { position: absolute; top: -10px; inset-inline-start: 40px; display: none; width: 22px; height: 22px; line-height: 20px; text-align: center; font-weight: 900; color: #fff; background: #e03030; border: 2px solid var(--ink); border-radius: 50%; }
 .plate.check .plate-bubble { display: block; }
 .plate.hop .plate-sprite { animation: plate-hop 360ms ease-out; }
@@ -468,3 +484,17 @@ body.cart-yellow .textbox { min-height: 56px; }
 }
 .panel.piece-card { text-align: center; }
 .panel.piece-card h3 { margin: 4px 0; }
+/* Level pickers (§B20 item 1): you on one side, the trainers you will face on the other. */
+.faceoff { display: flex; align-items: flex-start; gap: 8px; width: 100%; }
+.faceoff > .buttons, .faceoff > .yellow-levels { flex: 1; min-width: 0; }
+.faceoff-me { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-size: 12px; position: sticky; top: 8px; }
+.faceoff-me .faceoff-sprite { width: 64px; height: 64px; }
+.faceoff-me .faceoff-sprite img, .opponent-sprite img { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+.opponent { display: flex; align-items: center; gap: 6px; margin-top: 4px; text-align: start; }
+.opponent-sprite { width: 48px; height: 48px; flex: none; }
+.opponent-text { display: flex; flex-direction: column; line-height: 1.15; }
+.opponent-text small { font-size: 12px; font-weight: 400; }
+.opponent-text .stars { color: #d8a000; -webkit-text-stroke: 1px var(--ink); }
+.big-level .opponent { margin: 0; }
+.big-level .opponent-sprite { width: 56px; height: 56px; }
+
