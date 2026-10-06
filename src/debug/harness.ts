@@ -4,6 +4,9 @@ import { Chess } from 'chess.js';
 import { BATTLE, type AiLevel } from '../config';
 import { youngsterMove } from '../ai/engine';
 import { preloadSettled } from '../battle/sprites';
+import { music } from '../audio/music';
+import { FX } from '../battle/fxRecipes';
+import roster from '../data/roster.gen1.json';
 import { rng } from '../game/rng';
 import { fmt } from '../game/text';
 import type { SpeciesId } from '../board/pieces';
@@ -30,12 +33,12 @@ export function installHarness(app: App): void {
     },
     /** Fixed timestep advance of overlay, evolution and quick effects. */
     step,
-    /** Stages Pikachu vs Rattata with recipe `id` forced, parked at the start of the FX phase. */
-    playFx: (id: string, seed = 1) => {
+    /** Stages a battle (default Pikachu vs Rattata) with recipe `id` forced, parked at the start of the FX phase. */
+    playFx: (id: string, seed = 1, attacker: SpeciesId = 'pikachu', defender: SpeciesId = 'rattata') => {
       ov.manual = true;
       rng.seed(seed);
       ov.sig = 0;
-      void ov.battle('pikachu', 'rattata', id);
+      void ov.battle(attacker, defender, id);
       ov.update(BATTLE.inMs + BATTLE.usedMs);
       return ov.state();
     },
@@ -48,6 +51,20 @@ export function installHarness(app: App): void {
       while (ov.running && guard++ < 1000) ov.update(1000 / 60);
       if (ov.running) throw new Error(`battle ${attacker} vs ${defender} did not finish`);
       return ov.lines.map((l) => fmt(l.key, l.vars));
+    },
+    /** FX gallery: plays all 14 effects in sequence in real time, each with a species that uses it. */
+    fxGallery: async () => {
+      ov.manual = false;
+      const sp = roster.species as Record<string, { move: string; fallback?: string }>;
+      const ids = Object.keys(sp) as SpeciesId[];
+      for (const id of Object.keys(FX)) {
+        const fx = (m?: string) => (m ? (roster.moves as Record<string, { fx: string }>)[m]?.fx : undefined);
+        const attacker = ids.find((s) => fx(sp[s]!.move) === id || fx(sp[s]!.fallback) === id) ?? 'pikachu';
+        const red = Object.values(roster.teams.red.pieces).flatMap((v) => (typeof v === 'string' ? [v] : [v.light, v.dark]));
+        const defender = (red.includes(attacker) ? 'rattata' : 'eevee') as SpeciesId;
+        await ov.battle(attacker, defender, id);
+      }
+      return Object.keys(FX).length;
     },
     /** True once every background sprite preload has decoded. */
     spritesReady: () => preloadSettled(),
@@ -90,6 +107,7 @@ export function installHarness(app: App): void {
         mode: app.mode,
         level: app.mode === 'computer' ? app.level : null,
         aiFailed: app.aiFailed,
+        music: music.current,
         engineLoaded: app.engine.loaded,
         settings: app.settings,
         overlay: ov.state(),
@@ -101,4 +119,5 @@ export function installHarness(app: App): void {
       }),
   };
   (window as unknown as { __kc: typeof kc }).__kc = kc;
+  if (new URLSearchParams(location.search).get('gallery') === 'fx') window.setTimeout(() => void kc.fxGallery(), 300);
 }

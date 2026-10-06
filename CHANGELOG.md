@@ -26,3 +26,8 @@
 ## 1.1.0 (O1)
 
 - Play Online with a friend: create a room, share the 4 letter code or link, the relay checks every move. Six preset reactions, give up, rematch with swap sides, 60 s to reconnect.
+
+## 1.2.0 (FX and audio)
+
+- Battle effects twice as large and outlined, with a short flash tinted by move type; FX gallery and review sheet.
+- Music: title and board loops, battle, victory, defeat and evolution cues, chiptune placeholders until the real tracks land; music volume slider. New sounds for pick up, place, check, HP drain, castling and evolution.

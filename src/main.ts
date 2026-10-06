@@ -7,6 +7,7 @@ import { GLYPHS, species, speciesFor, spriteUrl, teamOf, type Color, type Role, 
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { sound } from './audio/audio';
+import { music } from './audio/music';
 import { rng } from './game/rng';
 import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
@@ -81,6 +82,7 @@ function boot(): App {
   const applySettings = () => {
     sound.enabled = settings.sound;
     sound.volume = settings.volume;
+    music.setVolumes(settings.music, settings.volume, settings.sound);
   };
   applySettings();
   const overlay = new Overlay(rng);
@@ -129,6 +131,7 @@ function boot(): App {
     announce,
     onSelect: (sq) => {
       const p = game.pieceAt(sq);
+      sound.pickup();
       if (p) sound.cry(speciesFor(p.color, p.type, sq).dex, SELECT_CRY_VOLUME);
     },
   });
@@ -160,6 +163,8 @@ function boot(): App {
       app.ended = true;
       board.locked = true;
       text.show([{ key }]);
+      music.stop();
+      music.play(key.endsWith('Win') ? 'victory' : 'defeat');
       showEnd({ key });
     },
     say: (key) => text.plain(fmt(key)),
@@ -174,6 +179,7 @@ function boot(): App {
       overlay.skip();
       modal.hidden = true;
     }
+    if (view === gameView) music.play('board');
     stage.replaceChildren(view);
     window.scrollTo(0, 0);
   }
@@ -185,6 +191,7 @@ function boot(): App {
 
   function goTitle(): void {
     online.close();
+    music.play('title');
     show(
       title({
         canContinue: savedGame() !== null,
@@ -267,6 +274,7 @@ function boot(): App {
   /** Capture battle and evolution, before the board shows the result. */
   async function present(out: Outcome, from: string, to: string): Promise<void> {
     const mode = settings.anim;
+    if (out.battle && mode !== 'off') music.play('battle');
     if (out.battle && mode === 'full') {
       // The player's Pokémon is always the near one. Two Players: the side that just moved.
       const attackerNear = app.mode === 'two-players' || out.move.color === app.human;
@@ -275,6 +283,7 @@ function boot(): App {
       await overlay.battle(attacker, defender, undefined, sprites, attackerNear);
     }
     else if (out.battle && mode === 'quick') await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
+    if (out.evolve && mode === 'full') music.play('evolution');
     if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);
   }
 
@@ -290,7 +299,9 @@ function boot(): App {
     if (lines.length) text.show(lines);
     else text.plain(fmt('moved', { piece: sp.name, square: to }));
     announce([fmt('moved', { piece: sp.name, square: to }), ...out.lines.map((l) => fmt(l.key, l.vars))].join(' '));
-    if (!out.battle) sound.step();
+    if (out.move.isKingsideCastle() || out.move.isQueensideCastle()) sound.castle();
+    else if (!out.battle) sound.place();
+    if (game.checkedKing()) sound.alarm();
     if (game.checkedKing()) sound.cry(species(roster.teams[teamOf(game.turn())].pieces.k as SpeciesId).dex);
     if (out.end) finish(out);
     persistGame();
@@ -372,6 +383,8 @@ function boot(): App {
     app.ended = true;
     board.locked = true;
     text.show([end.line]);
+    music.stop();
+    if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
     if (end.reason === 'checkmate') {
       const king = game.checkedKing();
       const img = king ? board.squareEl(king)?.querySelector('.piece') : null;

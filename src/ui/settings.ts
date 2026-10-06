@@ -42,18 +42,22 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   };
   toggle('sound', 'settings.sound');
 
-  const vol = el('input');
-  vol.type = 'range';
-  vol.min = '0';
-  vol.max = '1';
-  vol.step = '0.1';
-  vol.value = String(s.volume);
-  vol.dataset.testid = 'set-volume';
-  vol.oninput = () => {
-    s.volume = Number(vol.value);
-    changed();
+  const slider = (key: 'volume' | 'music', label: StringKey) => {
+    const r = el('input');
+    r.type = 'range';
+    r.min = '0';
+    r.max = '1';
+    r.step = '0.1';
+    r.value = String(s[key]);
+    r.dataset.testid = `set-${key}`;
+    r.oninput = () => {
+      s[key] = Number(r.value);
+      changed();
+    };
+    row(label, r);
   };
-  row('settings.volume', vol);
+  slider('volume', 'settings.volume');
+  slider('music', 'settings.music');
 
   toggle('captions', 'settings.captions');
   toggle('glyphs', 'settings.glyphs');

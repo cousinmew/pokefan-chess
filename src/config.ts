@@ -13,7 +13,7 @@ export const BOARD_SIDE_GUTTER_PX = 16; // horizontal room left around the board
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, takeBack: false, v: 2 }; // v: settings schema // settings defaults (reduced motion starts on Quick)
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, music: 0.3, takeBack: false, v: 2 }; // v: settings schema // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
   // T4: about 1.9 s in all with an effectiveness line, 1.62 s without (owner call, 2026-10-05).
@@ -28,7 +28,6 @@ export const BATTLE = {
   outMs: 140, // slide out, then the board applies the capture
   tickEveryChars: 2, // text tick sound every N revealed characters
   faintPitch: 0.9, // defender cry playback rate on faint (10% lower)
-  flashFrac: 0.25, // share of the FX duration a full screen flash lasts
   spriteWaitMs: 400, // longest wait for both battle sprites to decode before the battle starts
 } as const;
 export const QUICK_FX_MS = 400; // Quick mode: effect on the board square, no overlay
@@ -61,3 +60,11 @@ export const DISCORD_URL = ''; // optional project Discord, link shown only when
 export const STORAGE_NS = 'kc:v1:'; // localStorage namespace
 export const RELAY_URL = 'https://pokefan-chess-relay.cousinmew.workers.dev'; // the only runtime network origin (V7, G2)
 export const RECONNECT_BACKOFF_MS = [500, 1000, 2000, 4000, 5000]; // client socket retry delays
+export const FX_SCALE = 2; // battle effects drawn this much larger than the v1 recipes
+export const TYPE_FLASH_MS = 120; // full screen flash tinted by move type at the start of an effect
+export const TYPE_FLASH_ALPHA = 0.5; // peak opacity of that flash
+export const TYPE_COLORS: Record<string, string> = { electric: '#f8e030', fire: '#f08030', grass: '#48c048', water: '#3888f0', rock: '#9a7848', ground: '#d8b878', poison: '#a040c0', normal: '#ffffff' }; // tint per move type
+export type MusicCue = 'title' | 'board' | 'battle' | 'victory' | 'defeat' | 'evolution';
+export const MUSIC_LOOPS: Partial<Record<MusicCue, [number, number]>> = { title: [0, 0], board: [0, 0] }; // loop [start, end] s in the mp3; 0 = whole file
+export const MUSIC_STING_GAIN = 0.7; // one-shot cues relative to the sound effects volume
+export const HP_TICK_MS = 45; // HP drain tick sound interval

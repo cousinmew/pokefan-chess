@@ -56,7 +56,9 @@ if (run('G2')) {
   for (const f of src.filter((f) => !f.endsWith('config.ts'))) {
     const t = read(f).replaceAll('http://www.w3.org/2000/svg', '');
     if (/https?:\/\//.test(t)) fails.push(`G2: absolute URL in ${f}`);
-    if (!f.startsWith('src/net/') && /\bfetch\(|XMLHttpRequest|WebSocket/.test(t)) fails.push(`G2: network call outside src/net/ in ${f}`);
+    // src/audio/music.ts may fetch its own same origin mp3 files (relative URLs; absolute ones fail above).
+    const sameOriginAudio = f === 'src/audio/music.ts' && !/WebSocket|XMLHttpRequest/.test(t);
+    if (!f.startsWith('src/net/') && !sameOriginAudio && /\bfetch\(|XMLHttpRequest|WebSocket/.test(t)) fails.push(`G2: network call outside src/net/ in ${f}`);
     if (/XMLHttpRequest/.test(t)) fails.push(`G2: XMLHttpRequest in ${f}`);
   }
 }

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
-import { BATTLE, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
+import { BATTLE, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
 import { species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
 import { sound } from '../audio/audio';
 import { FX, type FxRecipe, type Pt } from './fxRecipes';
 import { resolveMove } from './types';
+import roster from '../data/roster.gen1.json';
 import type { BattleSprites } from './sprites';
 
 const W = 320;
@@ -48,6 +49,7 @@ export class Overlay {
   private fx: FxRecipe | null = null;
   private fxT = -1;
   private flash = 0;
+  private flashColor = '#ffffff';
   private qa: Pt = { x: 0, y: 0 };
   private qd: Pt = { x: 0, y: 0 };
   private ba: Pt = NEAR;
@@ -101,6 +103,7 @@ export class Overlay {
     const used: Line = { key: 'battle.used', vars: { attacker: a.name, move: mv.name } };
     const usedText = fmt(used.key, used.vars);
     let shown = 0;
+    let drained = HP_TICK_MS;
     const aPos = attackerNear ? NEAR : FAR;
     const dPos = attackerNear ? FAR : NEAR;
     const hpA = attackerNear ? this.hpNear : this.hpFar;
@@ -149,6 +152,7 @@ export class Overlay {
         enter: () => {
           this.textEl.textContent = usedText;
           this.fx = recipe;
+          this.flashColor = TYPE_COLORS[roster.moves[mv.moveId].type] ?? '#ffffff';
         },
         tick: (p) => {
           this.fxT = p;
@@ -156,7 +160,9 @@ export class Overlay {
           this.place(this.att, aPos, act?.dx ?? 0, act?.dy ?? 0, act?.alpha ?? 1);
           const shake = this.calm ? 0 : (recipe.shakePx ?? 0) * Math.sin(p * 60) * (1 - p);
           this.screen.style.transform = shake ? `translate(${shake}px, 0)` : '';
-          this.flash = recipe.flashColor && !this.calm ? Math.max(0, 1 - p / BATTLE.flashFrac) : 0;
+          // Type tinted flash for the first TYPE_FLASH_MS of the effect; none under reduced motion.
+          const ms = p * recipe.durationMs;
+          this.flash = !this.calm && ms < TYPE_FLASH_MS ? TYPE_FLASH_ALPHA * (1 - ms / TYPE_FLASH_MS) : 0;
         },
       },
       {
@@ -178,7 +184,14 @@ export class Overlay {
         id: 'drain',
         ms: BATTLE.drainMs,
         enter: () => (this.def.style.visibility = 'visible'),
-        tick: (p) => this.setHp(hpD, 1 - p),
+        tick: (p, dt) => {
+          this.setHp(hpD, 1 - p);
+          drained += dt;
+          if (drained >= HP_TICK_MS) {
+            drained = 0;
+            sound.hpTick();
+          }
+        },
       },
     ];
     if (mv.effKey) phases.push({ id: 'eff', ms: BATTLE.effMs, enter: () => this.say({ key: mv.effKey! }) });
@@ -267,9 +280,12 @@ export class Overlay {
         enter: () => {
           this.setSprite(this.def, spriteUrl(to.dex, 'front'));
           this.def.className = 'mon def';
-          sound.sparkle();
+          sound.shimmer();
         },
-        tick: (p) => (this.flash = this.calm ? 0 : 1 - p),
+        tick: (p) => {
+          this.flashColor = '#ffffff';
+          this.flash = this.calm ? 0 : 1 - p;
+        },
       },
     ]).then(() => {
       this.lines.push({ key: 'evolve.done', vars: { pawn: from.name, piece: to.name } });
@@ -385,8 +401,10 @@ export class Overlay {
       ctx.restore();
     }
     if (this.flash > 0) {
-      ctx.fillStyle = `rgba(255,255,255,${this.flash.toFixed(3)})`;
+      ctx.globalAlpha = this.flash;
+      ctx.fillStyle = this.flashColor;
       ctx.fillRect(0, 0, c.width, c.height);
+      ctx.globalAlpha = 1;
     }
   }
 }

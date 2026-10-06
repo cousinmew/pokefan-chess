@@ -66,7 +66,7 @@
   "anim.quick": "Quick",
   "anim.off": "Off",
   "settings.sound": "Sound",
-  "settings.volume": "Volume",
+  "settings.volume": "Sound effects volume",
   "settings.captions": "Teaching captions",
   "settings.glyphs": "Chess glyphs on pieces",
   "settings.autoFlip": "Flip the board each turn (Two Players)",
@@ -115,5 +115,6 @@
   "react.2": "Wow!",
   "react.3": "Hmm...",
   "react.4": "Nice one!",
-  "react.5": "Rematch?"
+  "react.5": "Rematch?",
+  "settings.music": "Music volume"
 }

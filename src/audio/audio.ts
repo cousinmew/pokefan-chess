@@ -3,6 +3,18 @@
 import { ASSET_BASE, CRY_VOLUME, SFX_VOLUME } from '../config';
 
 let ctx: AudioContext | null = null;
+const unlockListeners: ((c: AudioContext) => void)[] = [];
+
+/** The shared AudioContext once a gesture has unlocked audio, else null. */
+export function audioContext(): AudioContext | null {
+  return ctx;
+}
+
+/** Runs `fn` as soon as audio is unlocked (now, if it already is). */
+export function onAudioUnlock(fn: (c: AudioContext) => void): void {
+  if (ctx) fn(ctx);
+  else unlockListeners.push(fn);
+}
 let blocked = false;
 const ext = (() => {
   if (typeof document === 'undefined') return 'ogg';
@@ -18,6 +30,8 @@ export const sound = {
     if (ctx || typeof AudioContext === 'undefined') return;
     ctx = new AudioContext();
     blocked = false;
+    const c = ctx;
+    unlockListeners.splice(0).forEach((fn) => fn(c));
   },
   cry(dex: number, volume = CRY_VOLUME, rate = 1): void {
     if (!this.enabled || blocked) return;
@@ -55,5 +69,30 @@ export const sound = {
   },
   sparkle(): void {
     this.tone(880, 160, 'sine', 1760);
+  },
+  /** A piece is picked up: short rising blip. */
+  pickup(): void {
+    this.tone(520, 50, 'square', 880);
+  },
+  /** A piece is put down: soft low thunk. */
+  place(): void {
+    this.tone(180, 70, 'triangle', 110);
+  },
+  /** Check: two-tone alarm, twice. */
+  alarm(): void {
+    [0, 140, 280, 420].forEach((ms, i) => window.setTimeout(() => this.tone(i % 2 ? 660 : 990, 110, 'square'), ms));
+  },
+  /** One tick of the HP bar draining. */
+  hpTick(): void {
+    this.tone(1800, 12, 'square');
+  },
+  /** Castling: two quick hops. */
+  castle(): void {
+    this.tone(440, 60, 'square', 660);
+    window.setTimeout(() => this.tone(660, 80, 'square', 990), 90);
+  },
+  /** Evolution shimmer: a rising arpeggio. */
+  shimmer(): void {
+    [523, 659, 784, 1047, 1319].forEach((f, i) => window.setTimeout(() => this.tone(f, 140, 'triangle', f * 1.01), i * 45));
   },
 };

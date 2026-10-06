@@ -72,3 +72,18 @@ test.describe('360x640', () => {
     await expect(page.getByTestId('set-anim')).toHaveValue('off');
   });
 });
+
+test('music: title loop on the title screen, board loop in a game, music slider defaults to 30%', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  const cue = () => page.evaluate(() => (JSON.parse((window as unknown as { __kc: { dumpState(): string } }).__kc.dumpState()) as { music: string | null }).music);
+  expect(await cue()).toBe('title');
+  await page.getByTestId('settings').click();
+  await expect(page.getByTestId('set-music')).toHaveValue('0.3');
+  await page.getByTestId('back').click();
+  await page.getByTestId('two-players').click();
+  expect(await cue()).toBe('board');
+  expect(errors).toEqual([]);
+});
