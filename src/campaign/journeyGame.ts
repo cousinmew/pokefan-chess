@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Kanto Journey controller (§B11, §B12): Oak's intro, the map, trainer and rival battles (the C1 puzzle player in a
 // battle context), towns, tall grass encounters, the Trainer Card, Training, the Pokédex with candy, and My Team.
-import { ENCOUNTER_PAUSE_MS, INTRO_CARD_MS, PLAYTIME_TICK_MS, TRAINER_NEXT_MS } from '../config';
+import { DRILL_LEVEL, ENCOUNTER_PAUSE_MS, INTRO_CARD_MS, PLAYTIME_TICK_MS, TRAINER_NEXT_MS } from '../config';
 import { SPECIES } from '../board/pieces';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
 import { fmt } from '../game/text';
-import { cardScreen, dexDetail, dexScreen, encounterPanel, goalCard, gymCard, mapScreen, nameScreen, oakScreen, placeName, routeScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
+import { cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, goalCard, hofScreen, mapScreen, textGoalCard, nameScreen, oakScreen, placeName, routeScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
 import { exampleOf, lessonScreen, oakIntro } from '../ui/lesson';
 import { pool } from './trainer';
 import trainers from '../data/trainers.json';
 import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
-import { addCatch, chooseStarter, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, throwBall, type Campaign, type Route } from './kanto';
-import { beatTrainer, clearPlace, PLACES, placeCleared, routeOf, teamOf, themesFor, trainingThemes, visit, type Place, type Trainer } from './journey';
+import { addCatch, awardMew, championLevel, chooseStarter, EVOLUTIONS, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
+import { beatTrainer, clearPlace, nextTrainer, PLACES, placeCleared, RIVAL, routeOf, teamOf, themesFor, trainingThemes, visit, type Drill, type Place, type Trainer } from './journey';
+import { THEMES } from './trainer';
 import type { PuzzleGame } from './puzzleGame';
+import type { Challenge } from '../main';
+import type { DrillStatus } from './drill';
 
 export interface JourneyHost {
   show(view: HTMLElement): void;
@@ -27,6 +30,8 @@ export interface JourneyHost {
   gen(): number;
   /** The evolution animation (the board's battle overlay). */
   evolveAnim(from: string, to: string): Promise<void>;
+  /** A full game vs the computer on the board (Victory Road drills, Champion BLUE). */
+  startChallenge(ch: Challenge): void;
 }
 
 const PEOPLE = trainers.people as Record<string, string>;
@@ -97,8 +102,11 @@ export class JourneyGame {
         card: () => this.host.show(cardScreen(this.campaign, this.host.puzzle.trainer.rating.r, () => this.showMap())),
         training: () => this.showTraining(),
         back: () => this.host.goTitle(),
+        hof: () => this.showHof(() => this.showMap()),
       }),
     );
+    // Mew joins once 150 others are caught (§B12), whatever path got there.
+    this.checkMew(() => undefined);
   }
 
   enterPlace(p: Place): void {
@@ -116,14 +124,18 @@ export class JourneyGame {
       if (placeCleared(this.campaign, p)) return this.showMap();
       return this.story((p.story ?? []).map((k) => fmt(k)), () => this.battle(p, t), personSprite('blue'));
     }
-    // Gyms come in C3: the leader's intro card says so, and the map never waits for them.
-    const modal = this.host.modal;
-    modal.replaceChildren(gymCard(p.name ?? 'map.gymSoon', personSprite(p.leader ?? '')));
-    modal.hidden = false;
-    modal.onclick = () => {
-      modal.onclick = null;
-      modal.hidden = true;
-    };
+    const intro = (p.story ?? []).map((k) => fmt(k));
+    if (p.kind === 'drill') return this.story(intro, () => this.nextDrill(p));
+    if (p.kind === 'champion') return this.story(intro, () => this.champion(p), personSprite('blue-champion'));
+    // Gyms, challenges and the Elite Four: the next trainer still standing (or a replay of the first).
+    const t = nextTrainer(this.campaign, p) ?? p.trainers?.[0];
+    if (t) this.story(intro, () => this.battle(p, t), this.spriteOf(t) ?? undefined);
+  }
+
+  /** A trainer's sprite: a named person, "-" for none, else the class sprite. */
+  private spriteOf(t: Trainer): string | undefined | null {
+    if (t.sprite === '-') return null;
+    return t.sprite ? personSprite(t.sprite) : classSprite(t.class);
   }
 
   private showRoute(p: Place): void {
@@ -135,6 +147,7 @@ export class JourneyGame {
 
   /** The theme a trainer teaches: each trainer on a route takes the next of its themes; the rival mixes them all. */
   private focus(p: Place, t: Trainer): string {
+    if (t.lesson) return t.lesson;
     if (t.themes === 'learned') return 'mixed';
     const themes = themesFor(p, t);
     return themes[Math.max(0, (p.trainers ?? []).indexOf(t)) % themes.length] ?? 'mixed';
@@ -144,7 +157,7 @@ export class JourneyGame {
    * First time a theme appears, Oak's mini lesson comes first; then the intro card and the goal card (§B14). */
   battle(p: Place, t: Trainer): void {
     const theme = this.focus(p, t);
-    if (theme !== 'mixed' && !this.campaign.lessonsSeen.includes(theme)) {
+    if (THEMES.includes(theme) && !this.campaign.lessonsSeen.includes(theme)) {
       return void this.lesson(theme, () => {
         this.set({ ...this.campaign, lessonsSeen: [...this.campaign.lessonsSeen, theme] });
         if (p.kind === 'route') this.showRoute(p);
@@ -156,7 +169,7 @@ export class JourneyGame {
     this.set(markSeen(this.campaign, team));
     music.play('battle');
     const modal = this.host.modal;
-    modal.replaceChildren(trainerIntro(this.campaign, t, classSprite(t.class)));
+    modal.replaceChildren(trainerIntro(this.campaign, t, this.spriteOf(t)));
     modal.hidden = false;
     let stage = 0;
     const goal = () => {
@@ -198,8 +211,9 @@ export class JourneyGame {
       void this.host.puzzle.start();
     };
     void this.host.puzzle.start({
-      themes: theme === 'mixed' ? themesFor(p, t) : [theme],
+      themes: t.topics ?? (theme === 'mixed' ? themesFor(p, t) : [theme]),
       battle: true,
+      boost: t.boost ?? 0,
       banner: text,
       onLeave: () => p.kind === 'route' ? this.showRoute(p) : this.showMap(),
       onResult: (r) => {
@@ -222,11 +236,136 @@ export class JourneyGame {
 
   private win(p: Place, t: Trainer): void {
     const before = placeCleared(this.campaign, p);
-    this.set(beatTrainer(this.campaign, p, t));
-    music.play('victory');
+    let c = beatTrainer(this.campaign, p, t);
     const lines = [fmt(t.defeat)];
-    if (!before && placeCleared(this.campaign, p) && p.kind === 'route') lines.push(fmt('story.route.cleared', { route: placeName(p) }));
-    this.story(lines, () => (p.kind === 'route' && !placeCleared(this.campaign, p) ? this.showRoute(p) : this.showMap()));
+    // Badge ceremony (§B13 C3): the gym's badge, and the queen slot with the first one.
+    if (p.kind === 'gym' && p.badge && !c.badges.includes(p.badge)) {
+      c = { ...c, badges: [...c.badges, p.badge] };
+      lines.push(fmt('badge.received', { badge: fmt(`badge.${p.badge}` as StringKey) }));
+      if (c.badges.length === 1 && !c.queenOpen) lines.push(fmt('badge.queen'));
+    }
+    this.set(c);
+    music.play('victory');
+    const now = placeCleared(this.campaign, p);
+    if (!before && now && p.kind === 'route') lines.push(fmt('story.route.cleared', { route: placeName(p) }));
+    const next = () => {
+      const more = !now ? nextTrainer(this.campaign, p) : null;
+      if (more && p.kind === 'league') return this.battle(p, more);
+      if (p.kind === 'route' && !now) return this.showRoute(p);
+      this.showMap();
+    };
+    this.story(lines, () => (now && !before ? this.reward(p, next) : next()), this.spriteOf(t) ?? undefined);
+  }
+
+  /** Rewards for clearing a place the first time (§B12 part 2): gifts, then a choice. Never twice. */
+  private reward(p: Place, done: () => void): void {
+    if (!p.reward || this.campaign.rewards.includes(p.id)) return done();
+    this.set({ ...this.campaign, rewards: [...this.campaign.rewards, p.id] });
+    const counter = RIVAL.counter[this.campaign.starter ?? ''] ?? 'squirtle';
+    const lines: string[] = [];
+    for (const g of p.reward.gift ?? []) {
+      // The other two starters (§B12): one for the first rival win, BLUE's own for the second.
+      const id = g === '@starter-other' ? (STARTERS.find((s) => s !== this.campaign.starter && s !== counter) ?? 'bulbasaur') : g === '@starter-rival' ? counter : g;
+      this.set(addCatch(this.campaign, id, false, p.id));
+      lines.push(fmt(g.startsWith('@starter') ? 'reward.starter' : 'reward.gift', { name: SPECIES[id]!.name }));
+    }
+    const choose = () => {
+      const ids = p.reward?.choice;
+      if (!ids) return done();
+      this.host.show(
+        choiceScreen(ids, (id) => {
+          sound.cry(SPECIES[id]!.dex);
+          this.set(addCatch(this.campaign, id, false, p.id));
+          this.story([fmt('reward.gift', { name: SPECIES[id]!.name })], done);
+        }),
+      );
+    };
+    if (lines.length) this.story(lines, choose, personSprite('oak'));
+    else choose();
+  }
+
+  /** Mew (§B12): once 150 others are caught. */
+  private checkMew(done: () => void): void {
+    const next = awardMew(this.campaign);
+    if (!next) return done();
+    this.set(next);
+    sound.shimmer();
+    this.story([fmt('mew.line')], done, personSprite('oak'));
+  }
+
+  /** After an online win, trade evolutions on your team (§B12). */
+  onlineWin(): void {
+    const { campaign, evolved } = tradeEvolve(this.campaign);
+    if (!evolved.length) return;
+    this.set(campaign);
+    for (const [from, to] of evolved) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
+  }
+
+  /** Victory Road (§B2 row 10): mate a lone king within the limit, queen first, then rook. */
+  private nextDrill(p: Place): void {
+    const d = p.drills?.find((x) => !this.campaign.journey.cleared.includes(x.id)) ?? p.drills?.[0];
+    if (!d) return this.showMap();
+    const modal = this.host.modal;
+    modal.replaceChildren(textGoalCard(fmt(d.title), fmt(d.goal, { limit: String(d.limit) }), fmt('drill.moves', { n: String(d.limit) })));
+    modal.hidden = false;
+    modal.onclick = () => {
+      modal.onclick = null;
+      modal.hidden = true;
+      this.host.startChallenge({ fen: d.fen, level: DRILL_LEVEL, limit: d.limit, onEnd: (r) => this.drillEnd(p, d, r) });
+    };
+  }
+
+  private drillEnd(p: Place, d: Drill, r: DrillStatus): void {
+    if (r !== 'mate') {
+      const why = fmt(r === 'limit' ? 'drill.why.limit' : r === 'draw' ? 'drill.why.draw' : 'drill.why.lost');
+      return this.story([fmt('drill.fail', { why })], () => this.nextDrill(p));
+    }
+    let c = { ...this.campaign, journey: { ...this.campaign.journey, cleared: [...this.campaign.journey.cleared, d.id] } };
+    const done = (p.drills ?? []).every((x) => c.journey.cleared.includes(x.id));
+    if (done) c = clearPlace(c, p);
+    this.set(c);
+    this.story([fmt('drill.done'), ...(done ? [fmt('drill.cleared')] : [])], () => (done ? this.showMap() : this.nextDrill(p)));
+  }
+
+  /** BLUE's champion team: his starter's final form, then two Gen 1 favourites. */
+  private championTeam(): string[] {
+    let id = RIVAL.counter[this.campaign.starter ?? ''] ?? 'squirtle';
+    for (let e = EVOLUTIONS.find((x) => x.from === id); e; e = EVOLUTIONS.find((x) => x.from === id)) id = e.to;
+    return [id, 'pidgeot', 'alakazam'];
+  }
+
+  /** Champion BLUE (§B2 row 12): a full game vs the computer at a level set by your Trainer Level. */
+  private champion(p: Place): void {
+    const level = championLevel(this.host.puzzle.trainer.rating.r);
+    const blue: Trainer = { id: 'champion', class: 'trainer.class.champion', name: 'trainer.name.blue', team: this.championTeam(), defeat: 'champion.won', puzzles: 1, need: 1 };
+    const modal = this.host.modal;
+    music.play('battle');
+    modal.replaceChildren(trainerIntro(this.campaign, blue, personSprite('blue-champion')));
+    modal.hidden = false;
+    let stage = 0;
+    modal.onclick = () => {
+      if (stage++ === 0) {
+        modal.replaceChildren(textGoalCard(fmt('champion.title'), fmt('champion.goal', { level: String(level), name: fmt(`level.${level}` as StringKey) })));
+        return;
+      }
+      modal.onclick = null;
+      modal.hidden = true;
+      this.host.startChallenge({
+        level,
+        onEnd: (r) => {
+          if (r !== 'mate') return this.story([fmt('champion.lost')], () => this.showMap(), personSprite('blue-champion'));
+          const team = [...new Set([this.campaign.starter ?? 'pikachu', ...Object.values(this.campaign.team).map((v) => (v ?? '').split(':')[0]!)])].filter((x) => SPECIES[x]).slice(0, 6);
+          this.set({ ...clearPlace(this.campaign, p), champion: true, hallOfFame: [...this.campaign.hallOfFame, { date: new Date().toISOString().slice(0, 10), team }] });
+          this.story([fmt('champion.won')], () => this.showHof(() => this.showMap()), personSprite('blue-champion'));
+        },
+      });
+    };
+  }
+
+  private showHof(done: () => void): void {
+    const last = this.campaign.hallOfFame[this.campaign.hallOfFame.length - 1];
+    music.play('victory');
+    this.host.show(hofScreen(this.campaign, last?.team ?? [this.campaign.starter ?? 'pikachu'], done));
   }
 
   private lose(p: Place, t: Trainer): void {

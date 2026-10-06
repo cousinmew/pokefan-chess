@@ -10,7 +10,8 @@ import roster from '../data/roster.gen1.json';
 import { rng } from '../game/rng';
 import { fmt } from '../game/text';
 import { SPECIES, type SpeciesId } from '../board/pieces';
-import { loadCampaign } from '../campaign/kanto';
+import { DEX, loadCampaign } from '../campaign/kanto';
+import { PLACES } from '../campaign/journey';
 import type { App, Mode } from '../main';
 
 export function installHarness(app: App): void {
@@ -76,6 +77,13 @@ export function installHarness(app: App): void {
     /** Kanto Journey: adds catches straight into the save (tests only), and reads the live campaign. */
     grant: (id: string, n = 1, shiny = false) => app.journey.grant(id, n, shiny),
     journey: () => app.journey.campaign,
+    dexIds: () => DEX,
+    /** Opens a Journey place directly, locked or not (tests walk gyms and the Elite Four this way). */
+    enterPlace: (id: string) => {
+      const p = PLACES.find((x) => x.id === id);
+      if (!p) throw new Error(`no place ${id}`);
+      app.journey.enterPlace(p);
+    },
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,

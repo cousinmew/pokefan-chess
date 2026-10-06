@@ -43,8 +43,9 @@ export function footer(): HTMLElement {
   return f;
 }
 
-export function toast(key: StringKey): void {
-  const t = el('div', 'toast', key);
+export function toast(key: StringKey, vars?: Record<string, string>): void {
+  const t = el('div', 'toast');
+  t.textContent = fmt(key, vars);
   t.setAttribute('role', 'status');
   t.dataset.testid = 'toast';
   document.body.append(t);

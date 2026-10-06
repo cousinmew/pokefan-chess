@@ -82,7 +82,12 @@
      "need": 3,
      "themes": "learned"
     }
-   ]
+   ],
+   "reward": {
+    "gift": [
+     "@starter-other"
+    ]
+   }
   },
   {
    "id": "viridian-forest",
@@ -132,7 +137,31 @@
    "id": "pewter-gym",
    "kind": "gym",
    "name": "gym.1",
-   "leader": "brock"
+   "leader": "brock",
+   "badge": "boulder",
+   "story": [
+    "story.pewter-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-brock",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.brock",
+     "team": [
+      "geodude",
+      "onix"
+     ],
+     "defeat": "line.gym-brock",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "castling",
+      "hangingPiece"
+     ],
+     "sprite": "brock",
+     "lesson": "pewter-gym"
+    }
+   ]
   },
   {
    "id": "route-3",
@@ -178,6 +207,44 @@
    ]
   },
   {
+   "id": "mt-moon",
+   "kind": "challenge",
+   "name": "place.mt-moon",
+   "optional": true,
+   "story": [
+    "story.mt-moon.1"
+   ],
+   "trainers": [
+    {
+     "id": "mm-gus",
+     "class": "trainer.class.supernerd",
+     "name": "trainer.name.gus",
+     "team": [
+      "zubat",
+      "paras",
+      "clefairy"
+     ],
+     "defeat": "line.mm-gus",
+     "puzzles": 3,
+     "need": 2,
+     "topics": [
+      "trappedPiece",
+      "hangingPiece"
+     ],
+     "lesson": "mt-moon"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "magikarp"
+    ],
+    "choice": [
+     "omanyte",
+     "kabuto"
+    ]
+   }
+  },
+  {
    "id": "rival-2",
    "kind": "rival",
    "name": "place.rival",
@@ -200,13 +267,43 @@
      "need": 3,
      "themes": "learned"
     }
-   ]
+   ],
+   "reward": {
+    "gift": [
+     "@starter-rival"
+    ]
+   }
   },
   {
    "id": "cerulean-gym",
    "kind": "gym",
    "name": "gym.2",
-   "leader": "misty"
+   "leader": "misty",
+   "badge": "cascade",
+   "story": [
+    "story.cerulean-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-misty",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.misty",
+     "team": [
+      "staryu",
+      "starmie"
+     ],
+     "defeat": "line.gym-misty",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "hangingPiece",
+      "trappedPiece",
+      "advantage"
+     ],
+     "sprite": "misty",
+     "lesson": "cerulean-gym"
+    }
+   ]
   },
   {
    "id": "route-6",
@@ -242,7 +339,65 @@
    "id": "vermilion-gym",
    "kind": "gym",
    "name": "gym.3",
-   "leader": "ltsurge"
+   "leader": "ltsurge",
+   "badge": "thunder",
+   "story": [
+    "story.vermilion-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-ltsurge",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.ltsurge",
+     "team": [
+      "voltorb",
+      "pikachu",
+      "raichu"
+     ],
+     "defeat": "line.gym-ltsurge",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "fork"
+     ],
+     "sprite": "ltsurge",
+     "lesson": "vermilion-gym"
+    }
+   ]
+  },
+  {
+   "id": "power-plant",
+   "kind": "challenge",
+   "name": "place.power-plant",
+   "optional": true,
+   "story": [
+    "story.power-plant.1"
+   ],
+   "trainers": [
+    {
+     "id": "legend-zapdos",
+     "class": "trainer.class.legend",
+     "name": "trainer.name.zapdos",
+     "team": [
+      "zapdos"
+     ],
+     "defeat": "line.legend-zapdos",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "fork",
+      "doubleCheck"
+     ],
+     "sprite": "-",
+     "boost": 150,
+     "lesson": "power-plant"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "zapdos"
+    ]
+   }
   },
   {
    "id": "route-7",
@@ -279,7 +434,69 @@
    "id": "celadon-gym",
    "kind": "gym",
    "name": "gym.4",
-   "leader": "erika"
+   "leader": "erika",
+   "badge": "rainbow",
+   "story": [
+    "story.celadon-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-erika",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.erika",
+     "team": [
+      "victreebel",
+      "tangela",
+      "vileplume"
+     ],
+     "defeat": "line.gym-erika",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "promotion",
+      "advancedPawn"
+     ],
+     "sprite": "erika",
+     "lesson": "celadon-gym"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "eevee"
+    ]
+   }
+  },
+  {
+   "id": "game-corner",
+   "kind": "challenge",
+   "name": "place.game-corner",
+   "optional": true,
+   "story": [
+    "story.game-corner.1"
+   ],
+   "trainers": [
+    {
+     "id": "gc-rocco",
+     "class": "trainer.class.gambler",
+     "name": "trainer.name.rocco",
+     "team": [
+      "porygon"
+     ],
+     "defeat": "line.gc-rocco",
+     "puzzles": 3,
+     "need": 2,
+     "topics": [
+      "advantage",
+      "fork"
+     ],
+     "lesson": "game-corner"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "porygon"
+    ]
+   }
   },
   {
    "id": "route-14",
@@ -316,7 +533,65 @@
    "id": "fuchsia-gym",
    "kind": "gym",
    "name": "gym.5",
-   "leader": "koga"
+   "leader": "koga",
+   "badge": "soul",
+   "story": [
+    "story.fuchsia-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-koga",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.koga",
+     "team": [
+      "koffing",
+      "muk",
+      "weezing"
+     ],
+     "defeat": "line.gym-koga",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "pin"
+     ],
+     "sprite": "koga",
+     "lesson": "fuchsia-gym"
+    }
+   ]
+  },
+  {
+   "id": "seafoam",
+   "kind": "challenge",
+   "name": "place.seafoam",
+   "optional": true,
+   "story": [
+    "story.seafoam.1"
+   ],
+   "trainers": [
+    {
+     "id": "legend-articuno",
+     "class": "trainer.class.legend",
+     "name": "trainer.name.articuno",
+     "team": [
+      "articuno"
+     ],
+     "defeat": "line.legend-articuno",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "pin",
+      "skewer"
+     ],
+     "sprite": "-",
+     "boost": 150,
+     "lesson": "seafoam"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "articuno"
+    ]
+   }
   },
   {
    "id": "route-8",
@@ -365,7 +640,42 @@
    "id": "saffron-gym",
    "kind": "gym",
    "name": "gym.6",
-   "leader": "sabrina"
+   "leader": "sabrina",
+   "badge": "marsh",
+   "story": [
+    "story.saffron-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-sabrina",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.sabrina",
+     "team": [
+      "kadabra",
+      "mr-mime",
+      "alakazam"
+     ],
+     "defeat": "line.gym-sabrina",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "discoveredAttack",
+      "discoveredCheck",
+      "doubleCheck"
+     ],
+     "sprite": "sabrina",
+     "lesson": "saffron-gym"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "lapras"
+    ],
+    "choice": [
+     "hitmonlee",
+     "hitmonchan"
+    ]
+   }
   },
   {
    "id": "route-21",
@@ -401,7 +711,66 @@
    "id": "cinnabar-gym",
    "kind": "gym",
    "name": "gym.7",
-   "leader": "blaine"
+   "leader": "blaine",
+   "badge": "volcano",
+   "story": [
+    "story.cinnabar-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-blaine",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.blaine",
+     "team": [
+      "growlithe",
+      "ponyta",
+      "arcanine"
+     ],
+     "defeat": "line.gym-blaine",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "capturingDefender",
+      "deflection",
+      "mateIn2",
+      "backRankMate"
+     ],
+     "sprite": "blaine",
+     "lesson": "cinnabar-gym"
+    }
+   ]
+  },
+  {
+   "id": "cinnabar-lab",
+   "kind": "challenge",
+   "name": "place.cinnabar-lab",
+   "optional": true,
+   "story": [
+    "story.cinnabar-lab.1"
+   ],
+   "trainers": [
+    {
+     "id": "lab-iris",
+     "class": "trainer.class.scientist",
+     "name": "trainer.name.iris",
+     "team": [
+      "aerodactyl"
+     ],
+     "defeat": "line.lab-iris",
+     "puzzles": 3,
+     "need": 2,
+     "topics": [
+      "promotion",
+      "advancedPawn"
+     ],
+     "lesson": "cinnabar-lab"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "aerodactyl"
+    ]
+   }
   },
   {
    "id": "route-22",
@@ -463,7 +832,217 @@
    "id": "viridian-gym",
    "kind": "gym",
    "name": "gym.8",
-   "leader": "giovanni"
+   "leader": "giovanni",
+   "badge": "earth",
+   "story": [
+    "story.viridian-gym.1"
+   ],
+   "trainers": [
+    {
+     "id": "gym-giovanni",
+     "class": "trainer.class.leader",
+     "name": "trainer.name.giovanni",
+     "team": [
+      "rhyhorn",
+      "nidoqueen",
+      "nidoking"
+     ],
+     "defeat": "line.gym-giovanni",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "mixed"
+     ],
+     "sprite": "giovanni",
+     "lesson": "viridian-gym"
+    }
+   ]
+  },
+  {
+   "id": "victory-road",
+   "kind": "drill",
+   "name": "place.victory-road",
+   "story": [
+    "story.victory-road.1",
+    "story.victory-road.2"
+   ],
+   "drills": [
+    {
+     "id": "drill-kq",
+     "title": "drill.kq.title",
+     "goal": "drill.kq.goal",
+     "fen": "8/8/8/4k3/8/8/8/4K2Q w - - 0 1",
+     "limit": 15
+    },
+    {
+     "id": "drill-kr",
+     "title": "drill.kr.title",
+     "goal": "drill.kr.goal",
+     "fen": "8/8/8/4k3/8/8/8/4K2R w - - 0 1",
+     "limit": 25
+    }
+   ]
+  },
+  {
+   "id": "moltres-peak",
+   "kind": "challenge",
+   "name": "place.moltres-peak",
+   "optional": true,
+   "story": [
+    "story.moltres-peak.1"
+   ],
+   "trainers": [
+    {
+     "id": "legend-moltres",
+     "class": "trainer.class.legend",
+     "name": "trainer.name.moltres",
+     "team": [
+      "moltres"
+     ],
+     "defeat": "line.legend-moltres",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "mateIn2",
+      "backRankMate"
+     ],
+     "sprite": "-",
+     "boost": 150,
+     "lesson": "moltres-peak"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "moltres"
+    ]
+   }
+  },
+  {
+   "id": "indigo-plateau",
+   "kind": "league",
+   "name": "place.indigo-plateau",
+   "story": [
+    "story.e4.1",
+    "story.e4.2"
+   ],
+   "trainers": [
+    {
+     "id": "e4-lorelei",
+     "class": "trainer.class.elitefour",
+     "name": "trainer.name.lorelei",
+     "team": [
+      "dewgong",
+      "cloyster",
+      "lapras"
+     ],
+     "defeat": "line.e4-lorelei",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "skewer"
+     ],
+     "sprite": "lorelei",
+     "lesson": "e4-lorelei"
+    },
+    {
+     "id": "e4-bruno",
+     "class": "trainer.class.elitefour",
+     "name": "trainer.name.bruno",
+     "team": [
+      "onix",
+      "hitmonchan",
+      "machamp"
+     ],
+     "defeat": "line.e4-bruno",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "xRayAttack"
+     ],
+     "sprite": "bruno",
+     "lesson": "e4-bruno"
+    },
+    {
+     "id": "e4-agatha",
+     "class": "trainer.class.elitefour",
+     "name": "trainer.name.agatha",
+     "team": [
+      "gengar",
+      "golbat",
+      "arbok"
+     ],
+     "defeat": "line.e4-agatha",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "mixed"
+     ],
+     "sprite": "agatha",
+     "boost": 100,
+     "lesson": "e4-agatha"
+    },
+    {
+     "id": "e4-lance",
+     "class": "trainer.class.elitefour",
+     "name": "trainer.name.lance",
+     "team": [
+      "gyarados",
+      "dragonair",
+      "dragonite"
+     ],
+     "defeat": "line.e4-lance",
+     "puzzles": 5,
+     "need": 4,
+     "topics": [
+      "mixed"
+     ],
+     "sprite": "lance",
+     "boost": 200,
+     "lesson": "e4-lance"
+    }
+   ]
+  },
+  {
+   "id": "champion",
+   "kind": "champion",
+   "name": "place.champion",
+   "story": [
+    "story.champion.1",
+    "story.champion.2"
+   ]
+  },
+  {
+   "id": "cerulean-cave",
+   "kind": "challenge",
+   "name": "place.cerulean-cave",
+   "optional": true,
+   "story": [
+    "story.cerulean-cave.1"
+   ],
+   "trainers": [
+    {
+     "id": "legend-mewtwo",
+     "class": "trainer.class.legend",
+     "name": "trainer.name.mewtwo",
+     "team": [
+      "mewtwo"
+     ],
+     "defeat": "line.legend-mewtwo",
+     "puzzles": 5,
+     "need": 5,
+     "topics": [
+      "mixed"
+     ],
+     "sprite": "-",
+     "boost": 300,
+     "lesson": "cerulean-cave"
+    }
+   ],
+   "reward": {
+    "gift": [
+     "mewtwo"
+    ]
+   }
   }
  ]
 }

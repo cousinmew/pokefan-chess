@@ -86,6 +86,9 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
     await solveOne(page);
     await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
+  // BLUE's defeat line, then Oak's reward: the starter neither of you picked (§B12).
+  await readStory(page, 1);
+  await expect(page.getByTestId('story-text')).toContainText('SQUIRTLE wanted to come along!');
   await readStory(page, 1);
   await expect(page.getByTestId('route-viridian-forest')).toBeEnabled();
   const save = await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.journey());

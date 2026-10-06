@@ -121,7 +121,7 @@ describe('team rules (§B14)', () => {
     expect(c.teamNotice).toEqual([['q', 'charmander'], ['n', 'mewtwo'], ['bLight', 'rattata']]);
     expect(c.caught.mewtwo).toBe(1);
     // Saved once: the next load keeps the team and does not repeat the notice list.
-    expect(JSON.parse(store.get('kc:v1:campaign')!).teamRules).toBe(1);
+    expect(JSON.parse(store.get('kc:v1:campaign')!).teamRules).toBe(2);
     expect(whyNot('q', 'mewtwo', 'charmander', 1)).toBeNull();
     expect(whyNot('n', 'tauros', 'charmander', 1)).toBeNull();
     expect(whyNot('p', 'tauros', 'charmander', 1)).toBeNull();

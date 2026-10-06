@@ -105,3 +105,26 @@ test("online: your friend sees your My Team skins", async ({ browser }) => {
   await expect(a.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'SQUIRTLE');
   await expect(b.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDOKING');
 });
+
+test('online: a win evolves trade Pokémon on your team (§B12)', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  await ctx.addInitScript(() =>
+    localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', introSeen: true, teamRules: 2, caught: { squirtle: 1, kadabra: 1 }, team: { n: 'kadabra' } })),
+  );
+  const a = await ctx.newPage();
+  await a.goto(`./?debug=1${RELAY}`);
+  await a.getByTestId('screen-splash').click();
+  await a.getByTestId('play-online').click();
+  await a.getByTestId('create-room').click();
+  const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
+  const b = await newPage(browser);
+  await joinRoom(b, code);
+  for (const p of [a, b]) await expect(p.locator('#board')).toBeVisible({ timeout: 10_000 });
+  const moves = ['e2e4', 'e7e5', 'f1c4', 'b8c6', 'd1h5', 'g8f6', 'h5f7'];
+  for (const [i, uci] of moves.entries()) await play(i % 2 ? b : a, i % 2 ? a : b, uci);
+  await expect(a.getByTestId('end-text')).toHaveText("Looks like Team Rocket's blasting off again!", { timeout: 8000 });
+  await expect(a.getByTestId('toast').first()).toHaveText('Your KADABRA evolved into ALAKAZAM after the online win!');
+  const caught = await a.evaluate(() => (window as unknown as { __kc: { journey(): { caught: Record<string, number> } } }).__kc.journey().caught);
+  expect(caught).toMatchObject({ kadabra: 1, alakazam: 1 });
+});

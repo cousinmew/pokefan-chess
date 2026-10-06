@@ -214,3 +214,16 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .mini-sq.last { box-shadow: inset 0 0 0 3px #f0a020; }
 .mini-sq img { width: 28px; height: 28px; image-rendering: pixelated; }
 .puzzle-banner { white-space: pre-line; font-weight: 700; margin: 0; padding: 4px 6px; background: #fff7d0; border: 2px solid var(--ink); border-radius: 4px; }
+
+.badge.won { border-color: #181818; }
+.badge.boulder { background: #a0a0a0; } .badge.cascade { background: #58a8f8; } .badge.thunder { background: #f8d030; } .badge.rainbow { background: linear-gradient(135deg, #f87070, #f8d030, #70d070, #58a8f8); }
+.badge.soul { background: #e070c0; } .badge.marsh { background: #d0b030; } .badge.volcano { background: #f06030; } .badge.earth { background: #60b060; }
+.hof-team { flex-wrap: wrap; justify-content: center; }
+.hof-team .menu-sprite { width: 72px; height: 72px; }
+
+.kanto-map .node.gym { background: #e8e0f8; color: inherit; border-style: solid; }
+.kanto-map .node.gym.locked, .kanto-map .node.locked { background: #f0f0f0; color: #909090; }
+.kanto-map .node.optional { border-style: dashed; background: #fff4e0; }
+.kanto-map .node.challenge, .kanto-map .node.drill { background: #fff4e0; }
+.kanto-map .node.league, .kanto-map .node.champion { background: #f8e0e0; }
+.badge-line.won { color: #307030; font-weight: 700; }

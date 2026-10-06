@@ -103,9 +103,17 @@ export interface Campaign {
   /** Team rules version applied to `team`, and the one time notice of what the rules reverted. */
   teamRules: number;
   teamNotice: [SkinRole, string][];
+  /** Saves created before C2c keep the queen slot open without a badge (grandfathered). */
+  queenOpen: boolean;
+  champion: boolean;
+  hallOfFame: { date: string; team: string[] }[];
+  /** Places whose rewards were given, so a replay gives nothing twice. */
+  rewards: string[];
 }
 
-export const TEAM_RULES_VERSION = 1;
+export const TEAM_RULES_VERSION = 2;
+/** Badges for the team rules: a grandfathered save counts as having the first. */
+export const teamBadges = (c: Campaign) => Math.max(c.badges.length, c.queenOpen ? 1 : 0);
 
 export const CAMPAIGN_VERSION = 2;
 const FAMILIES = kanto.families as Record<string, string>;
@@ -115,6 +123,7 @@ const fresh = (): Campaign => ({
   v: CAMPAIGN_VERSION, name: '', starter: null, caught: {}, shiny: {}, oak: {}, candy: {}, seen: [], caughtAt: {}, routes: {},
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
   badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
+  queenOpen: false, champion: false, hallOfFame: [], rewards: [],
 });
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
@@ -126,6 +135,9 @@ export function loadCampaign(): Campaign {
     caught: { ...c?.caught }, shiny: { ...c?.shiny }, oak: { ...c?.oak }, candy: { ...c?.candy }, seen: [...(c?.seen ?? [])],
     caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: { ...c?.team },
     badges: [...(c?.badges ?? [])], lessonsSeen: [...(c?.lessonsSeen ?? [])], teamNotice: [...(c?.teamNotice ?? [])],
+    hallOfFame: [...(c?.hallOfFame ?? [])], rewards: [...(c?.rewards ?? [])],
+    // Grandfathered queen (C3 quick fix): a save with a starter but no introSeen predates C2c's Oak intro.
+    queenOpen: c?.queenOpen ?? (!!c?.starter && !c?.introSeen),
     // Saves from before §B14 have no teamRules: their teams are checked once below.
     teamRules: c ? (c.teamRules ?? 0) : TEAM_RULES_VERSION,
     journey: { cleared: [...(c?.journey?.cleared ?? [])], beaten: [...(c?.journey?.beaten ?? [])], visited: [...(c?.journey?.visited ?? [])] },
@@ -144,11 +156,21 @@ export function loadCampaign(): Campaign {
     }
     out.v = CAMPAIGN_VERSION;
   }
-  if (out.teamRules < TEAM_RULES_VERSION) {
+  if (out.teamRules < 1) {
     // Migrated, not rejected (§B14 addendum): ineligible slots go back to the default piece, with one notice.
-    const { team, dropped } = enforce(out.team, out.starter, out.badges.length);
+    const { team, dropped } = enforce(out.team, out.starter, teamBadges(out));
     out.team = team;
     out.teamNotice = [...out.teamNotice, ...dropped];
+  }
+  if (out.teamRules < 2 && out.queenOpen && !out.team.q) {
+    // C2c reverted grandfathered queens; give back an eligible one that is still in the notice.
+    const back = out.teamNotice.find(([role, id]) => role === 'q' && enforce({ q: id }, out.starter, 1).team.q);
+    if (back) {
+      out.team = { ...out.team, q: back[1] };
+      out.teamNotice = out.teamNotice.filter((n) => n !== back);
+    }
+  }
+  if (out.teamRules < TEAM_RULES_VERSION) {
     out.teamRules = TEAM_RULES_VERSION;
     save('campaign', out);
   }
@@ -220,6 +242,30 @@ export function sendToOak(c: Campaign, id: string): Campaign | null {
 
 /** 0 to 3 stars from duplicates sent to Oak (3, 6, 10). */
 export const starsOf = (c: Campaign, id: string) => STAR_STEPS.filter((n) => (c.oak[id] ?? 0) >= n).length;
+
+/** Mew (§B12): awarded once 150 other species are caught. */
+export function awardMew(c: Campaign): Campaign | null {
+  const others = DEX.filter((s) => s !== 'mew' && c.caught[s]).length;
+  return others >= 150 && !c.caught.mew ? addCatch(c, 'mew', false, 'award') : null;
+}
+
+/** Trade evolutions (§B12): after an online win, team members that evolve by trade do so (the old one stays). */
+export function tradeEvolve(c: Campaign): { campaign: Campaign; evolved: [string, string][] } {
+  let next = c;
+  const evolved: [string, string][] = [];
+  const team = new Set(Object.values(c.team).map((id) => (id ?? '').split(':')[0]!));
+  for (const e of EVOLUTIONS) {
+    if (e.trigger !== 'trade' || !team.has(e.from) || !c.caught[e.from]) continue;
+    next = addCatch(next, e.to, false, 'trade');
+    evolved.push([e.from, e.to]);
+  }
+  return { campaign: next, evolved };
+}
+
+/** Champion BLUE's level from the Trainer Level (§B2 row 12). */
+export function championLevel(rating: number): 1 | 2 | 3 | 4 {
+  return rating < 800 ? 1 : rating < 1100 ? 2 : rating < 1400 ? 3 : 4;
+}
 
 /** How each of the 151 is obtained (generated from PokéAPI plus the planned C3 sources). */
 export const SOURCES = sources as Record<string, { kind: string; from?: string; where?: string[] }[]>;

@@ -43,16 +43,19 @@ test('starter picker, name step, battle intro, My Team and Pokédex sprites all 
   await allLoaded(page, '.screen-dex .dex-cell.caught', 1);
 });
 
-test('a placeholder gym shows its leader and Coming soon', async ({ page }) => {
+test('a gym opens with its leader sliding in (C3)', async ({ page }) => {
   await page.addInitScript(() =>
-    localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'RED', starter: 'squirtle', caught: { squirtle: 1 }, introSeen: true, teamRules: 1, journey: { cleared: ['route-1', 'viridian', 'rival-1', 'viridian-forest'], beaten: [], visited: ['route-1'] } })),
+    localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'RED', starter: 'squirtle', caught: { squirtle: 1 }, introSeen: true, teamRules: 2, journey: { cleared: ['route-1', 'viridian', 'rival-1', 'viridian-forest'], beaten: [], visited: ['route-1'] } })),
   );
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
+  await expect(page.getByTestId('route-route-3')).toBeDisabled();
   await page.getByTestId('place-pewter-gym').click();
-  await allLoaded(page, '[data-testid="gym-card"]', 1);
-  await expect(page.getByTestId('gym-card')).toContainText('PEWTER GYM: BROCK');
-  await expect(page.locator('[data-testid="gym-card"] [data-trainer="brock-gen1"]')).toBeVisible();
-  await expect(page.getByTestId('route-route-3')).toBeEnabled();
+  await allLoaded(page, '.overlay', 1);
+  await expect(page.locator('.overlay [data-trainer="brock-gen1"]')).toBeVisible();
+  await expect(page.getByTestId('story-text')).toContainText('BROCK:');
+  await page.getByTestId('story').click();
+  await allLoaded(page, '[data-testid="trainer-intro"]', 3);
+  await expect(page.getByTestId('trainer-intro')).toContainText('LEADER BROCK wants to battle!');
 });

@@ -50,3 +50,9 @@
 - Oak's intro with Nidorino, trainer sprites everywhere, battle intro and goal cards with pips, a goal banner over every puzzle, and Oak's mini lessons the first time a theme appears.
 - My Team follows rules now: your starter's family is king, queens are fully evolved (after the first badge), pawns are first stage. Old teams were adjusted once, with a note.
 - Sprites never show as empty boxes, even on a slow connection.
+
+## 1.7.0 (C3)
+
+- The eight gyms with their leaders and badges, Victory Road checkmate drills, the Elite Four, Champion BLUE as a full game, and the Hall of Fame.
+- Every way to complete the Pokédex: starters from your rival, gifts, fossils, a prize, trade evolutions after online wins, the legendary birds, Mewtwo after the Champion, and Mew at 150.
+- Players from before the team rules keep their queen.

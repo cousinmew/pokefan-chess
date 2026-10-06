@@ -3,7 +3,7 @@
 // trainer intros, the Trainer Card, Training, the 151 Pokédex with candy and stars, My Team, and the encounter panel.
 import { MASTERY_NEED, MASTERY_WINDOW, STAR_STEPS } from '../config';
 import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
-import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf, STARTERS, type Campaign, type Evolution, type Route } from '../campaign/kanto';
+import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution, type Route } from '../campaign/kanto';
 import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
@@ -110,6 +110,7 @@ export interface MapActions {
   card(): void;
   training(): void;
   back(): void;
+  hof?(): void;
 }
 
 export const placeName = (p: Place) => routeOf(p)?.name ?? (p.name ? fmt(p.name) : p.id);
@@ -126,16 +127,22 @@ export function mapScreen(c: Campaign, a: MapActions): HTMLElement {
     b.dataset.testid = testid;
     b.disabled = !open;
     const title = el('b');
-    title.textContent = `${placeName(p)}${done && p.kind !== 'gym' ? ' ✓' : ''}`;
+    title.textContent = `${placeName(p)}${done ? ' ✓' : ''}`;
     b.append(title);
     b.dataset.kind = p.kind;
-    if (p.kind === 'gym') b.append(line('map.gymSoon', undefined, 'small'));
+    if (p.kind === 'gym' && p.badge) {
+      const won = c.badges.includes(p.badge);
+      const badge = el('p', `small badge-line${won ? ' won' : ''}`);
+      badge.textContent = `${fmt(`badge.${p.badge}` as StringKey)}${won ? ' ✓' : ''}`;
+      b.append(badge);
+    }
+    if (p.optional) b.classList.add('optional');
     else if (p.route) {
       const r = routeOf(p)!;
       const sp = routeSpecies(r as Route);
       b.append(line('route.dex', { caught: String(sp.filter((s) => c.caught[s]).length), total: String(sp.length) }, 'small'));
     }
-    if (!open && p.kind !== 'gym') b.append(line('map.locked', undefined, 'small'));
+    if (!open) b.append(line('map.locked', undefined, 'small'));
     b.onclick = () => open && a.place(i);
     list.append(b);
   });
@@ -146,6 +153,7 @@ export function mapScreen(c: Campaign, a: MapActions): HTMLElement {
     button('map.dex', a.dex, 'open-dex'),
     button('map.team', a.team, 'open-team'),
     button('map.training', a.training, 'open-training'),
+    ...(c.champion && a.hof ? [button('map.champion', a.hof, 'open-hof')] : []),
   );
   const s = screen('map', el('h2', '', 'map.title'), top, list, button('back', a.back, 'back', 'secondary'));
   // Open on the furthest point reached (§B11).
@@ -197,13 +205,63 @@ export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement
 }
 
 /** Battle intro card (§B14): the trainer slides in, "{CLASS} {NAME} wants to battle!" and their 1 to 3 Pokémon. */
-export function trainerIntro(c: Campaign, t: Trainer, sprite: string | undefined): HTMLElement {
+export function trainerIntro(c: Campaign, t: Trainer, sprite: string | undefined | null): HTMLElement {
   const p = el('div', 'panel trainer-intro');
   p.dataset.testid = 'trainer-intro';
   const team = el('div', 'kings');
   for (const s of teamOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
-  p.append(trainerSprite(sprite, 'trainer-sprite slide-in'), line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
+  // null: no trainer at all (a wild legendary), only its sprite.
+  if (sprite !== null) p.append(trainerSprite(sprite, 'trainer-sprite slide-in'));
+  p.append(line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
   return p;
+}
+
+/** A goal card with its own title and goal text (Victory Road drills, Champion BLUE). */
+export function textGoalCard(title: string, goal: string, extra?: string): HTMLElement {
+  const p = el('div', 'panel goal-card');
+  p.dataset.testid = 'goal-card';
+  const h = el('h3');
+  h.textContent = title;
+  const g = el('p');
+  g.textContent = goal;
+  p.append(h, g);
+  if (extra) {
+    const x = el('p', 'small');
+    x.textContent = extra;
+    p.append(x);
+  }
+  p.append(el('span', 'tb-tick', 'goal.start'));
+  return p;
+}
+
+/** Pick one of several gifts (fossils, the Fighting Dojo). */
+export function choiceScreen(ids: string[], pick: (id: string) => void): HTMLElement {
+  const row = el('div', 'cards');
+  for (const id of ids) {
+    const b = el('button', 'card');
+    b.dataset.testid = `choose-${id}`;
+    b.append(mon(id, 'menu-sprite bounce', false, false, true), document.createTextNode(SPECIES[id]!.name));
+    b.onclick = () => pick(id);
+    row.append(b);
+  }
+  return screen('choice', el('h2', '', 'reward.choose'), row);
+}
+
+/** Hall of Fame (§B2 row 12): your name, your partner and your team. */
+export function hofScreen(c: Campaign, team: string[], done: () => void): HTMLElement {
+  const grid = el('div', 'kings hof-team');
+  grid.dataset.testid = 'hof-team';
+  for (const id of team) grid.append(mon(id, 'menu-sprite', false, false, true));
+  const entry = c.hallOfFame[c.hallOfFame.length - 1];
+  return screen(
+    'hof',
+    el('h2', '', 'hof.title'),
+    line('hof.line', { name: c.name || fmt('name.1') }),
+    el('p', 'small', 'hof.team'),
+    grid,
+    ...(entry ? [line('hof.date', { date: entry.date }, 'small')] : []),
+    button('lesson.ok', done, 'hof-ok', 'primary'),
+  );
 }
 
 /** Goal card (§B14): the lesson title, a one line goal in kid language, one pip per puzzle. Tap to start. */
@@ -225,21 +283,19 @@ export function goalCard(theme: string, puzzles: number, need: number, extra?: s
   return p;
 }
 
-/** Gym intro card before C3: the leader and "Coming soon". */
-export function gymCard(nameKey: StringKey, sprite: string | undefined): HTMLElement {
-  const p = el('div', 'panel trainer-intro gym-card');
-  p.dataset.testid = 'gym-card';
-  p.append(trainerSprite(sprite, 'trainer-sprite slide-in'), line(nameKey), line('map.gymSoon', undefined, 'small'), el('span', 'tb-tick', 'story.tap'));
-  return p;
-}
-
 export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLElement {
   const caught = DEX.filter((s) => c.caught[s]).length;
   const seen = DEX.filter((s) => c.seen.includes(s) || c.caught[s]).length;
   const mins = Math.floor(c.playMs / 60000);
   const time = `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
   const badges = el('div', 'badges');
-  for (let i = 0; i < 8; i++) badges.append(el('span', 'badge empty'));
+  const ALL = ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth'];
+  for (const b of ALL) {
+    const dot = el('span', `badge ${c.badges.includes(b) ? `won ${b}` : 'empty'}`);
+    dot.title = c.badges.includes(b) ? fmt(`badge.${b}` as StringKey) : '';
+    badges.append(dot);
+  }
+  badges.dataset.testid = 'badges';
   const card = el('div', 'trainer-card');
   card.dataset.testid = 'trainer-card';
   card.append(
@@ -376,12 +432,12 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
       const o = el('option');
       o.value = f.id;
       o.textContent = f.label;
-      const why = whyNot(role, f.id, c.starter, c.badges.length);
+      const why = whyNot(role, f.id, c.starter, teamBadges(c));
       o.disabled = why !== null;
       reason ??= why;
       sel.append(o);
     }
-    if (role === 'q' && c.badges.length < 1) {
+    if (role === 'q' && teamBadges(c) < 1) {
       sel.disabled = true;
       reason = 'queenLocked';
     }

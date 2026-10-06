@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { AI_MIN_THINK_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { AI_MIN_THINK_MS, CHALLENGE_END_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -22,13 +22,22 @@ import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
+import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { createRoom } from './net/online';
 import { message, onlineMenu } from './ui/online';
 import { CODE_RE } from '../worker/src/protocol';
 
-export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle';
+export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge';
+
+/** A Journey game vs the computer (Victory Road drills, Champion BLUE): optional move limit, result to the Journey. */
+export interface Challenge {
+  fen?: string;
+  level: AiLevel;
+  limit?: number;
+  onEnd(result: DrillStatus): void;
+}
 export interface Setup {
   mode: Mode;
   human: Color;
@@ -175,6 +184,7 @@ function boot(): App {
       text.show([{ key }]);
       music.stop();
       music.play(key.endsWith('Win') ? 'victory' : 'defeat');
+      if (key.endsWith('Win')) journey.onlineWin();
       showEnd({ key });
     },
     say: (key) => text.plain(fmt(key)),
@@ -207,6 +217,7 @@ function boot(): App {
     goTitle,
     gen: () => gen,
     evolveAnim: (from, to) => overlay.evolve(from, to),
+    startChallenge: (ch) => startChallenge(ch),
   });
   app.journey = journey;
   app.campaignRng = journey.rng;
@@ -281,7 +292,7 @@ function boot(): App {
   function configure(setup: Setup): void {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
-    else if (setup.mode !== 'online') setSkins({});
+    else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
     app.mode = setup.mode;
     app.human = setup.mode === 'two-players' ? 'w' : setup.human;
     app.level = setup.level;
@@ -296,7 +307,7 @@ function boot(): App {
   }
 
   function persistGame(): void {
-    if (app.mode === 'online' || app.mode === 'puzzle') return;
+    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge') return;
     if (app.ended || game.chess.history().length === 0) remove('game');
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
@@ -358,12 +369,36 @@ function boot(): App {
       lockForTurn();
       online.drain();
     }
+    if (app.mode === 'challenge' && challenge && !app.ended) {
+      if (out.move.color === app.human) challenge.made++;
+      if (challenge.limit && drillStatus(game.chess, challenge.made, challenge.limit, app.human) === 'limit') endChallenge('limit');
+    }
     if (app.mode === 'puzzle') puzzle.settled();
   }
 
   /** Online: only the player whose turn it is may touch the board. */
   function lockForTurn(): void {
     board.locked = app.ended || app.busy || (app.mode === 'online' && game.turn() !== app.human);
+  }
+
+  let challenge: (Challenge & { made: number }) | null = null;
+
+  function startChallenge(ch: Challenge): void {
+    configure({ mode: 'challenge', human: 'w', level: ch.level });
+    challenge = { ...ch, made: 0 };
+    show(gameView);
+    restart(ch.fen);
+  }
+
+  function endChallenge(result: DrillStatus): void {
+    const ch = challenge;
+    if (!ch || result === 'playing') return;
+    challenge = null;
+    app.ended = true;
+    board.locked = true;
+    music.play(result === 'mate' ? 'victory' : 'defeat');
+    const g = gen;
+    window.setTimeout(() => g === gen && ch.onEnd(result), CHALLENGE_END_MS);
   }
 
   function submit(from: string, to: string, promotion?: Role): void {
@@ -373,14 +408,14 @@ function boot(): App {
   }
 
   function canTakeBack(): boolean {
-    if (app.mode === 'online' || app.mode === 'puzzle') return false;
+    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge') return false;
     if (app.mode === 'two-players') return settings.takeBack;
     return TAKE_BACK_LEVELS.includes(app.level);
   }
 
   /** Computer turn: Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
   async function maybeAi(): Promise<void> {
-    if (app.mode !== 'computer' || app.ended || introOpen || app.busy || game.turn() === app.human) return;
+    if ((app.mode !== 'computer' && app.mode !== 'challenge') || app.ended || introOpen || app.busy || game.turn() === app.human) return;
     const g = gen;
     app.busy = true;
     board.locked = true;
@@ -435,6 +470,9 @@ function boot(): App {
     if (app.mode === 'puzzle') return;
     text.show([end.line]);
     music.stop();
+    if (app.mode === 'challenge') return endChallenge(drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human));
+    // An online win evolves trade Pokémon on your team (§B12).
+    if (app.mode === 'online' && end.winner === app.human) journey.onlineWin();
     if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
     if (end.reason === 'checkmate') {
       const king = game.checkedKing();

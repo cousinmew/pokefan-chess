@@ -27,6 +27,8 @@ export interface PuzzleContext {
   onLeave(): void;
   /** A trainer battle: puzzles advance on their own, so Next is hidden. */
   battle?: boolean;
+  /** Puzzles this much above the Trainer Level (gyms, Elite Four, legendaries). */
+  boost?: number;
   /** The banner above the board for each puzzle, given the side you play (§B14). */
   banner?: (side: 'w' | 'b') => string;
 }
@@ -98,7 +100,7 @@ export class PuzzleGame {
     const theme = choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
     const rows = await pool(theme);
     if (g !== this.gen) return;
-    this.row = pick(rows, this.trainer.rating.r, this.trainer.seen, this.rng);
+    this.row = pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
     const setup = this.run.first();
     this.refreshBanner();

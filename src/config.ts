@@ -91,3 +91,5 @@ export const TRAINER_NEXT_MS = 1400; // pause between puzzles in a trainer battl
 export const PLAYTIME_TICK_MS = 5000; // playtime counter step while the page is visible
 export const LESSON_STEP_MS = 900; // mini lesson example: one move per step, then it loops
 export const INTRO_CARD_MS = 900; // battle intro card before the goal card (§B14)
+export const CHALLENGE_END_MS = 1600; // pause on the final position of a drill or Champion game before the story
+export const DRILL_LEVEL = 3; // Victory Road drills: the lone king defends at Elite Four strength
