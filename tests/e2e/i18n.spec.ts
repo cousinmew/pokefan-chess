@@ -9,9 +9,9 @@ const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).
 async function boardIsLtr(page: Page) {
   await expect(page.locator('#board [data-square="a1"]')).toBeVisible({ timeout: 10_000 });
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('#board')!).direction)).toBe('ltr');
-  const a = (await page.locator('[data-square="a1"]').boundingBox())!;
-  const h = (await page.locator('[data-square="h1"]').boundingBox())!;
-  expect(a.x).toBeLessThan(h.x);
+  // Left to right whichever side you play: each row's first square in the DOM is drawn leftmost (RTL would mirror it).
+  const xs = await page.locator('#board .sq').evaluateAll((els) => els.slice(0, 8).map((e) => e.getBoundingClientRect().x));
+  expect(xs).toEqual([...xs].sort((p, q) => p - q));
 }
 
 test.use({ viewport: { width: 360, height: 640 } });
