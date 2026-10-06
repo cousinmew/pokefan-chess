@@ -44,6 +44,20 @@ export interface Species {
   types: string[];
   move: string;
   fallback?: string;
+  /** Variant flags from a skin id like "pidgey:s:2" (§B12): shiny sprite, 1 to 3 stars. */
+  shiny?: boolean;
+  stars?: number;
+}
+
+/** Splits a skin or species id "name[:s][:1-3]" into its base species and variant flags. */
+export function parseVariant(id: string): { base: string; shiny: boolean; stars: number } {
+  const [base = '', ...flags] = id.split(':');
+  const star = flags.find((f) => /^[1-3]$/.test(f));
+  return { base, shiny: flags.includes('s'), stars: star ? Number(star) : 0 };
+}
+
+export function variantId(base: string, shiny: boolean, stars: number): string {
+  return base + (shiny ? ':s' : '') + (stars ? `:${stars}` : '');
 }
 
 export const ROLES: Role[] = ['k', 'q', 'r', 'b', 'n', 'p'];
@@ -68,23 +82,34 @@ export function isDarkSquare(square: string): boolean {
 export function speciesIdFor(color: Color, role: Role, square: string): SpeciesId {
   const skin = skins[color];
   const pick = skin?.[role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role];
-  if (pick && SPECIES[pick]) return pick;
+  if (pick && SPECIES[parseVariant(pick).base]) return pick;
   const entry = roster.teams[teamOf(color)].pieces[role];
   if (typeof entry === 'string') return entry;
   return isDarkSquare(square) ? entry.dark : entry.light;
 }
 
+const variants = new Map<string, Species>();
+
+/** A species by id; a variant id ("pidgey:s:2") returns that species with its shiny and star flags. */
 export function species(id: SpeciesId): Species {
-  const s = SPECIES[id];
-  if (!s) throw new Error(`unknown species ${id}`);
-  return s;
+  const direct = SPECIES[id];
+  if (direct) return direct;
+  let v = variants.get(id);
+  if (!v) {
+    const { base, shiny, stars } = parseVariant(id);
+    const s = SPECIES[base];
+    if (!s) throw new Error(`unknown species ${id}`);
+    v = { ...s, shiny, stars };
+    variants.set(id, v);
+  }
+  return v;
 }
 
 export function speciesFor(color: Color, role: Role, square: string): Species {
   return species(speciesIdFor(color, role, square));
 }
 
-export function spriteUrl(dex: number, kind: 'front' | 'back' | 'retro' = 'front'): string {
+export function spriteUrl(dex: number, kind: 'front' | 'back' | 'retro' = 'front', shiny = false): string {
   if (kind === 'retro') return `${ASSET_BASE}retro/${dex}.png`;
-  return `${ASSET_BASE}${kind}/${dex}.gif`;
+  return `${ASSET_BASE}${shiny ? 'shiny/' : ''}${kind}/${dex}.gif`;
 }

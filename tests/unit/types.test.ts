@@ -37,3 +37,13 @@ describe('Gen 1 type chart', () => {
     expect(resolveMove('dugtrio', 'pikachu')).toMatchObject({ name: 'DIG', effKey: 'battle.super' });
   });
 });
+
+describe('full Gen 1 chart (C2b)', () => {
+  it('every Gen 1 type pair matches PokéAPI Gen 1 relations', async () => {
+    const { CHART } = await import('../../src/battle/types');
+    const api = (await import('../../src/data/types.gen1.json')).default as Record<string, Record<string, number>>;
+    const types = Object.keys(api);
+    expect(types).toHaveLength(15);
+    for (const a of types) for (const d of types) expect((CHART as Record<string, Record<string, number>>)[a]![d] ?? 1, `${a} -> ${d}`).toBe(api[a]![d] ?? 1);
+  });
+});

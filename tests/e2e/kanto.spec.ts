@@ -25,7 +25,10 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   await page.getByTestId('set-anim').selectOption('off');
   await page.getByTestId('back').click();
   await page.getByTestId('kanto').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
+  await page.getByTestId('name-1').click();
   await page.getByTestId('starter-charmander').click();
+  await page.getByTestId('story').click();
   await expect(page.getByTestId('route-viridian-forest')).toBeDisabled();
   await page.getByTestId('route-route-1').click();
   await page.getByTestId('walk-grass').click();
@@ -39,6 +42,7 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   if (text.startsWith('Gotcha')) expect((caught.pidgey ?? 0) + (caught.rattata ?? 0)).toBe(1);
   // My Team: Charmander as queen, then it plays queen vs Computer.
   await page.getByTestId('to-map').click();
+  await page.getByTestId('back').click();
   await page.getByTestId('open-team').click();
   await page.getByTestId('team-q').selectOption('charmander');
   await page.getByTestId('back').click();
@@ -50,12 +54,12 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   await expect(page.locator('[data-square="d8"] img')).toHaveAttribute('alt', 'NIDOQUEEN');
 });
 
-test('Pokédex counts the starter; Two Players keeps the default teams', async ({ page }) => {
+test('a C2 save opens on the map; Pokédex counts the starter; Two Players keeps the default teams', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kc:v1:campaign', JSON.stringify({ starter: 'squirtle', caught: { squirtle: 1 }, routes: {}, team: { k: 'squirtle' } })));
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
-  await expect(page.locator('.map-top p')).toHaveText(/^Pokédex: 1 of \d+ caught$/);
+  await expect(page.locator('.map-top p')).toHaveText('Pokédex: 1 of 151 caught');
   await page.getByTestId('back').click();
   await page.getByTestId('two-players').click();
   await expect(page.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'PIKACHU');

@@ -15,11 +15,15 @@ const dexes = [...new Set([...Object.values(roster.species), ...Object.values(ka
 // takes the Showdown animated back sprite instead, which is the Kanto form. docs/sprite-sheet.png shows every pair.
 const ALOLAN = [19, 20, 26, 27, 28, 37, 38, 50, 51, 52, 53, 74, 75, 76, 88, 89, 103, 105];
 const BACK_OVERRIDE = Object.fromEntries(ALOLAN.map((d) => [d, `other/showdown/back/${d}.gif`]));
+const SHINY_BACK_OVERRIDE = Object.fromEntries(ALOLAN.map((d) => [d, `other/showdown/back/shiny/${d}.gif`]));
 
 const jobs = dexes.flatMap((d) => [
   [`${SPRITES}versions/generation-v/black-white/animated/${d}.gif`, `front/${d}.gif`],
   [`${SPRITES}${BACK_OVERRIDE[d] ?? `versions/generation-v/black-white/animated/back/${d}.gif`}`, `back/${d}.gif`],
   [`${SPRITES}versions/generation-i/red-blue/transparent/${d}.png`, `retro/${d}.png`],
+  // Shiny forms (§B12): every one of the 151 must exist, or the build fails.
+  [`${SPRITES}versions/generation-v/black-white/animated/shiny/${d}.gif`, `shiny/front/${d}.gif`],
+  [`${SPRITES}${SHINY_BACK_OVERRIDE[d] ?? `versions/generation-v/black-white/animated/back/shiny/${d}.gif`}`, `shiny/back/${d}.gif`],
   [`${CRIES}${d}.ogg`, `cries/${d}.ogg`],
 ]);
 
@@ -64,7 +68,7 @@ if (missing.length) {
 
 const files = [];
 const walk = (dir) => {
-  for (const sub of ['front', 'back', 'retro', 'cries']) {
+  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back']) {
     const p = join(dir, sub);
     if (!existsSync(p)) continue;
     for (const f of execFileSync('ls', [p], { encoding: 'utf8' }).split('\n').filter(Boolean)) {

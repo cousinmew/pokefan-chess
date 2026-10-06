@@ -102,10 +102,16 @@ export class Board {
           cell.setAttribute('aria-label', fmt('square.piece', { piece: sp.name, square: sq }));
           const img = document.createElement('img');
           img.className = 'piece';
-          img.src = spriteUrl(sp.dex);
+          img.src = spriteUrl(sp.dex, 'front', sp.shiny);
           img.alt = sp.name;
           img.draggable = false;
           cell.append(img);
+          if (sp.stars) {
+            const star = document.createElement('span');
+            star.className = 'star-badge';
+            star.textContent = '★'.repeat(sp.stars);
+            cell.append(star);
+          }
           if (glyphs) cell.append(glyph(piece.color, piece.type));
         } else {
           cell.setAttribute('aria-label', sq);

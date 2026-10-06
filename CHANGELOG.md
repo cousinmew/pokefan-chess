@@ -39,3 +39,8 @@
 ## 1.4.0 (C2)
 
 - Kanto Adventure: Oak's starter, a map of 9 routes with the real Red tall grass tables, puzzles that become wild encounters, catch odds earned by how you solved, route mastery, a Pokédex, and My Team skins that play vs Computer and online.
+
+## 1.5.0 (C2b)
+
+- Kanto Journey: Oak's intro, your trainer name, route trainers, rival BLUE three times, story boxes, Trainer Card and Training.
+- All 151 in the Pokédex: Red and Blue wild tables, candy and evolution, shinies, stars from Oak, and every caught form as a My Team skin. Effectiveness lines for every Gen 1 type.

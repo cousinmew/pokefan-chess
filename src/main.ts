@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { AI_MIN_THINK_MS, ENCOUNTER_PAUSE_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { AI_MIN_THINK_MS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
-import { GLYPHS, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
+import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { sound } from './audio/audio';
@@ -21,9 +21,8 @@ import { load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
-import { chooseStarter, loadCampaign, recordRoute, rollSlot, ROUTES, saveCampaign, throwBall, type Route } from './campaign/kanto';
-import { dexScreen, encounterPanel, mapScreen, oakScreen, routeScreen, teamScreen } from './ui/kanto';
-import { createRng, type Rng } from './game/rng';
+import { JourneyGame } from './campaign/journeyGame';
+import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { createRoom } from './net/online';
 import { message, onlineMenu } from './ui/online';
@@ -53,6 +52,7 @@ export interface App {
   online: OnlineGame;
   puzzle: PuzzleGame;
   campaignRng: Rng;
+  journey: JourneyGame;
   aiFailed: boolean;
   ended: boolean;
   busy: boolean;
@@ -119,6 +119,7 @@ function boot(): App {
     online: undefined as unknown as OnlineGame,
     puzzle: undefined as unknown as PuzzleGame,
     campaignRng: undefined as unknown as Rng,
+    journey: undefined as unknown as JourneyGame,
     aiFailed: false,
     ended: false,
     busy: false,
@@ -177,7 +178,7 @@ function boot(): App {
       showEnd({ key });
     },
     say: (key) => text.plain(fmt(key)),
-    mySkin: () => campaign.team,
+    mySkin: () => journey.campaign.team,
     applySkins: (skins) => {
       setSkins(skins);
       board.render();
@@ -199,6 +200,16 @@ function boot(): App {
     },
   });
   app.puzzle = puzzle;
+  const journey = new JourneyGame({
+    show,
+    modal,
+    puzzle,
+    goTitle,
+    gen: () => gen,
+    evolveAnim: (from, to) => overlay.evolve(from, to),
+  });
+  app.journey = journey;
+  app.campaignRng = journey.rng;
   main.append(board.el, text.el, online.bar, puzzle.bar);
   gameView.append(header, main);
 
@@ -233,19 +244,7 @@ function boot(): App {
         },
         computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
         twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
-        puzzles: () => void puzzle.start(null),
-        kanto: () => {
-          campaign = loadCampaign();
-          if (campaign.starter) showMap();
-          else
-            show(
-              oakScreen((id) => {
-                campaign = chooseStarter(campaign, id);
-                saveCampaign(campaign);
-                showMap();
-              }, goTitle),
-            );
-        },
+        kanto: () => journey.open(),
         howTo: () => show(howTo(goTitle)),
         online: () =>
           show(
@@ -279,83 +278,9 @@ function boot(): App {
     );
   }
 
-  // Kanto campaign: map, routes, tall grass encounters, Pokédex, My Team (Part B).
-  let campaign = loadCampaign();
-  // Encounter rolls: seeded per visit from the clock; the harness reseeds it for tests.
-  const campaignRng = createRng(Date.now() >>> 0);
-  app.campaignRng = campaignRng;
-
-  function showMap(): void {
-    puzzle.stop();
-    setSkins({});
-    show(
-      mapScreen(campaign, {
-        route: (i) => showRoute(ROUTES[i]!),
-        dex: () => show(dexScreen(campaign, showMap)),
-        team: () =>
-          show(
-            teamScreen(
-              campaign,
-              (team) => {
-                campaign = { ...campaign, team };
-                saveCampaign(campaign);
-              },
-              showMap,
-            ),
-          ),
-        back: goTitle,
-      }),
-    );
-  }
-
-  function showRoute(route: Route): void {
-    puzzle.stop();
-    show(routeScreen(route, campaign, () => walkGrass(route), showMap));
-  }
-
-  function walkGrass(route: Route): void {
-    void puzzle.start({
-      themes: route.themes,
-      onLeave: () => showRoute(route),
-      onResult: (result) => {
-        campaign = recordRoute(campaign, route.id, result);
-        saveCampaign(campaign);
-        if (result === 'missed') return;
-        const g = gen;
-        window.setTimeout(() => g === gen && encounter(route, result === 'solved' ? 'first' : 'hint'), ENCOUNTER_PAUSE_MS);
-      },
-    });
-  }
-
-  function encounter(route: Route, solve: 'first' | 'hint'): void {
-    const slot = rollSlot(route, campaignRng);
-    music.play('battle');
-    sound.cry(SPECIES[slot.species]!.dex);
-    const panel = encounterPanel(
-      slot.species,
-      () => {
-        const res = throwBall(campaign, route.id, slot, solve, campaignRng);
-        campaign = res.campaign;
-        saveCampaign(campaign);
-        if (res.caught) music.play('victory');
-        return res.caught;
-      },
-      () => {
-        modal.hidden = true;
-        void puzzle.start();
-      },
-      () => {
-        modal.hidden = true;
-        showMap();
-      },
-    );
-    modal.replaceChildren(panel);
-    modal.hidden = false;
-  }
-
   function configure(setup: Setup): void {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
-    if (setup.mode === 'computer') setSkins({ [setup.human]: campaign.team });
+    if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
     else if (setup.mode !== 'online') setSkins({});
     app.mode = setup.mode;
     app.human = setup.mode === 'two-players' ? 'w' : setup.human;

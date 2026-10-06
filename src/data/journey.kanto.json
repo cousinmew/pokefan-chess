@@ -1,0 +1,65 @@
+{
+ "schema": 1,
+ "region": "kanto",
+ "rival": { "class": "trainer.class.rival", "name": "trainer.name.blue", "counter": { "bulbasaur": "charmander", "charmander": "squirtle", "squirtle": "bulbasaur" } },
+ "places": [
+  { "id": "pallet", "kind": "town", "name": "place.pallet", "story": ["story.oak.1", "story.oak.2", "story.oak.3"] },
+  { "id": "route-1", "kind": "route", "route": "route-1", "trainers": [
+   { "id": "r1-toby", "class": "trainer.class.youngster", "name": "trainer.name.toby", "team": ["rattata"], "defeat": "line.r1-toby", "puzzles": 3, "need": 2 },
+   { "id": "r1-mina", "class": "trainer.class.lass", "name": "trainer.name.mina", "team": ["pidgey", "pidgey"], "defeat": "line.r1-mina", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "viridian", "kind": "town", "name": "place.viridian", "story": ["story.viridian.1", "story.viridian.2"] },
+  { "id": "rival-1", "kind": "rival", "name": "place.rival", "story": ["story.rival1.1", "story.rival1.2"], "trainers": [
+   { "id": "rival-1", "class": "trainer.class.rival", "name": "trainer.name.blue", "team": ["@counter", "pidgey"], "defeat": "line.rival-1", "puzzles": 5, "need": 3, "themes": "learned" }
+  ] },
+  { "id": "viridian-forest", "kind": "route", "route": "viridian-forest", "trainers": [
+   { "id": "vf-oskar", "class": "trainer.class.bugcatcher", "name": "trainer.name.oskar", "team": ["weedle", "caterpie"], "defeat": "line.vf-oskar", "puzzles": 3, "need": 2 },
+   { "id": "vf-liam", "class": "trainer.class.bugcatcher", "name": "trainer.name.liam", "team": ["kakuna", "metapod", "weedle"], "defeat": "line.vf-liam", "puzzles": 3, "need": 2 },
+   { "id": "vf-pip", "class": "trainer.class.bugcatcher", "name": "trainer.name.pip", "team": ["caterpie", "metapod"], "defeat": "line.vf-pip", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "pewter-gym", "kind": "gym", "name": "gym.1" },
+  { "id": "route-3", "kind": "route", "route": "route-3", "trainers": [
+   { "id": "r3-dev", "class": "trainer.class.youngster", "name": "trainer.name.dev", "team": ["spearow"], "defeat": "line.r3-dev", "puzzles": 3, "need": 2 },
+   { "id": "r3-rosa", "class": "trainer.class.lass", "name": "trainer.name.rosa", "team": ["jigglypuff", "pidgey"], "defeat": "line.r3-rosa", "puzzles": 3, "need": 2 },
+   { "id": "r3-finn", "class": "trainer.class.bugcatcher", "name": "trainer.name.finn", "team": ["caterpie", "weedle", "spearow"], "defeat": "line.r3-finn", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "rival-2", "kind": "rival", "name": "place.rival", "story": ["story.rival2.1", "story.rival2.2"], "trainers": [
+   { "id": "rival-2", "class": "trainer.class.rival", "name": "trainer.name.blue", "team": ["@counter", "pidgeotto", "rattata"], "defeat": "line.rival-2", "puzzles": 5, "need": 3, "themes": "learned" }
+  ] },
+  { "id": "cerulean-gym", "kind": "gym", "name": "gym.2" },
+  { "id": "route-6", "kind": "route", "route": "route-6", "trainers": [
+   { "id": "r6-kai", "class": "trainer.class.camper", "name": "trainer.name.kai", "team": ["mankey"], "defeat": "line.r6-kai", "puzzles": 3, "need": 2 },
+   { "id": "r6-noor", "class": "trainer.class.picnicker", "name": "trainer.name.noor", "team": ["oddish", "bellsprout"], "defeat": "line.r6-noor", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "vermilion-gym", "kind": "gym", "name": "gym.3" },
+  { "id": "route-7", "kind": "route", "route": "route-7", "trainers": [
+   { "id": "r7-ines", "class": "trainer.class.picnicker", "name": "trainer.name.ines", "team": ["vulpix", "oddish"], "defeat": "line.r7-ines", "puzzles": 3, "need": 2 },
+   { "id": "r7-theo", "class": "trainer.class.camper", "name": "trainer.name.theo", "team": ["growlithe", "meowth"], "defeat": "line.r7-theo", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "celadon-gym", "kind": "gym", "name": "gym.4" },
+  { "id": "route-14", "kind": "route", "route": "route-14", "trainers": [
+   { "id": "r14-sasha", "class": "trainer.class.birdkeeper", "name": "trainer.name.sasha", "team": ["pidgey", "pidgeotto"], "defeat": "line.r14-sasha", "puzzles": 3, "need": 2 },
+   { "id": "r14-omar", "class": "trainer.class.biker", "name": "trainer.name.omar", "team": ["venonat", "ditto"], "defeat": "line.r14-omar", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "fuchsia-gym", "kind": "gym", "name": "gym.5" },
+  { "id": "route-8", "kind": "route", "route": "route-8", "trainers": [
+   { "id": "r8-june", "class": "trainer.class.lass", "name": "trainer.name.june", "team": ["meowth", "sandshrew"], "defeat": "line.r8-june", "puzzles": 3, "need": 2 },
+   { "id": "r8-hugo", "class": "trainer.class.gambler", "name": "trainer.name.hugo", "team": ["ekans", "growlithe"], "defeat": "line.r8-hugo", "puzzles": 3, "need": 2 },
+   { "id": "r8-ada", "class": "trainer.class.supernerd", "name": "trainer.name.ada", "team": ["mankey", "vulpix"], "defeat": "line.r8-ada", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "saffron-gym", "kind": "gym", "name": "gym.6" },
+  { "id": "route-21", "kind": "route", "route": "route-21", "trainers": [
+   { "id": "r21-mo", "class": "trainer.class.fisherman", "name": "trainer.name.mo", "team": ["tangela"], "defeat": "line.r21-mo", "puzzles": 3, "need": 2 },
+   { "id": "r21-lena", "class": "trainer.class.swimmer", "name": "trainer.name.lena", "team": ["raticate", "pidgeotto"], "defeat": "line.r21-lena", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "cinnabar-gym", "kind": "gym", "name": "gym.7" },
+  { "id": "route-22", "kind": "route", "route": "route-22", "trainers": [
+   { "id": "r22-jun", "class": "trainer.class.cooltrainer", "name": "trainer.name.jun", "team": ["nidoran-m", "spearow"], "defeat": "line.r22-jun", "puzzles": 3, "need": 2 },
+   { "id": "r22-vera", "class": "trainer.class.cooltrainer", "name": "trainer.name.vera", "team": ["nidoran-f", "rattata"], "defeat": "line.r22-vera", "puzzles": 3, "need": 2 }
+  ] },
+  { "id": "rival-3", "kind": "rival", "name": "place.rival", "story": ["story.rival3.1", "story.rival3.2"], "trainers": [
+   { "id": "rival-3", "class": "trainer.class.rival", "name": "trainer.name.blue", "team": ["@counter", "pidgeotto", "growlithe"], "defeat": "line.rival-3", "puzzles": 5, "need": 3, "themes": "learned" }
+  ] },
+  { "id": "viridian-gym", "kind": "gym", "name": "gym.8" }
+ ]
+}

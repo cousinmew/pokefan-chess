@@ -151,3 +151,32 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .team-row select { max-width: 45%; }
 .team-sprite { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
 .panel.encounter img { width: 120px; height: 120px; object-fit: contain; image-rendering: pixelated; }
+
+.star-badge { position: absolute; left: 1px; top: 0; z-index: 3; font-size: calc(var(--sq) * 0.2); color: #f0c020; text-shadow: 0 0 2px #181818, 0 0 2px #181818; pointer-events: none; }
+.mon[data-stars='1'] img { filter: drop-shadow(0 0 4px #f0c020); }
+.mon[data-stars='2'] img { filter: drop-shadow(0 0 6px #40a0f0) drop-shadow(0 0 2px #40a0f0); }
+.mon[data-stars='3'] img { filter: drop-shadow(0 0 8px #e040e0) drop-shadow(0 0 3px #e040e0); }
+.mon.mirror[data-stars] img { transform: scaleX(-1); }
+.panel.story { position: fixed; left: 8px; right: 8px; bottom: 16px; max-width: 480px; margin: 0 auto; text-align: left; cursor: pointer; }
+.panel.story .story-text { font-weight: 700; min-height: 3.6em; }
+.panel.story .tb-tick, .trainer-intro .tb-tick { position: static; display: block; text-align: right; font-size: 10px; }
+.kanto-map .node.rival { background: #f8d8d0; }
+.kanto-map .node.here { outline: 3px solid #f0a020; }
+.trainers { width: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; }
+.trainer-row { border-bottom: 1px solid #d0d0c0; padding: 4px 0; }
+.cleared { font-weight: 700; color: #307030; }
+.menu button.secondary-wide { width: 100%; }
+.trainer-card { width: 100%; border: 4px double var(--ink); border-radius: 8px; padding: 10px; background: #fffbe8; }
+.trainer-card p { margin: 4px 0; }
+.trainer-card .level { font-size: 20px; font-weight: 700; }
+.badges { display: flex; gap: 6px; margin: 4px 0; }
+.badge { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink); }
+.badge.empty { background: #e0e0e0; }
+.dex-cell { border: none; background: none; font: inherit; padding: 2px; cursor: default; color: inherit; }
+.dex-cell.caught { cursor: pointer; }
+.dex-cell small { font-size: 8px; color: #808080; }
+.panel.dex-detail { max-height: calc(100dvh - 32px); overflow: auto; width: min(100vw - 16px, 360px); }
+.panel.dex-detail p { font-weight: 400; }
+.panel.dex-detail .candy { font-weight: 700; }
+.encounter.shiny img { filter: drop-shadow(0 0 6px #f8e030); }
+.shiny-note { color: #c08000; }

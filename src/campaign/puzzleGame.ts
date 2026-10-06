@@ -25,6 +25,8 @@ export interface PuzzleContext {
   themes: string[];
   onResult(result: 'solved' | 'assisted' | 'missed'): void;
   onLeave(): void;
+  /** A trainer battle: puzzles advance on their own, so Next is hidden. */
+  battle?: boolean;
 }
 
 export class PuzzleGame {
@@ -39,6 +41,8 @@ export class PuzzleGame {
   private context: PuzzleContext | null = null;
   private readonly themeSel: HTMLSelectElement;
   private readonly leaveBtn: HTMLButtonElement;
+  private readonly nextBtn: HTMLButtonElement;
+  private readonly banner: HTMLElement;
   private gen = 0;
   // Seeded per visit from the clock (the seeded RNG is the only randomness, G3), so visits differ.
   private readonly rng = createRng(Date.now() >>> 0);
@@ -66,8 +70,12 @@ export class PuzzleGame {
     };
     const row = el('div', 'puzzle-buttons');
     this.leaveBtn = button('route.leave', () => this.context?.onLeave(), 'leave-grass');
-    row.append(sel, button('puzzle.hint', () => this.hint(), 'hint'), button('puzzle.next', () => void this.start(), 'next-puzzle'), this.leaveBtn);
-    this.bar.append(this.ratingEl, this.stepEl, row);
+    this.nextBtn = button('puzzle.next', () => void this.start(), 'next-puzzle');
+    row.append(sel, button('puzzle.hint', () => this.hint(), 'hint'), this.nextBtn, this.leaveBtn);
+    this.banner = el('p', 'puzzle-banner');
+    this.banner.dataset.testid = 'puzzle-banner';
+    this.banner.hidden = true;
+    this.bar.append(this.banner, this.ratingEl, this.stepEl, row);
     this.label();
   }
 
@@ -76,6 +84,8 @@ export class PuzzleGame {
     if (ctx !== undefined) this.context = ctx;
     this.themeSel.hidden = this.context !== null;
     this.leaveBtn.hidden = this.context === null;
+    this.nextBtn.hidden = this.context?.battle === true;
+    if (!this.context?.battle) this.setBanner(null);
     const g = ++this.gen;
     this.phase = 'idle';
     this.hints = 0;
@@ -148,6 +158,12 @@ export class PuzzleGame {
         window.setTimeout(() => g === this.gen && res.reply && this.host.applyMove(res.reply), PUZZLE_REPLY_MS);
       }
     }
+  }
+
+  /** A line above the rating, e.g. a trainer battle's progress. */
+  setBanner(text: string | null): void {
+    this.banner.hidden = text === null;
+    this.banner.textContent = text ?? '';
   }
 
   hint(): void {

@@ -1,0 +1,62 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "PokeFan Chess region journey",
+ "type": "object",
+ "required": ["schema", "region", "rival", "places"],
+ "additionalProperties": false,
+ "properties": {
+  "schema": { "const": 1 },
+  "region": { "type": "string", "pattern": "^[a-z]+$" },
+  "rival": {
+   "type": "object",
+   "required": ["class", "name", "counter"],
+   "additionalProperties": false,
+   "properties": {
+    "class": { "type": "string", "pattern": "^trainer\\.class\\." },
+    "name": { "type": "string", "pattern": "^trainer\\.name\\." },
+    "counter": { "type": "object", "additionalProperties": { "type": "string" } }
+   }
+  },
+  "places": {
+   "type": "array",
+   "minItems": 2,
+   "items": {
+    "type": "object",
+    "required": ["id", "kind"],
+    "additionalProperties": false,
+    "properties": {
+     "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+     "kind": { "enum": ["town", "route", "rival", "gym"] },
+     "name": { "type": "string" },
+     "route": { "type": "string" },
+     "story": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string", "pattern": "^story\\." } },
+     "trainers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "object",
+       "required": ["id", "class", "name", "team", "defeat", "puzzles", "need"],
+       "additionalProperties": false,
+       "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "class": { "type": "string", "pattern": "^trainer\\.class\\." },
+        "name": { "type": "string", "pattern": "^trainer\\.name\\." },
+        "team": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string" } },
+        "defeat": { "type": "string", "pattern": "^line\\." },
+        "puzzles": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "need": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "themes": { "enum": ["route", "learned"] }
+       }
+      }
+     }
+    },
+    "allOf": [
+     { "if": { "properties": { "kind": { "const": "route" } } }, "then": { "required": ["route", "trainers"] } },
+     { "if": { "properties": { "kind": { "const": "rival" } } }, "then": { "required": ["name", "trainers"] } },
+     { "if": { "properties": { "kind": { "enum": ["town", "gym"] } } }, "then": { "required": ["name"] } }
+    ]
+   }
+  }
+ }
+}

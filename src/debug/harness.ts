@@ -71,6 +71,11 @@ export function installHarness(app: App): void {
     campaign: () => loadCampaign(),
     seedEncounters: (n: number) => app.campaignRng.seed(n),
     species: () => Object.values(SPECIES).map((s) => [s.dex, s.name] as const).sort((a, b) => a[0] - b[0]),
+    /** Plain puzzles (Training without a route; the title menu now opens the Kanto Journey). */
+    openPuzzles: () => void app.puzzle.start(null),
+    /** Kanto Journey: adds catches straight into the save (tests only), and reads the live campaign. */
+    grant: (id: string, n = 1, shiny = false) => app.journey.grant(id, n, shiny),
+    journey: () => app.journey.campaign,
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,

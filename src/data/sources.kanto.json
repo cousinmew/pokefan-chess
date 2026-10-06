@@ -1,0 +1,2239 @@
+{
+ "bulbasaur": [
+  {
+   "kind": "wild",
+   "where": [
+    "pallet-town-area (red, gift)",
+    "pallet-town-area (blue, gift)"
+   ]
+  },
+  {
+   "kind": "starter"
+  }
+ ],
+ "ivysaur": [
+  {
+   "kind": "evolve",
+   "from": "bulbasaur"
+  }
+ ],
+ "venusaur": [
+  {
+   "kind": "evolve",
+   "from": "ivysaur"
+  }
+ ],
+ "charmander": [
+  {
+   "kind": "wild",
+   "where": [
+    "pallet-town-area (red, gift)",
+    "pallet-town-area (blue, gift)"
+   ]
+  },
+  {
+   "kind": "starter"
+  }
+ ],
+ "charmeleon": [
+  {
+   "kind": "evolve",
+   "from": "charmander"
+  }
+ ],
+ "charizard": [
+  {
+   "kind": "evolve",
+   "from": "charmeleon"
+  }
+ ],
+ "squirtle": [
+  {
+   "kind": "wild",
+   "where": [
+    "pallet-town-area (red, gift)",
+    "pallet-town-area (blue, gift)"
+   ]
+  },
+  {
+   "kind": "starter"
+  }
+ ],
+ "wartortle": [
+  {
+   "kind": "evolve",
+   "from": "squirtle"
+  }
+ ],
+ "blastoise": [
+  {
+   "kind": "evolve",
+   "from": "wartortle"
+  }
+ ],
+ "caterpie": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-2-south-towards-viridian-city (blue, walk)",
+    "kanto-route-24-area (blue, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "viridian-forest-area (red, walk)",
+    "viridian-forest-area (blue, walk)"
+   ]
+  }
+ ],
+ "metapod": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-24-area (blue, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "viridian-forest-area (red, walk)",
+    "viridian-forest-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "caterpie"
+  }
+ ],
+ "butterfree": [
+  {
+   "kind": "evolve",
+   "from": "metapod"
+  }
+ ],
+ "weedle": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-2-south-towards-viridian-city (red, walk)",
+    "kanto-route-24-area (red, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "viridian-forest-area (red, walk)",
+    "viridian-forest-area (blue, walk)"
+   ]
+  }
+ ],
+ "kakuna": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-24-area (red, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "viridian-forest-area (red, walk)",
+    "viridian-forest-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "weedle"
+  }
+ ],
+ "beedrill": [
+  {
+   "kind": "evolve",
+   "from": "kakuna"
+  }
+ ],
+ "pidgey": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-1-area (red, walk)",
+    "kanto-route-1-area (blue, walk)",
+    "kanto-route-12-area (red, walk)",
+    "kanto-route-12-area (blue, walk)",
+    "kanto-route-13-area (red, walk)",
+    "kanto-route-13-area (blue, walk)",
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (red, walk)",
+    "kanto-route-15-area (blue, walk)",
+    "kanto-route-2-south-towards-viridian-city (red, walk)",
+    "kanto-route-2-south-towards-viridian-city (blue, walk)",
+    "kanto-sea-route-21-area (red, walk)",
+    "kanto-sea-route-21-area (blue, walk)",
+    "kanto-route-24-area (red, walk)",
+    "kanto-route-24-area (blue, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "kanto-route-3-area (red, walk)",
+    "kanto-route-3-area (blue, walk)",
+    "kanto-route-5-area (red, walk)",
+    "kanto-route-5-area (blue, walk)",
+    "kanto-route-6-area (red, walk)",
+    "kanto-route-6-area (blue, walk)",
+    "kanto-route-7-area (red, walk)",
+    "kanto-route-7-area (blue, walk)",
+    "kanto-route-8-area (red, walk)",
+    "kanto-route-8-area (blue, walk)"
+   ]
+  }
+ ],
+ "pidgeotto": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (red, walk)",
+    "kanto-route-15-area (blue, walk)",
+    "kanto-sea-route-21-area (red, walk)",
+    "kanto-sea-route-21-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "pidgey"
+  }
+ ],
+ "pidgeot": [
+  {
+   "kind": "evolve",
+   "from": "pidgeotto"
+  }
+ ],
+ "rattata": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-1-area (red, walk)",
+    "kanto-route-1-area (blue, walk)",
+    "kanto-route-16-area (red, walk)",
+    "kanto-route-16-area (blue, walk)",
+    "kanto-route-2-south-towards-viridian-city (red, walk)",
+    "kanto-route-2-south-towards-viridian-city (blue, walk)",
+    "kanto-sea-route-21-area (red, walk)",
+    "kanto-sea-route-21-area (blue, walk)",
+    "kanto-route-22-area (red, walk)",
+    "kanto-route-22-area (blue, walk)",
+    "kanto-route-4-area (red, walk)",
+    "kanto-route-4-area (blue, walk)",
+    "kanto-route-9-area (red, walk)",
+    "kanto-route-9-area (blue, walk)"
+   ]
+  }
+ ],
+ "raticate": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-16-area (red, walk)",
+    "kanto-route-16-area (blue, walk)",
+    "kanto-route-17-area (red, walk)",
+    "kanto-route-17-area (blue, walk)",
+    "kanto-route-18-area (red, walk)",
+    "kanto-route-18-area (blue, walk)",
+    "kanto-sea-route-21-area (red, walk)",
+    "kanto-sea-route-21-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "rattata"
+  }
+ ],
+ "spearow": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-10-area (red, walk)",
+    "kanto-route-10-area (blue, walk)",
+    "kanto-route-11-area (red, walk)",
+    "kanto-route-11-area (blue, walk)",
+    "kanto-route-16-area (red, walk)",
+    "kanto-route-16-area (blue, walk)",
+    "kanto-route-17-area (red, walk)",
+    "kanto-route-17-area (blue, walk)",
+    "kanto-route-18-area (red, walk)",
+    "kanto-route-18-area (blue, walk)",
+    "kanto-route-22-area (red, walk)",
+    "kanto-route-22-area (blue, walk)",
+    "kanto-route-3-area (red, walk)",
+    "kanto-route-3-area (blue, walk)",
+    "kanto-route-4-area (red, walk)",
+    "kanto-route-4-area (blue, walk)",
+    "kanto-route-9-area (red, walk)",
+    "kanto-route-9-area (blue, walk)",
+    "kanto-route-23-area (red, walk)",
+    "kanto-route-23-area (blue, walk)"
+   ]
+  }
+ ],
+ "fearow": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-17-area (red, walk)",
+    "kanto-route-17-area (blue, walk)",
+    "kanto-route-18-area (red, walk)",
+    "kanto-route-18-area (blue, walk)",
+    "kanto-route-23-area (red, walk)",
+    "kanto-route-23-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "spearow"
+  }
+ ],
+ "ekans": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-10-area (red, walk)",
+    "kanto-route-11-area (red, walk)",
+    "kanto-route-4-area (red, walk)",
+    "kanto-route-8-area (red, walk)",
+    "kanto-route-9-area (red, walk)",
+    "kanto-route-23-area (red, walk)"
+   ]
+  }
+ ],
+ "arbok": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "kanto-route-23-area (red, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "ekans"
+  }
+ ],
+ "pikachu": [
+  {
+   "kind": "wild",
+   "where": [
+    "viridian-forest-area (red, walk)",
+    "viridian-forest-area (blue, walk)",
+    "kanto-power-plant-area (red, walk)",
+    "kanto-power-plant-area (blue, walk)"
+   ]
+  }
+ ],
+ "raichu": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-power-plant-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "pikachu"
+  }
+ ],
+ "sandshrew": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-10-area (blue, walk)",
+    "kanto-route-11-area (blue, walk)",
+    "kanto-route-4-area (blue, walk)",
+    "kanto-route-8-area (blue, walk)",
+    "kanto-route-9-area (blue, walk)",
+    "kanto-route-23-area (blue, walk)"
+   ]
+  }
+ ],
+ "sandslash": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-route-23-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "sandshrew"
+  }
+ ],
+ "nidoran-f": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-22-area (red, walk)",
+    "kanto-route-22-area (blue, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)",
+    "kanto-underground-path-area (red, npc-trade)",
+    "kanto-underground-path-area (blue, npc-trade)"
+   ]
+  }
+ ],
+ "nidorina": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "kanto-route-11-area (red, npc-trade)",
+    "kanto-route-11-area (blue, npc-trade)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "nidoran-f"
+  }
+ ],
+ "nidoqueen": [
+  {
+   "kind": "evolve",
+   "from": "nidorina"
+  }
+ ],
+ "nidoran-m": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-22-area (red, walk)",
+    "kanto-route-22-area (blue, walk)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "nidorino": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (blue, gift)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "nidoran-m"
+  }
+ ],
+ "nidoking": [
+  {
+   "kind": "evolve",
+   "from": "nidorino"
+  }
+ ],
+ "clefairy": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "celadon-city-prize-corner (blue, gift)",
+    "mt-moon-1f (red, walk)",
+    "mt-moon-1f (blue, walk)",
+    "mt-moon-b1f (red, walk)",
+    "mt-moon-b1f (blue, walk)",
+    "mt-moon-b2f (red, walk)",
+    "mt-moon-b2f (blue, walk)"
+   ]
+  }
+ ],
+ "clefable": [
+  {
+   "kind": "evolve",
+   "from": "clefairy"
+  }
+ ],
+ "vulpix": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-7-area (blue, walk)",
+    "kanto-route-8-area (blue, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  }
+ ],
+ "ninetales": [
+  {
+   "kind": "evolve",
+   "from": "vulpix"
+  }
+ ],
+ "jigglypuff": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-3-area (red, walk)",
+    "kanto-route-3-area (blue, walk)"
+   ]
+  }
+ ],
+ "wigglytuff": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "jigglypuff"
+  }
+ ],
+ "zubat": [
+  {
+   "kind": "wild",
+   "where": [
+    "mt-moon-1f (red, walk)",
+    "mt-moon-1f (blue, walk)",
+    "mt-moon-b1f (red, walk)",
+    "mt-moon-b1f (blue, walk)",
+    "mt-moon-b2f (red, walk)",
+    "mt-moon-b2f (blue, walk)",
+    "rock-tunnel-b1f (red, walk)",
+    "rock-tunnel-b1f (blue, walk)",
+    "rock-tunnel-b2f (red, walk)",
+    "rock-tunnel-b2f (blue, walk)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-1f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  }
+ ],
+ "golbat": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b4f (red, walk)",
+    "seafoam-islands-b4f (blue, walk)",
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "zubat"
+  }
+ ],
+ "oddish": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (red, walk)",
+    "kanto-route-13-area (red, walk)",
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-15-area (red, walk)",
+    "kanto-route-24-area (red, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-5-area (red, walk)",
+    "kanto-route-6-area (red, walk)",
+    "kanto-route-7-area (red, walk)"
+   ]
+  }
+ ],
+ "gloom": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (red, walk)",
+    "kanto-route-13-area (red, walk)",
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-15-area (red, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "oddish"
+  }
+ ],
+ "vileplume": [
+  {
+   "kind": "evolve",
+   "from": "gloom"
+  }
+ ],
+ "paras": [
+  {
+   "kind": "wild",
+   "where": [
+    "mt-moon-1f (red, walk)",
+    "mt-moon-1f (blue, walk)",
+    "mt-moon-b1f (red, walk)",
+    "mt-moon-b1f (blue, walk)",
+    "mt-moon-b2f (red, walk)",
+    "mt-moon-b2f (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)"
+   ]
+  }
+ ],
+ "parasect": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "paras"
+  }
+ ],
+ "venonat": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (red, walk)",
+    "kanto-route-12-area (blue, walk)",
+    "kanto-route-13-area (red, walk)",
+    "kanto-route-13-area (blue, walk)",
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (red, walk)",
+    "kanto-route-15-area (blue, walk)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "venomoth": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "venonat"
+  }
+ ],
+ "diglett": [
+  {
+   "kind": "wild",
+   "where": [
+    "digletts-cave-area (red, walk)",
+    "digletts-cave-area (blue, walk)"
+   ]
+  }
+ ],
+ "dugtrio": [
+  {
+   "kind": "wild",
+   "where": [
+    "digletts-cave-area (red, walk)",
+    "digletts-cave-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "diglett"
+  }
+ ],
+ "meowth": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-5-area (blue, walk)",
+    "kanto-route-6-area (blue, walk)",
+    "kanto-route-7-area (blue, walk)",
+    "kanto-route-8-area (blue, walk)"
+   ]
+  }
+ ],
+ "persian": [
+  {
+   "kind": "evolve",
+   "from": "meowth"
+  }
+ ],
+ "psyduck": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-city-area (red, super-rod)",
+    "cerulean-city-area (blue, super-rod)",
+    "kanto-route-24-area (red, super-rod)",
+    "kanto-route-24-area (blue, super-rod)",
+    "kanto-route-25-area (red, super-rod)",
+    "kanto-route-25-area (blue, super-rod)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b3f (blue, walk)",
+    "seafoam-islands-b4f (blue, walk)",
+    "kanto-safari-zone-middle (red, super-rod)",
+    "kanto-safari-zone-middle (blue, super-rod)",
+    "kanto-safari-zone-area-1-east (red, super-rod)",
+    "kanto-safari-zone-area-1-east (blue, super-rod)",
+    "kanto-safari-zone-area-2-north (red, super-rod)",
+    "kanto-safari-zone-area-2-north (blue, super-rod)",
+    "kanto-safari-zone-area-3-west (red, super-rod)",
+    "kanto-safari-zone-area-3-west (blue, super-rod)"
+   ]
+  }
+ ],
+ "golduck": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b4f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "psyduck"
+  }
+ ],
+ "mankey": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-5-area (red, walk)",
+    "kanto-route-6-area (red, walk)",
+    "kanto-route-7-area (red, walk)",
+    "kanto-route-8-area (red, walk)"
+   ]
+  }
+ ],
+ "primeape": [
+  {
+   "kind": "evolve",
+   "from": "mankey"
+  }
+ ],
+ "growlithe": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-7-area (red, walk)",
+    "kanto-route-8-area (red, walk)",
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-b1f (red, walk)"
+   ]
+  }
+ ],
+ "arcanine": [
+  {
+   "kind": "evolve",
+   "from": "growlithe"
+  }
+ ],
+ "poliwag": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-area (red, good-rod)",
+    "celadon-city-area (blue, good-rod)",
+    "cerulean-city-area (red, good-rod)",
+    "cerulean-city-area (blue, good-rod)",
+    "cinnabar-island-area (red, good-rod)",
+    "cinnabar-island-area (blue, good-rod)",
+    "fuchsia-city-area (red, good-rod)",
+    "fuchsia-city-area (blue, good-rod)",
+    "pallet-town-area (red, good-rod)",
+    "pallet-town-area (red, super-rod)",
+    "pallet-town-area (blue, good-rod)",
+    "pallet-town-area (blue, super-rod)",
+    "kanto-route-10-area (red, good-rod)",
+    "kanto-route-10-area (blue, good-rod)",
+    "kanto-route-11-area (red, good-rod)",
+    "kanto-route-11-area (blue, good-rod)",
+    "kanto-route-12-area (red, good-rod)",
+    "kanto-route-12-area (blue, good-rod)",
+    "kanto-route-13-area (red, good-rod)",
+    "kanto-route-13-area (blue, good-rod)",
+    "kanto-route-17-area (red, good-rod)",
+    "kanto-route-17-area (blue, good-rod)",
+    "kanto-route-18-area (red, good-rod)",
+    "kanto-route-18-area (blue, good-rod)",
+    "kanto-sea-route-19-area (red, good-rod)",
+    "kanto-sea-route-19-area (blue, good-rod)",
+    "kanto-sea-route-20-area (red, good-rod)",
+    "kanto-sea-route-20-area (blue, good-rod)",
+    "kanto-sea-route-21-area (red, good-rod)",
+    "kanto-sea-route-21-area (blue, good-rod)",
+    "kanto-route-22-area (red, good-rod)",
+    "kanto-route-22-area (red, super-rod)",
+    "kanto-route-22-area (blue, good-rod)",
+    "kanto-route-22-area (blue, super-rod)",
+    "kanto-route-24-area (red, good-rod)",
+    "kanto-route-24-area (blue, good-rod)",
+    "kanto-route-25-area (red, good-rod)",
+    "kanto-route-25-area (blue, good-rod)",
+    "kanto-route-6-area (red, good-rod)",
+    "kanto-route-6-area (blue, good-rod)",
+    "seafoam-islands-b3f (red, good-rod)",
+    "seafoam-islands-b3f (blue, good-rod)",
+    "seafoam-islands-b4f (red, good-rod)",
+    "seafoam-islands-b4f (blue, good-rod)",
+    "cerulean-cave-1f (red, good-rod)",
+    "cerulean-cave-1f (blue, good-rod)",
+    "cerulean-cave-b1f (red, good-rod)",
+    "cerulean-cave-b1f (blue, good-rod)",
+    "vermilion-city-area (red, good-rod)",
+    "vermilion-city-area (blue, good-rod)",
+    "vermilion-city-ss-anne-dock (red, good-rod)",
+    "vermilion-city-ss-anne-dock (blue, good-rod)",
+    "viridian-city-area (red, good-rod)",
+    "viridian-city-area (red, super-rod)",
+    "viridian-city-area (blue, good-rod)",
+    "viridian-city-area (blue, super-rod)",
+    "kanto-route-23-area (red, good-rod)",
+    "kanto-route-23-area (blue, good-rod)",
+    "kanto-safari-zone-middle (red, good-rod)",
+    "kanto-safari-zone-middle (blue, good-rod)",
+    "kanto-safari-zone-area-1-east (red, good-rod)",
+    "kanto-safari-zone-area-1-east (blue, good-rod)",
+    "kanto-safari-zone-area-2-north (red, good-rod)",
+    "kanto-safari-zone-area-2-north (blue, good-rod)",
+    "kanto-safari-zone-area-3-west (red, good-rod)",
+    "kanto-safari-zone-area-3-west (blue, good-rod)"
+   ]
+  }
+ ],
+ "poliwhirl": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-area (red, super-rod)",
+    "celadon-city-area (blue, super-rod)",
+    "kanto-route-10-area (red, super-rod)",
+    "kanto-route-10-area (blue, super-rod)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "poliwag"
+  }
+ ],
+ "poliwrath": [
+  {
+   "kind": "evolve",
+   "from": "poliwhirl"
+  }
+ ],
+ "abra": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "celadon-city-prize-corner (blue, gift)",
+    "kanto-route-24-area (red, walk)",
+    "kanto-route-24-area (blue, walk)",
+    "kanto-route-25-area (red, walk)",
+    "kanto-route-25-area (blue, walk)"
+   ]
+  }
+ ],
+ "kadabra": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "abra"
+  }
+ ],
+ "alakazam": [
+  {
+   "kind": "trade",
+   "from": "kadabra"
+  }
+ ],
+ "machop": [
+  {
+   "kind": "wild",
+   "where": [
+    "rock-tunnel-b1f (red, walk)",
+    "rock-tunnel-b1f (blue, walk)",
+    "rock-tunnel-b2f (red, walk)",
+    "rock-tunnel-b2f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  }
+ ],
+ "machoke": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "machop"
+  }
+ ],
+ "machamp": [
+  {
+   "kind": "trade",
+   "from": "machoke"
+  }
+ ],
+ "bellsprout": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (blue, walk)",
+    "kanto-route-13-area (blue, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (blue, walk)",
+    "kanto-route-24-area (blue, walk)",
+    "kanto-route-25-area (blue, walk)",
+    "kanto-route-5-area (blue, walk)",
+    "kanto-route-6-area (blue, walk)",
+    "kanto-route-7-area (blue, walk)"
+   ]
+  }
+ ],
+ "weepinbell": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (blue, walk)",
+    "kanto-route-13-area (blue, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "bellsprout"
+  }
+ ],
+ "victreebel": [
+  {
+   "kind": "evolve",
+   "from": "weepinbell"
+  }
+ ],
+ "tentacool": [
+  {
+   "kind": "wild",
+   "where": [
+    "pallet-town-area (red, super-rod)",
+    "pallet-town-area (blue, super-rod)",
+    "kanto-route-12-area (red, super-rod)",
+    "kanto-route-12-area (blue, super-rod)",
+    "kanto-route-13-area (red, super-rod)",
+    "kanto-route-13-area (blue, super-rod)",
+    "kanto-route-17-area (red, super-rod)",
+    "kanto-route-17-area (blue, super-rod)",
+    "kanto-route-18-area (red, super-rod)",
+    "kanto-route-18-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, surf)",
+    "kanto-sea-route-19-area (blue, surf)",
+    "kanto-sea-route-20-area (red, surf)",
+    "kanto-sea-route-20-area (blue, surf)",
+    "kanto-sea-route-21-area (red, surf)",
+    "kanto-sea-route-21-area (blue, surf)",
+    "viridian-city-area (red, super-rod)",
+    "viridian-city-area (blue, super-rod)"
+   ]
+  }
+ ],
+ "tentacruel": [
+  {
+   "kind": "evolve",
+   "from": "tentacool"
+  }
+ ],
+ "geodude": [
+  {
+   "kind": "wild",
+   "where": [
+    "mt-moon-1f (red, walk)",
+    "mt-moon-1f (blue, walk)",
+    "mt-moon-b1f (red, walk)",
+    "mt-moon-b1f (blue, walk)",
+    "mt-moon-b2f (red, walk)",
+    "mt-moon-b2f (blue, walk)",
+    "rock-tunnel-b1f (red, walk)",
+    "rock-tunnel-b1f (blue, walk)",
+    "rock-tunnel-b2f (red, walk)",
+    "rock-tunnel-b2f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  }
+ ],
+ "graveler": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "geodude"
+  }
+ ],
+ "golem": [
+  {
+   "kind": "trade",
+   "from": "graveler"
+  }
+ ],
+ "ponyta": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (red, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  }
+ ],
+ "rapidash": [
+  {
+   "kind": "evolve",
+   "from": "ponyta"
+  }
+ ],
+ "slowpoke": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-area (red, super-rod)",
+    "celadon-city-area (blue, super-rod)",
+    "kanto-route-10-area (red, super-rod)",
+    "kanto-route-10-area (blue, super-rod)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "seafoam-islands-b4f (red, walk)",
+    "kanto-safari-zone-middle (red, super-rod)",
+    "kanto-safari-zone-middle (blue, super-rod)",
+    "kanto-safari-zone-area-1-east (red, super-rod)",
+    "kanto-safari-zone-area-1-east (blue, super-rod)",
+    "kanto-safari-zone-area-2-north (red, super-rod)",
+    "kanto-safari-zone-area-2-north (blue, super-rod)",
+    "kanto-safari-zone-area-3-west (red, super-rod)",
+    "kanto-safari-zone-area-3-west (blue, super-rod)"
+   ]
+  }
+ ],
+ "slowbro": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b4f (red, walk)",
+    "cerulean-cave-1f (red, super-rod)",
+    "cerulean-cave-1f (blue, super-rod)",
+    "cerulean-cave-b1f (red, super-rod)",
+    "cerulean-cave-b1f (blue, super-rod)",
+    "kanto-route-23-area (red, super-rod)",
+    "kanto-route-23-area (blue, super-rod)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "slowpoke"
+  }
+ ],
+ "magnemite": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-power-plant-area (red, walk)",
+    "kanto-power-plant-area (blue, walk)"
+   ]
+  }
+ ],
+ "magneton": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "kanto-power-plant-area (red, walk)",
+    "kanto-power-plant-area (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "magnemite"
+  }
+ ],
+ "farfetchd": [
+  {
+   "kind": "wild",
+   "where": [
+    "vermilion-city-area (red, npc-trade)",
+    "vermilion-city-area (blue, npc-trade)"
+   ]
+  }
+ ],
+ "doduo": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-16-area (red, walk)",
+    "kanto-route-16-area (blue, walk)",
+    "kanto-route-17-area (red, walk)",
+    "kanto-route-17-area (blue, walk)",
+    "kanto-route-18-area (red, walk)",
+    "kanto-route-18-area (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "dodrio": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "doduo"
+  }
+ ],
+ "seel": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, npc-trade)",
+    "cinnabar-island-cinnabar-lab (blue, npc-trade)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "seafoam-islands-b3f (blue, walk)",
+    "seafoam-islands-b4f (red, walk)",
+    "seafoam-islands-b4f (blue, walk)"
+   ]
+  }
+ ],
+ "dewgong": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "seafoam-islands-b3f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "seel"
+  }
+ ],
+ "grimer": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (red, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  }
+ ],
+ "muk": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (red, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "grimer"
+  }
+ ],
+ "shellder": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-area (red, super-rod)",
+    "cinnabar-island-area (blue, super-rod)",
+    "kanto-route-11-area (red, super-rod)",
+    "kanto-route-11-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, super-rod)",
+    "kanto-sea-route-19-area (blue, super-rod)",
+    "kanto-sea-route-20-area (red, super-rod)",
+    "kanto-sea-route-20-area (blue, super-rod)",
+    "kanto-sea-route-21-area (red, super-rod)",
+    "kanto-sea-route-21-area (blue, super-rod)",
+    "kanto-route-6-area (red, super-rod)",
+    "kanto-route-6-area (blue, super-rod)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "seafoam-islands-b3f (red, super-rod)",
+    "seafoam-islands-b3f (blue, super-rod)",
+    "seafoam-islands-b4f (red, walk)",
+    "seafoam-islands-b4f (red, super-rod)",
+    "seafoam-islands-b4f (blue, super-rod)",
+    "vermilion-city-area (red, super-rod)",
+    "vermilion-city-area (blue, super-rod)",
+    "vermilion-city-ss-anne-dock (red, super-rod)",
+    "vermilion-city-ss-anne-dock (blue, super-rod)"
+   ]
+  }
+ ],
+ "cloyster": [
+  {
+   "kind": "evolve",
+   "from": "shellder"
+  }
+ ],
+ "gastly": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-tower-3f (red, walk)",
+    "pokemon-tower-3f (blue, walk)",
+    "pokemon-tower-4f (red, walk)",
+    "pokemon-tower-4f (blue, walk)",
+    "pokemon-tower-5f (red, walk)",
+    "pokemon-tower-5f (blue, walk)",
+    "pokemon-tower-6f (red, walk)",
+    "pokemon-tower-6f (blue, walk)",
+    "pokemon-tower-7f (red, walk)",
+    "pokemon-tower-7f (blue, walk)"
+   ]
+  }
+ ],
+ "haunter": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-tower-3f (red, walk)",
+    "pokemon-tower-3f (blue, walk)",
+    "pokemon-tower-4f (red, walk)",
+    "pokemon-tower-4f (blue, walk)",
+    "pokemon-tower-5f (red, walk)",
+    "pokemon-tower-5f (blue, walk)",
+    "pokemon-tower-6f (red, walk)",
+    "pokemon-tower-6f (blue, walk)",
+    "pokemon-tower-7f (red, walk)",
+    "pokemon-tower-7f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "gastly"
+  }
+ ],
+ "gengar": [
+  {
+   "kind": "trade",
+   "from": "haunter"
+  }
+ ],
+ "onix": [
+  {
+   "kind": "wild",
+   "where": [
+    "rock-tunnel-b1f (red, walk)",
+    "rock-tunnel-b1f (blue, walk)",
+    "rock-tunnel-b2f (red, walk)",
+    "rock-tunnel-b2f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)",
+    "kanto-victory-road-2-3f (red, walk)",
+    "kanto-victory-road-2-3f (blue, walk)"
+   ]
+  }
+ ],
+ "drowzee": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-11-area (red, walk)",
+    "kanto-route-11-area (blue, walk)"
+   ]
+  }
+ ],
+ "hypno": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "drowzee"
+  }
+ ],
+ "krabby": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-city-area (red, super-rod)",
+    "cerulean-city-area (blue, super-rod)",
+    "fuchsia-city-area (red, super-rod)",
+    "fuchsia-city-area (blue, super-rod)",
+    "kanto-route-11-area (red, super-rod)",
+    "kanto-route-11-area (blue, super-rod)",
+    "kanto-route-12-area (red, super-rod)",
+    "kanto-route-12-area (blue, super-rod)",
+    "kanto-route-13-area (red, super-rod)",
+    "kanto-route-13-area (blue, super-rod)",
+    "kanto-route-17-area (red, super-rod)",
+    "kanto-route-17-area (blue, super-rod)",
+    "kanto-route-18-area (red, super-rod)",
+    "kanto-route-18-area (blue, super-rod)",
+    "kanto-route-24-area (red, super-rod)",
+    "kanto-route-24-area (blue, super-rod)",
+    "kanto-route-25-area (red, super-rod)",
+    "kanto-route-25-area (blue, super-rod)",
+    "kanto-route-6-area (red, super-rod)",
+    "kanto-route-6-area (blue, super-rod)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b3f (blue, walk)",
+    "seafoam-islands-b4f (blue, walk)",
+    "vermilion-city-area (red, super-rod)",
+    "vermilion-city-area (blue, super-rod)",
+    "vermilion-city-ss-anne-dock (red, super-rod)",
+    "vermilion-city-ss-anne-dock (blue, super-rod)",
+    "kanto-safari-zone-middle (red, super-rod)",
+    "kanto-safari-zone-middle (blue, super-rod)",
+    "kanto-safari-zone-area-1-east (red, super-rod)",
+    "kanto-safari-zone-area-1-east (blue, super-rod)",
+    "kanto-safari-zone-area-2-north (red, super-rod)",
+    "kanto-safari-zone-area-2-north (blue, super-rod)",
+    "kanto-safari-zone-area-3-west (red, super-rod)",
+    "kanto-safari-zone-area-3-west (blue, super-rod)"
+   ]
+  }
+ ],
+ "kingler": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b3f (blue, walk)",
+    "cerulean-cave-1f (red, super-rod)",
+    "cerulean-cave-1f (blue, super-rod)",
+    "cerulean-cave-b1f (red, super-rod)",
+    "cerulean-cave-b1f (blue, super-rod)",
+    "kanto-route-23-area (red, super-rod)",
+    "kanto-route-23-area (blue, super-rod)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "krabby"
+  }
+ ],
+ "voltorb": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-10-area (red, walk)",
+    "kanto-route-10-area (blue, walk)",
+    "kanto-power-plant-area (red, walk)",
+    "kanto-power-plant-area (red, static)",
+    "kanto-power-plant-area (blue, walk)",
+    "kanto-power-plant-area (blue, static)"
+   ]
+  }
+ ],
+ "electrode": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, npc-trade)",
+    "cinnabar-island-cinnabar-lab (blue, npc-trade)",
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-power-plant-area (red, static)",
+    "kanto-power-plant-area (blue, static)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "voltorb"
+  }
+ ],
+ "exeggcute": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "exeggutor": [
+  {
+   "kind": "evolve",
+   "from": "exeggcute"
+  }
+ ],
+ "cubone": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-tower-3f (red, walk)",
+    "pokemon-tower-3f (blue, walk)",
+    "pokemon-tower-4f (red, walk)",
+    "pokemon-tower-4f (blue, walk)",
+    "pokemon-tower-5f (red, walk)",
+    "pokemon-tower-5f (blue, walk)",
+    "pokemon-tower-6f (red, walk)",
+    "pokemon-tower-6f (blue, walk)",
+    "pokemon-tower-7f (red, walk)",
+    "pokemon-tower-7f (blue, walk)"
+   ]
+  }
+ ],
+ "marowak": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-victory-road-2-1f (red, walk)",
+    "kanto-victory-road-2-1f (blue, walk)",
+    "kanto-victory-road-2-2f (red, walk)",
+    "kanto-victory-road-2-2f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "cubone"
+  }
+ ],
+ "hitmonlee": [
+  {
+   "kind": "wild",
+   "where": [
+    "saffron-city-fighting-dojo (red, gift)",
+    "saffron-city-fighting-dojo (blue, gift)"
+   ]
+  },
+  {
+   "kind": "gift"
+  }
+ ],
+ "hitmonchan": [
+  {
+   "kind": "wild",
+   "where": [
+    "saffron-city-fighting-dojo (red, gift)",
+    "saffron-city-fighting-dojo (blue, gift)"
+   ]
+  },
+  {
+   "kind": "gift"
+  }
+ ],
+ "lickitung": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-18-area (red, npc-trade)",
+    "kanto-route-18-area (blue, npc-trade)"
+   ]
+  }
+ ],
+ "koffing": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (red, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  }
+ ],
+ "weezing": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-1f (red, walk)",
+    "pokemon-mansion-1f (blue, walk)",
+    "pokemon-mansion-2f (red, walk)",
+    "pokemon-mansion-2f (blue, walk)",
+    "pokemon-mansion-3f (red, walk)",
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (red, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "koffing"
+  }
+ ],
+ "rhyhorn": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)"
+   ]
+  }
+ ],
+ "rhydon": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "rhyhorn"
+  }
+ ],
+ "chansey": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)"
+   ]
+  }
+ ],
+ "tangela": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, npc-trade)",
+    "cinnabar-island-cinnabar-lab (blue, npc-trade)",
+    "kanto-sea-route-21-area (red, walk)",
+    "kanto-sea-route-21-area (blue, walk)"
+   ]
+  }
+ ],
+ "kangaskhan": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-safari-zone-area-1-east (red, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "horsea": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-area (red, super-rod)",
+    "cinnabar-island-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, super-rod)",
+    "kanto-sea-route-19-area (blue, super-rod)",
+    "kanto-sea-route-20-area (red, super-rod)",
+    "kanto-sea-route-20-area (blue, super-rod)",
+    "kanto-sea-route-21-area (red, super-rod)",
+    "kanto-sea-route-21-area (blue, super-rod)",
+    "seafoam-islands-1f (red, walk)",
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "seafoam-islands-b3f (red, super-rod)",
+    "seafoam-islands-b3f (blue, super-rod)",
+    "seafoam-islands-b4f (red, walk)",
+    "seafoam-islands-b4f (red, super-rod)",
+    "seafoam-islands-b4f (blue, super-rod)"
+   ]
+  }
+ ],
+ "seadra": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b3f (red, walk)",
+    "cerulean-cave-1f (red, super-rod)",
+    "cerulean-cave-1f (blue, super-rod)",
+    "cerulean-cave-b1f (red, super-rod)",
+    "cerulean-cave-b1f (blue, super-rod)",
+    "kanto-route-23-area (red, super-rod)",
+    "kanto-route-23-area (blue, super-rod)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "horsea"
+  }
+ ],
+ "goldeen": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-area (red, good-rod)",
+    "celadon-city-area (blue, good-rod)",
+    "cerulean-city-area (red, good-rod)",
+    "cerulean-city-area (red, super-rod)",
+    "cerulean-city-area (blue, good-rod)",
+    "cerulean-city-area (blue, super-rod)",
+    "cinnabar-island-area (red, good-rod)",
+    "cinnabar-island-area (red, super-rod)",
+    "cinnabar-island-area (blue, good-rod)",
+    "cinnabar-island-area (blue, super-rod)",
+    "fuchsia-city-area (red, good-rod)",
+    "fuchsia-city-area (red, super-rod)",
+    "fuchsia-city-area (blue, good-rod)",
+    "fuchsia-city-area (blue, super-rod)",
+    "pallet-town-area (red, good-rod)",
+    "pallet-town-area (blue, good-rod)",
+    "kanto-route-10-area (red, good-rod)",
+    "kanto-route-10-area (blue, good-rod)",
+    "kanto-route-11-area (red, good-rod)",
+    "kanto-route-11-area (blue, good-rod)",
+    "kanto-route-12-area (red, good-rod)",
+    "kanto-route-12-area (red, super-rod)",
+    "kanto-route-12-area (blue, good-rod)",
+    "kanto-route-12-area (blue, super-rod)",
+    "kanto-route-13-area (red, good-rod)",
+    "kanto-route-13-area (red, super-rod)",
+    "kanto-route-13-area (blue, good-rod)",
+    "kanto-route-13-area (blue, super-rod)",
+    "kanto-route-17-area (red, good-rod)",
+    "kanto-route-17-area (red, super-rod)",
+    "kanto-route-17-area (blue, good-rod)",
+    "kanto-route-17-area (blue, super-rod)",
+    "kanto-route-18-area (red, good-rod)",
+    "kanto-route-18-area (red, super-rod)",
+    "kanto-route-18-area (blue, good-rod)",
+    "kanto-route-18-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, good-rod)",
+    "kanto-sea-route-19-area (red, super-rod)",
+    "kanto-sea-route-19-area (blue, good-rod)",
+    "kanto-sea-route-19-area (blue, super-rod)",
+    "kanto-sea-route-20-area (red, good-rod)",
+    "kanto-sea-route-20-area (red, super-rod)",
+    "kanto-sea-route-20-area (blue, good-rod)",
+    "kanto-sea-route-20-area (blue, super-rod)",
+    "kanto-sea-route-21-area (red, good-rod)",
+    "kanto-sea-route-21-area (red, super-rod)",
+    "kanto-sea-route-21-area (blue, good-rod)",
+    "kanto-sea-route-21-area (blue, super-rod)",
+    "kanto-route-22-area (red, good-rod)",
+    "kanto-route-22-area (red, super-rod)",
+    "kanto-route-22-area (blue, good-rod)",
+    "kanto-route-22-area (blue, super-rod)",
+    "kanto-route-24-area (red, good-rod)",
+    "kanto-route-24-area (red, super-rod)",
+    "kanto-route-24-area (blue, good-rod)",
+    "kanto-route-24-area (blue, super-rod)",
+    "kanto-route-25-area (red, good-rod)",
+    "kanto-route-25-area (red, super-rod)",
+    "kanto-route-25-area (blue, good-rod)",
+    "kanto-route-25-area (blue, super-rod)",
+    "kanto-route-6-area (red, good-rod)",
+    "kanto-route-6-area (blue, good-rod)",
+    "seafoam-islands-b3f (red, good-rod)",
+    "seafoam-islands-b3f (red, super-rod)",
+    "seafoam-islands-b3f (blue, good-rod)",
+    "seafoam-islands-b3f (blue, super-rod)",
+    "seafoam-islands-b4f (red, good-rod)",
+    "seafoam-islands-b4f (red, super-rod)",
+    "seafoam-islands-b4f (blue, good-rod)",
+    "seafoam-islands-b4f (blue, super-rod)",
+    "cerulean-cave-1f (red, good-rod)",
+    "cerulean-cave-1f (blue, good-rod)",
+    "cerulean-cave-b1f (red, good-rod)",
+    "cerulean-cave-b1f (blue, good-rod)",
+    "vermilion-city-area (red, good-rod)",
+    "vermilion-city-area (blue, good-rod)",
+    "vermilion-city-ss-anne-dock (red, good-rod)",
+    "vermilion-city-ss-anne-dock (blue, good-rod)",
+    "viridian-city-area (red, good-rod)",
+    "viridian-city-area (blue, good-rod)",
+    "kanto-route-23-area (red, good-rod)",
+    "kanto-route-23-area (blue, good-rod)",
+    "kanto-safari-zone-middle (red, good-rod)",
+    "kanto-safari-zone-middle (blue, good-rod)",
+    "kanto-safari-zone-area-1-east (red, good-rod)",
+    "kanto-safari-zone-area-1-east (blue, good-rod)",
+    "kanto-safari-zone-area-2-north (red, good-rod)",
+    "kanto-safari-zone-area-2-north (blue, good-rod)",
+    "kanto-safari-zone-area-3-west (red, good-rod)",
+    "kanto-safari-zone-area-3-west (blue, good-rod)"
+   ]
+  }
+ ],
+ "seaking": [
+  {
+   "kind": "wild",
+   "where": [
+    "fuchsia-city-area (red, super-rod)",
+    "fuchsia-city-area (blue, super-rod)",
+    "cerulean-cave-1f (red, super-rod)",
+    "cerulean-cave-1f (blue, super-rod)",
+    "cerulean-cave-b1f (red, super-rod)",
+    "cerulean-cave-b1f (blue, super-rod)",
+    "kanto-route-23-area (red, super-rod)",
+    "kanto-route-23-area (blue, super-rod)"
+   ]
+  },
+  {
+   "kind": "evolve",
+   "from": "goldeen"
+  }
+ ],
+ "staryu": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-area (red, super-rod)",
+    "cinnabar-island-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, super-rod)",
+    "kanto-sea-route-19-area (blue, super-rod)",
+    "kanto-sea-route-20-area (red, super-rod)",
+    "kanto-sea-route-20-area (blue, super-rod)",
+    "kanto-sea-route-21-area (red, super-rod)",
+    "kanto-sea-route-21-area (blue, super-rod)",
+    "seafoam-islands-1f (blue, walk)",
+    "seafoam-islands-b1f (red, walk)",
+    "seafoam-islands-b1f (blue, walk)",
+    "seafoam-islands-b2f (red, walk)",
+    "seafoam-islands-b2f (blue, walk)",
+    "seafoam-islands-b3f (red, super-rod)",
+    "seafoam-islands-b3f (blue, walk)",
+    "seafoam-islands-b3f (blue, super-rod)",
+    "seafoam-islands-b4f (red, super-rod)",
+    "seafoam-islands-b4f (blue, walk)",
+    "seafoam-islands-b4f (blue, super-rod)"
+   ]
+  }
+ ],
+ "starmie": [
+  {
+   "kind": "evolve",
+   "from": "staryu"
+  }
+ ],
+ "mr-mime": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-2-north-towards-pewter-city (red, npc-trade)",
+    "kanto-route-2-north-towards-pewter-city (blue, npc-trade)"
+   ]
+  }
+ ],
+ "scyther": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "kanto-safari-zone-middle (red, walk)",
+    "kanto-safari-zone-area-1-east (red, walk)"
+   ]
+  }
+ ],
+ "jynx": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-city-area (red, npc-trade)",
+    "cerulean-city-area (blue, npc-trade)"
+   ]
+  }
+ ],
+ "electabuzz": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-power-plant-area (red, walk)"
+   ]
+  }
+ ],
+ "magmar": [
+  {
+   "kind": "wild",
+   "where": [
+    "pokemon-mansion-3f (blue, walk)",
+    "pokemon-mansion-b1f (blue, walk)"
+   ]
+  }
+ ],
+ "pinsir": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (blue, gift)",
+    "kanto-safari-zone-middle (blue, walk)",
+    "kanto-safari-zone-area-1-east (blue, walk)"
+   ]
+  }
+ ],
+ "tauros": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-safari-zone-area-2-north (red, walk)",
+    "kanto-safari-zone-area-2-north (blue, walk)",
+    "kanto-safari-zone-area-3-west (red, walk)",
+    "kanto-safari-zone-area-3-west (blue, walk)"
+   ]
+  }
+ ],
+ "magikarp": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-area (red, old-rod)",
+    "celadon-city-area (blue, old-rod)",
+    "cerulean-city-area (red, old-rod)",
+    "cerulean-city-area (blue, old-rod)",
+    "cinnabar-island-area (red, old-rod)",
+    "cinnabar-island-area (blue, old-rod)",
+    "fuchsia-city-area (red, old-rod)",
+    "fuchsia-city-area (red, super-rod)",
+    "fuchsia-city-area (blue, old-rod)",
+    "fuchsia-city-area (blue, super-rod)",
+    "pallet-town-area (red, old-rod)",
+    "pallet-town-area (blue, old-rod)",
+    "kanto-route-10-area (red, old-rod)",
+    "kanto-route-10-area (blue, old-rod)",
+    "kanto-route-11-area (red, old-rod)",
+    "kanto-route-11-area (blue, old-rod)",
+    "kanto-route-12-area (red, old-rod)",
+    "kanto-route-12-area (red, super-rod)",
+    "kanto-route-12-area (blue, old-rod)",
+    "kanto-route-12-area (blue, super-rod)",
+    "kanto-route-13-area (red, old-rod)",
+    "kanto-route-13-area (red, super-rod)",
+    "kanto-route-13-area (blue, old-rod)",
+    "kanto-route-13-area (blue, super-rod)",
+    "kanto-route-17-area (red, old-rod)",
+    "kanto-route-17-area (red, super-rod)",
+    "kanto-route-17-area (blue, old-rod)",
+    "kanto-route-17-area (blue, super-rod)",
+    "kanto-route-18-area (red, old-rod)",
+    "kanto-route-18-area (red, super-rod)",
+    "kanto-route-18-area (blue, old-rod)",
+    "kanto-route-18-area (blue, super-rod)",
+    "kanto-sea-route-19-area (red, old-rod)",
+    "kanto-sea-route-19-area (blue, old-rod)",
+    "kanto-sea-route-20-area (red, old-rod)",
+    "kanto-sea-route-20-area (blue, old-rod)",
+    "kanto-sea-route-21-area (red, old-rod)",
+    "kanto-sea-route-21-area (blue, old-rod)",
+    "kanto-route-22-area (red, old-rod)",
+    "kanto-route-22-area (blue, old-rod)",
+    "kanto-route-24-area (red, old-rod)",
+    "kanto-route-24-area (blue, old-rod)",
+    "kanto-route-25-area (red, old-rod)",
+    "kanto-route-25-area (blue, old-rod)",
+    "kanto-route-3-pokemon-center (red, gift)",
+    "kanto-route-3-pokemon-center (blue, gift)",
+    "kanto-route-4-pokemon-center (red, gift)",
+    "kanto-route-4-pokemon-center (blue, gift)",
+    "kanto-route-6-area (red, old-rod)",
+    "kanto-route-6-area (blue, old-rod)",
+    "seafoam-islands-b3f (red, old-rod)",
+    "seafoam-islands-b3f (blue, old-rod)",
+    "seafoam-islands-b4f (red, old-rod)",
+    "seafoam-islands-b4f (blue, old-rod)",
+    "cerulean-cave-1f (red, old-rod)",
+    "cerulean-cave-1f (blue, old-rod)",
+    "cerulean-cave-b1f (red, old-rod)",
+    "cerulean-cave-b1f (blue, old-rod)",
+    "vermilion-city-area (red, old-rod)",
+    "vermilion-city-area (blue, old-rod)",
+    "vermilion-city-ss-anne-dock (red, old-rod)",
+    "vermilion-city-ss-anne-dock (blue, old-rod)",
+    "viridian-city-area (red, old-rod)",
+    "viridian-city-area (blue, old-rod)",
+    "kanto-route-23-area (red, old-rod)",
+    "kanto-route-23-area (blue, old-rod)",
+    "kanto-safari-zone-middle (red, old-rod)",
+    "kanto-safari-zone-middle (blue, old-rod)",
+    "kanto-safari-zone-area-1-east (red, old-rod)",
+    "kanto-safari-zone-area-1-east (blue, old-rod)",
+    "kanto-safari-zone-area-2-north (red, old-rod)",
+    "kanto-safari-zone-area-2-north (blue, old-rod)",
+    "kanto-safari-zone-area-3-west (red, old-rod)",
+    "kanto-safari-zone-area-3-west (blue, old-rod)"
+   ]
+  },
+  {
+   "kind": "gift"
+  }
+ ],
+ "gyarados": [
+  {
+   "kind": "evolve",
+   "from": "magikarp"
+  }
+ ],
+ "lapras": [
+  {
+   "kind": "wild",
+   "where": [
+    "saffron-city-silph-co-7f (red, gift)",
+    "saffron-city-silph-co-7f (blue, gift)"
+   ]
+  },
+  {
+   "kind": "gift"
+  }
+ ],
+ "ditto": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-13-area (red, walk)",
+    "kanto-route-13-area (blue, walk)",
+    "kanto-route-14-area (red, walk)",
+    "kanto-route-14-area (blue, walk)",
+    "kanto-route-15-area (red, walk)",
+    "kanto-route-15-area (blue, walk)",
+    "cerulean-cave-1f (red, walk)",
+    "cerulean-cave-1f (blue, walk)",
+    "cerulean-cave-2f (red, walk)",
+    "cerulean-cave-2f (blue, walk)",
+    "cerulean-cave-b1f (red, walk)",
+    "cerulean-cave-b1f (blue, walk)",
+    "kanto-route-23-area (red, walk)",
+    "kanto-route-23-area (blue, walk)"
+   ]
+  }
+ ],
+ "eevee": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-celadon-mansion (red, gift)",
+    "celadon-city-celadon-mansion (blue, gift)"
+   ]
+  },
+  {
+   "kind": "gift"
+  }
+ ],
+ "vaporeon": [
+  {
+   "kind": "evolve",
+   "from": "eevee"
+  }
+ ],
+ "jolteon": [
+  {
+   "kind": "evolve",
+   "from": "eevee"
+  }
+ ],
+ "flareon": [
+  {
+   "kind": "evolve",
+   "from": "eevee"
+  }
+ ],
+ "porygon": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "celadon-city-prize-corner (blue, gift)"
+   ]
+  },
+  {
+   "kind": "prize"
+  }
+ ],
+ "omanyte": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, gift)",
+    "cinnabar-island-cinnabar-lab (blue, gift)"
+   ]
+  },
+  {
+   "kind": "fossil"
+  }
+ ],
+ "omastar": [
+  {
+   "kind": "evolve",
+   "from": "omanyte"
+  }
+ ],
+ "kabuto": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, gift)",
+    "cinnabar-island-cinnabar-lab (blue, gift)"
+   ]
+  },
+  {
+   "kind": "fossil"
+  }
+ ],
+ "kabutops": [
+  {
+   "kind": "evolve",
+   "from": "kabuto"
+  }
+ ],
+ "aerodactyl": [
+  {
+   "kind": "wild",
+   "where": [
+    "cinnabar-island-cinnabar-lab (red, gift)",
+    "cinnabar-island-cinnabar-lab (blue, gift)"
+   ]
+  },
+  {
+   "kind": "fossil"
+  }
+ ],
+ "snorlax": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-route-12-area (red, pokeflute)",
+    "kanto-route-12-area (blue, pokeflute)",
+    "kanto-route-16-area (red, pokeflute)",
+    "kanto-route-16-area (blue, pokeflute)"
+   ]
+  }
+ ],
+ "articuno": [
+  {
+   "kind": "wild",
+   "where": [
+    "seafoam-islands-b4f (red, static)",
+    "seafoam-islands-b4f (blue, static)"
+   ]
+  },
+  {
+   "kind": "legendary"
+  }
+ ],
+ "zapdos": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-power-plant-area (red, static)",
+    "kanto-power-plant-area (blue, static)"
+   ]
+  },
+  {
+   "kind": "legendary"
+  }
+ ],
+ "moltres": [
+  {
+   "kind": "wild",
+   "where": [
+    "kanto-victory-road-2-2f (red, static)",
+    "kanto-victory-road-2-2f (blue, static)"
+   ]
+  },
+  {
+   "kind": "legendary"
+  }
+ ],
+ "dratini": [
+  {
+   "kind": "wild",
+   "where": [
+    "celadon-city-prize-corner (red, gift)",
+    "celadon-city-prize-corner (blue, gift)",
+    "kanto-safari-zone-middle (red, super-rod)",
+    "kanto-safari-zone-middle (blue, super-rod)",
+    "kanto-safari-zone-area-1-east (red, super-rod)",
+    "kanto-safari-zone-area-1-east (blue, super-rod)",
+    "kanto-safari-zone-area-2-north (red, super-rod)",
+    "kanto-safari-zone-area-2-north (blue, super-rod)",
+    "kanto-safari-zone-area-3-west (red, super-rod)",
+    "kanto-safari-zone-area-3-west (blue, super-rod)"
+   ]
+  }
+ ],
+ "dragonair": [
+  {
+   "kind": "evolve",
+   "from": "dratini"
+  }
+ ],
+ "dragonite": [
+  {
+   "kind": "evolve",
+   "from": "dragonair"
+  }
+ ],
+ "mewtwo": [
+  {
+   "kind": "wild",
+   "where": [
+    "cerulean-cave-b1f (red, static)",
+    "cerulean-cave-b1f (blue, static)"
+   ]
+  },
+  {
+   "kind": "legendary"
+  }
+ ],
+ "mew": [
+  {
+   "kind": "award"
+  }
+ ]
+}

@@ -225,7 +225,8 @@ function cleanSkin(raw: unknown): Skin {
   if (!raw || typeof raw !== 'object') return out;
   for (const k of SKIN_KEYS) {
     const v = (raw as Record<string, unknown>)[k];
-    if (typeof v === 'string' && /^[a-z][a-z-]{1,23}$/.test(v)) out[k] = v;
+    // A species id, optionally shiny (:s) and with 1 to 3 stars (:1..:3), e.g. pidgey:s:2.
+    if (typeof v === 'string' && /^[a-z][a-z-]{1,23}(:s)?(:[1-3])?$/.test(v)) out[k] = v;
   }
   return out;
 }

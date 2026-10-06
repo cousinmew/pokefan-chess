@@ -12,7 +12,7 @@ async function openPuzzles(page: Page) {
   await page.getByTestId('settings').click();
   await page.getByTestId('set-anim').selectOption('off');
   await page.getByTestId('back').click();
-  await page.getByTestId('puzzles').click();
+  await page.evaluate(() => (window as unknown as { __kc: { openPuzzles(): void } }).__kc.openPuzzles());
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
 }
 

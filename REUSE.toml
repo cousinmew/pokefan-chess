@@ -6,7 +6,7 @@ SPDX-FileCopyrightText = "2026 Cousin Mew"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
 [[annotations]]
-path = ["docs/**", "*.md", "src/data/**"]
+path = ["docs/**", "*.md", "src/data/**", "schemas/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Cousin Mew"
 SPDX-License-Identifier = "CC-BY-NC-SA-4.0"

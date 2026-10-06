@@ -116,11 +116,14 @@ export class Overlay {
         ms: BATTLE.inMs,
         enter: () => {
           this.el.hidden = false;
-          this.setSprite(this.att, (attackerNear ? sprites?.near : sprites?.far) ?? spriteUrl(a.dex, view(attackerNear)));
-          this.setSprite(this.def, (attackerNear ? sprites?.far : sprites?.near) ?? spriteUrl(d.dex, view(!attackerNear)));
+          this.setSprite(this.att, (attackerNear ? sprites?.near : sprites?.far) ?? spriteUrl(a.dex, view(attackerNear), a.shiny));
+          this.setSprite(this.def, (attackerNear ? sprites?.far : sprites?.near) ?? spriteUrl(d.dex, view(!attackerNear), d.shiny));
           this.att.hidden = false;
           this.def.className = 'mon def';
           this.att.classList.toggle('mirror', attackerNear && (sprites?.mirrorNear ?? false));
+          // Stars (§B12): a coloured aura round that Pokémon in battle.
+          this.att.dataset.stars = String(a.stars ?? 0);
+          this.def.dataset.stars = String(d.stars ?? 0);
           this.def.classList.toggle('mirror', !attackerNear && (sprites?.mirrorNear ?? false));
           this.setHp(hpA, 1);
           this.setHp(hpD, 1);

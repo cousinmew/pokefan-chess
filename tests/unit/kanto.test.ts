@@ -14,19 +14,22 @@ describe('Kanto encounter tables', () => {
     ]);
   });
 
-  it('every route sums to 100% and every species is known', () => {
+  it('every route sums to 100% (Red and Blue) and every species is known', () => {
     for (const r of ROUTES) {
       expect(slotsOf(r).reduce((n, s) => n + s.chance, 0), r.id).toBe(100);
+      expect(slotsOf(r, 'blue').reduce((n, s) => n + s.chance, 0), `${r.id} blue`).toBe(100);
       for (const e of r.encounters) expect(SPECIES[e.species], e.species).toBeDefined();
     }
   });
 
-  it.each(ROUTES.map((r) => [r.id, r] as const))('10,000 seeded rolls on %s land within 2 points of each slot', (_id, route) => {
-    const rng = createRng(151);
-    const slots = slotsOf(route);
-    const hits = slots.map(() => 0);
-    for (let i = 0; i < 10_000; i++) hits[rollSlotIndex(route, rng)]!++;
-    slots.forEach((s, i) => expect(Math.abs((hits[i]! / 10_000) * 100 - s.chance), `${s.species} ${s.chance}%`).toBeLessThanOrEqual(2));
+  it.each(ROUTES.map((r) => [r.id, r] as const))('10,000 seeded rolls on %s land within 2 points of each slot, Red and Blue', (_id, route) => {
+    for (const version of ['red', 'blue'] as const) {
+      const rng = createRng(151);
+      const slots = slotsOf(route, version);
+      const hits = slots.map(() => 0);
+      for (let i = 0; i < 10_000; i++) hits[rollSlotIndex(route, rng, version)]!++;
+      slots.forEach((s, i) => expect(Math.abs((hits[i]! / 10_000) * 100 - s.chance), `${version} ${s.species} ${s.chance}%`).toBeLessThanOrEqual(2));
+    }
   });
 });
 
@@ -48,7 +51,7 @@ describe('catching and mastery', () => {
     expect(res.campaign.caught.pidgey).toBe(1);
   });
 
-  it('8 of the last 10 solved masters a route and opens the next', () => {
+  it('8 of the last 10 solved still measures mastery; routes now open by beating trainers (§B11)', () => {
     let c = chooseStarter(loadCampaign(), 'bulbasaur');
     expect(unlocked(c, 0)).toBe(true);
     expect(unlocked(c, 1)).toBe(false);
@@ -57,6 +60,8 @@ describe('catching and mastery', () => {
     expect(mastered(c, 'route-1')).toBe(false);
     c = recordRoute(c, 'route-1', 'assisted');
     expect(mastered(c, 'route-1')).toBe(true);
+    expect(unlocked(c, 1)).toBe(false);
+    c = { ...c, journey: { ...c.journey, cleared: ['route-1', 'viridian', 'rival-1'] } };
     expect(unlocked(c, 1)).toBe(true);
   });
 

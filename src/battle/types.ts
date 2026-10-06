@@ -1,20 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Gen 1 effectiveness for the types in this roster (Part I §2.1). Cosmetic only: never touches chess.
+// Gen 1 type effectiveness (Part I §2.1, extended to every Gen 1 type in C2b). Cosmetic only: never touches chess.
 import { MOVES, species, type MoveId, type Species, type SpeciesId } from '../board/pieces';
 import type { StringKey } from '../game/text';
 
-type T = 'electric' | 'fire' | 'flying' | 'normal' | 'grass' | 'poison' | 'water' | 'ground' | 'rock';
+type T = 'normal' | 'fire' | 'water' | 'electric' | 'grass' | 'ice' | 'fighting' | 'poison' | 'ground' | 'flying' | 'psychic' | 'bug' | 'rock' | 'ghost' | 'dragon';
 
-/** Attacking type -> defending type -> multiplier. Missing entries are 1. */
-export const CHART: Partial<Record<T, Partial<Record<T, number>>>> = {
-  electric: { electric: 0.5, flying: 2, grass: 0.5, water: 2, ground: 0 },
-  fire: { fire: 0.5, grass: 2, water: 0.5, rock: 0.5 },
-  normal: { rock: 0.5 },
-  grass: { fire: 0.5, flying: 0.5, grass: 0.5, poison: 0.5, water: 2, ground: 2, rock: 2 },
-  water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2 },
-  rock: { fire: 2, flying: 2, ground: 0.5 },
-  ground: { electric: 2, fire: 2, poison: 2, rock: 2, grass: 0.5, flying: 0 },
-  poison: { poison: 0.5, ground: 0.5, rock: 0.5, grass: 2 },
+/** Gen 1 chart, all 15 types: attacking type -> defending type -> multiplier. Missing entries are 1.
+ * Gen 1 quirks kept: Ghost does nothing to Psychic, Bug and Poison hit each other hard, Ice is neutral on Fire.
+ * tests/unit/types.test.ts checks every pair against PokéAPI's Gen 1 relations (src/data/types.gen1.json). */
+export const CHART: Record<T, Partial<Record<T, number>>> = {
+  normal: { rock: 0.5, ghost: 0 },
+  fire: { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5 },
+  water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+  electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+  grass: { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5 },
+  ice: { water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2 },
+  fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0 },
+  poison: { grass: 2, poison: 0.5, ground: 0.5, bug: 2, rock: 0.5, ghost: 0.5 },
+  ground: { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2 },
+  flying: { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5 },
+  psychic: { fighting: 2, poison: 2, psychic: 0.5 },
+  bug: { fire: 0.5, grass: 2, fighting: 0.5, poison: 2, flying: 0.5, psychic: 2, ghost: 0.5 },
+  rock: { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2 },
+  ghost: { normal: 0, psychic: 0, ghost: 2 },
+  dragon: { dragon: 2 },
 };
 
 export function multiplier(moveType: string, defenderTypes: string[]): number {

@@ -20,8 +20,9 @@ jobs:
       - run: npm ci --prefix worker
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      # Assets first: unit tests check the shiny sprites exist for every catchable species.
       - run: npm run assets
+      - run: npm test
       - run: npm run build
       - name: Grep gates G3 G5
         run: node scripts/grep-gates.mjs G3 G5
