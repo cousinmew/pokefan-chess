@@ -56,19 +56,32 @@ test('missed: your move in red, a legal Stockfish refutation, the review stays, 
   test.setTimeout(60_000);
   await open(page);
   const want = (await kc<string>(page, 'puzzleAnswer'))!;
+  const before = await fen(page);
+  // Any mating move counts as solved (as on Lichess), so the "wrong" move must not mate.
+  const mates = (from: string, to: string) => {
+    const c = new Chess(before);
+    try {
+      c.move({ from, to, promotion: 'q' });
+    } catch {
+      return false;
+    }
+    return c.isCheckmate();
+  };
   const squares = await page.locator('.sq[data-piece]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
   for (const sq of squares) {
     await page.click(`[data-square="${sq}"]`);
     const targets = await page.locator('.sq.dot, .sq.capture').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
-    const to = targets.find((t) => sq + t !== want.slice(0, 4));
+    const to = targets.find((t) => sq + t !== want.slice(0, 4) && !mates(sq, t));
     if (to) {
       await page.click(`[data-square="${to}"]`);
       break;
     }
   }
   await expect(page.getByTestId('review')).toBeVisible();
-  await expect(page.locator('[data-testid="review-layer"] line[data-color="red"]')).toBeAttached();
   await expect.poll(() => kc<{ source: string } | null>(page, 'refutation'), { timeout: 15_000 }).not.toBeNull();
+  // The line may already be replaying: step back to its first frame, where your move is the red arrow.
+  while (await page.getByTestId('review-prev').isEnabled()) await page.getByTestId('review-prev').click();
+  await expect(page.locator('[data-testid="review-layer"] line[data-color="red"]')).toBeAttached();
   const ref = (await kc<{ fen: string; uci: string; source: string }>(page, 'refutation'))!;
   expect(ref.source).toBe('stockfish');
   const legal = new Chess(ref.fen).moves({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));

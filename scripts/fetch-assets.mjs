@@ -32,6 +32,10 @@ const TRAINERS = 'https://play.pokemonshowdown.com/sprites/trainers/';
 const trainerMap = JSON.parse(readFileSync('src/data/trainers.json', 'utf8'));
 for (const sprite of new Set([...Object.values(trainerMap.people), ...Object.values(trainerMap.classes)])) jobs.push([`${TRAINERS}${sprite}.png`, `trainers/${sprite}.png`]);
 
+// Hub icons (§B16 addendum): PokeAPI item sprites, checked 6 Oct 2026. The rest are original SVGs in src/ui/icons.ts.
+const ITEMS = ['town-map', 'teachy-tv', 'poke-ball', 'vs-seeker', 'card-key', 'tm-normal', 'oaks-parcel'];
+for (const item of ITEMS) jobs.push([`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${item}.png`, `items/${item}.png`]);
+
 let hasFfmpeg = true;
 try {
   execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
@@ -73,7 +77,7 @@ if (missing.length) {
 
 const files = [];
 const walk = (dir) => {
-  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back', 'trainers']) {
+  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back', 'trainers', 'items']) {
     const p = join(dir, sub);
     if (!existsSync(p)) continue;
     for (const f of execFileSync('ls', [p], { encoding: 'utf8' }).split('\n').filter(Boolean)) {

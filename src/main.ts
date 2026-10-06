@@ -361,7 +361,6 @@ function boot(): App {
             team: fmt('hub.chip.team', { n: String(Object.values(c.team).filter(Boolean).length) }),
             card: fmt('hub.chip.level', { n: String(Math.round(rating)) }),
           },
-          mascots: { journey: c.starter ?? 'pikachu', training: 'trainer:oak', battle: 'charizard', computer: 'nidoking', two: 'snorlax', online: 'porygon', dex: 'bulbasaur', team: 'eevee', card: 'trainer:red-gen1', settings: 'magnemite', share: 'pidgey' },
         },
         battle: () => startGame(quick),
         resume: () => {

@@ -239,8 +239,9 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .review-btn.continue { background: #f8d030; }
 .review-btn:disabled { opacity: 0.4; }
 
-/* Home hub (§B16): chunky tiles, bounce, a slowly scrolling pattern; one column on phones, three on desktops. */
-.screen-title { width: min(100vw - 16px, 1180px); }
+/* Home hub (§B16 and its addendum): one column at every width, generous space between zones, a slowly scrolling
+   pattern; item and pixel icons, no mascots and no bounce. */
+.screen-title { width: min(100vw - 16px, 560px); }
 .screen-title::before { content: ''; position: fixed; inset: 0; z-index: -1; background-color: var(--paper);
   background-image: radial-gradient(circle at 25% 25%, rgba(127, 166, 90, 0.18) 0 10%, transparent 11%), radial-gradient(circle at 75% 75%, rgba(240, 208, 64, 0.2) 0 10%, transparent 11%);
   background-size: 64px 64px; animation: hub-scroll 40s linear infinite; }
@@ -253,19 +254,24 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .hub-card .badges { display: flex; gap: 3px; margin-top: 2px; }
 .hub-card .badge { width: 12px; height: 12px; border-width: 1px; }
 .menu button.hub-manual { align-items: center; }
-.hub-zones { display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%; }
-@media (min-width: 900px) { .hub-zones { grid-template-columns: repeat(3, 1fr); align-items: start; } }
+.hub-zones { display: flex; flex-direction: column; gap: 32px; width: 100%; margin-top: 8px; }
 .hub-zone { display: flex; flex-direction: column; gap: 8px; }
-.zone-title { margin: 4px 0 0; font-size: 15px; letter-spacing: 3px; color: #505050; }
+.zone-title { margin: 4px 0 0; font-size: 15px; letter-spacing: 3px; color: #505050; display: flex; align-items: flex-end; gap: 8px; }
+.zone-oak { width: 40px; height: 40px; }
 .tile-wrap { position: relative; }
-.tile { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 76px; padding: 8px 40px 8px 8px; font: inherit; text-align: left; color: var(--ink);
-  background: #fff; border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; transition: transform 120ms ease-out; }
-.tile:hover, .tile:active { transform: scale(1.04); }
+.tile { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 8px 44px 8px 10px; font: inherit; text-align: left; color: var(--ink);
+  background: #fff; border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; transition: filter 120ms ease-out; }
+/* Press feedback: a slight darken (plus the blip), never a bounce. */
+.tile:active { filter: brightness(0.9); }
+.tile:hover { filter: brightness(0.97); }
 .tile:focus-visible, .tile-help:focus-visible, .hub-top button:focus-visible, .manual-tab:focus-visible { outline: 4px solid #3050f0; outline-offset: 2px; }
 .tile-kanto, .tile-journey { background: #fff4d0; }
-.tile-pic { flex: none; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; }
-.tile-mascot { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
-.tile-pic .trainer-sprite { width: 56px; height: 56px; }
+.tile-pic { flex: none; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+/* Item sprites are 30 px (shown 2x); pixel SVGs are 16 px wide (shown 3x). */
+.tile-icon { image-rendering: pixelated; }
+.tile-icon.item-icon { width: 60px; height: 60px; object-fit: contain; }
+.tile-icon.pixel-svg { flex: none; }
+.help-icon { width: 30px; height: 30px; image-rendering: pixelated; }
 .tile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tile-title { font-weight: 700; font-size: 16px; }
 .tile-sub { font-size: 12px; line-height: 1.3; }
@@ -274,10 +280,11 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 @media (hover: hover) and (min-width: 900px) {
   .tile:hover .tile-tip { display: block; position: absolute; left: 12px; right: 12px; top: calc(100% + 6px); z-index: 20; white-space: pre-line; font-size: 11px; background: var(--ink); color: #fff; border-radius: 6px; padding: 6px 8px; }
 }
-.tile-help { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; min-height: 0; border-radius: 50%; border: 2px solid var(--ink); background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-.menu .tile-help { min-height: 28px; }
+.tile-help { position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 8px; border: 2px solid var(--ink); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.menu .tile-help { min-height: 36px; }
+.tile-help .help-icon { width: 30px; height: 30px; }
+.menu button.hub-manual { flex-direction: row; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
-  .tile:hover, .tile:active { transform: none; }
   .screen-title::before { animation: none; }
 }
 /* The manual (§B16): an instruction booklet with tabs and page numbers. */

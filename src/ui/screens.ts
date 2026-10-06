@@ -7,7 +7,7 @@ import { sound } from '../audio/audio';
 import { button, el, footer, screen, toast } from './dom';
 import { manualScreen, type Page } from './manual';
 import { trainerSprite } from './kanto';
-import { SPECIES } from '../board/pieces';
+import { itemIcon, pixelIcon, type PixelIcon } from './icons';
 
 function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLElement {
   const sp = speciesFor(color, role, square);
@@ -44,8 +44,14 @@ export interface HubData {
   continueText: string | null;
   card: { name: string; level: number; badges: string[] };
   chips: Partial<Record<HubTile, string>>;
-  mascots: Partial<Record<HubTile, string>>;
 }
+
+// Tile icons (§B16 addendum): item sprites where PokeAPI has one, original pixel art otherwise. No mascots.
+const ICONS: Record<HubTile, { item: string } | { pixel: PixelIcon }> = {
+  journey: { item: 'town-map' }, training: { item: 'teachy-tv' }, battle: { item: 'poke-ball' }, computer: { item: 'vs-seeker' },
+  two: { pixel: 'two-balls' }, online: { pixel: 'link-cable' }, dex: { pixel: 'dex' }, team: { pixel: 'six-balls' },
+  card: { item: 'card-key' }, settings: { pixel: 'gear' }, share: { item: 'oaks-parcel' },
+};
 
 export interface TitleActions {
   canContinue: boolean;
@@ -82,15 +88,9 @@ export function title(a: TitleActions): HTMLElement {
     const t = el('button', `tile tile-${id}`);
     t.type = 'button';
     t.dataset.testid = TESTID[id];
-    const mascot = data?.mascots[id];
     const pic = el('span', 'tile-pic');
-    if (mascot?.startsWith('trainer:')) pic.append(trainerSprite(mascot.slice(8), 'trainer-sprite tile-mascot'));
-    else if (mascot) {
-      const img = el('img', 'tile-mascot');
-      img.src = spriteUrl(SPECIES[mascot]!.dex);
-      img.alt = '';
-      pic.append(img);
-    }
+    const icon = ICONS[id];
+    pic.append('item' in icon ? itemIcon(icon.item) : pixelIcon(icon.pixel));
     const txt = el('span', 'tile-text');
     const h = el('span', 'tile-title', `hub.${id}.title` as StringKey);
     const sub = el('span', 'tile-sub', `hub.${id}.sub` as StringKey);
@@ -113,7 +113,7 @@ export function title(a: TitleActions): HTMLElement {
     if (page) {
       const q = el('button', 'tile-help');
       q.type = 'button';
-      q.textContent = '?';
+      q.append(itemIcon('tm-normal', 'help-icon'));
       q.dataset.testid = `help-${id}`;
       q.setAttribute('aria-label', fmt('hub.help', { mode: fmt(`hub.${id}.title` as StringKey) }));
       q.onclick = () => a.howTo(page);
@@ -121,9 +121,12 @@ export function title(a: TitleActions): HTMLElement {
     }
     return wrap;
   };
-  const zone = (name: StringKey, ids: HubTile[]) => {
+  const zone = (name: StringKey, ids: HubTile[], oak = false) => {
     const z = el('section', 'hub-zone');
-    z.append(el('h2', 'zone-title', name), ...ids.map(tile));
+    const h = el('h2', 'zone-title', name);
+    // Professor Oak appears once, static, in the Journey header (§B16 addendum).
+    if (oak) h.append(trainerSprite('oak', 'trainer-sprite zone-oak'));
+    z.append(h, ...ids.map(tile));
     return z;
   };
   const top = el('div', 'hub-top');
@@ -151,10 +154,12 @@ export function title(a: TitleActions): HTMLElement {
     mini.onclick = a.card;
     top.append(mini);
   }
-  top.append(button('hub.manual', () => a.howTo(), 'how-to', 'hub-manual'));
+  const manual = button('hub.manual', () => a.howTo(), 'how-to', 'hub-manual');
+  manual.prepend(itemIcon('tm-normal', 'help-icon'));
+  top.append(manual);
   const zones = el('div', 'hub-zones');
   zones.append(
-    zone('hub.zone.journey', ['journey', 'training']),
+    zone('hub.zone.journey', ['journey', 'training'], true),
     zone('hub.zone.battle', ['battle', 'computer', 'two', 'online']),
     zone('hub.zone.trainer', ['dex', 'team', 'card', 'settings', 'share']),
   );

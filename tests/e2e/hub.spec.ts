@@ -23,10 +23,17 @@ for (const size of [{ width: 360, height: 640 }, { width: 1280, height: 800 }]) 
       await expect(tile.locator('.tile-sub'), id).toBeVisible();
       expect((await tile.locator('.tile-sub').textContent())!.length, id).toBeGreaterThan(10);
     }
-    if (size.width > 900) {
-      const boxes = await Promise.all(['kanto', 'quick-battle', 'hub-dex'].map((id) => page.getByTestId(id).boundingBox()));
-      expect(new Set(boxes.map((b) => Math.round(b!.x))).size).toBe(3);
-    }
+    // One column at every width (§B16 addendum): every tile starts at the same x.
+    const boxes = await Promise.all(TILES.map((id) => page.getByTestId(id).boundingBox()));
+    expect(new Set(boxes.map((b) => Math.round(b!.x))).size).toBe(1);
+    // No mascots; item icons load; the five original pixel icons are drawn; one static Oak in the Journey header.
+    await expect(page.locator('.tile-mascot, .tile img[data-species]')).toHaveCount(0);
+    await expect.poll(() => page.$$eval('.screen-title img.item-icon', (imgs) => imgs.filter((i) => !((i as HTMLImageElement).naturalWidth > 0)).length)).toBe(0);
+    expect(await page.locator('.screen-title img.item-icon').count()).toBeGreaterThanOrEqual(7 + 8);
+    for (const icon of ['two-balls', 'link-cable', 'dex', 'six-balls', 'gear']) await expect(page.locator(`.tile svg[data-icon="${icon}"]`)).toHaveCount(1);
+    await expect(page.locator('.screen-title [data-trainer="oak"]')).toHaveCount(1);
+    await expect(page.locator('.hub-zone').first().locator('[data-trainer="oak"]')).toBeVisible();
+    await expect(page.locator('.screen-title .slide-in')).toHaveCount(0);
     for (const [tile, pageId] of Object.entries(HELP)) {
       await page.getByTestId(`help-${tile}`).click();
       await expect(page.getByTestId(`manual-page-${pageId}`)).toBeVisible();
