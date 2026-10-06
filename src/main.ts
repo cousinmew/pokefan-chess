@@ -37,9 +37,8 @@ import { dexScreen } from './ui/kanto';
 import { loadCampaign } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
-import { createRoom } from './net/online';
+import { createRoom, normalizeCode } from './net/online';
 import { message, onlineMenu } from './ui/online';
-import { CODE_RE } from '../worker/src/protocol';
 
 export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge' | 'path';
 
@@ -346,6 +345,7 @@ function boot(): App {
         },
         (code) => online.join(code),
         goTitle,
+        normalizeCode(new URLSearchParams(location.search).get('room') ?? ''),
       ),
     );
   }
@@ -719,8 +719,9 @@ function boot(): App {
 
   root.replaceChildren(stage, modal, overlay.el, live);
   const params = new URLSearchParams(location.search);
-  const room = (params.get('room') ?? '').toUpperCase();
-  if (CODE_RE.test(room)) {
+  // A ?room= link joins straight away (any case, stray spaces); the code also prefills the Online field.
+  const room = normalizeCode(params.get('room') ?? '');
+  if (room.length === 4) {
     preloadBattleSprites();
     online.join(room);
   } else if (params.has('debug') && params.get('start') === 'two') startGame({ mode: 'two-players', human: 'w', level: 1 }, undefined, false);

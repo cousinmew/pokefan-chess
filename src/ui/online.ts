@@ -1,26 +1,43 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Online screens: menu (create or enter a code), waiting room, and a message screen.
-import { CODE_RE } from '../../worker/src/protocol';
+import { normalizeCode } from '../net/online';
 import { fmt, type StringKey } from '../game/text';
 import { button, el, screen, toast } from './dom';
 
-export function onlineMenu(create: () => void, join: (code: string) => void, back: () => void): HTMLElement {
+/** Create a room, or join one with its 4 letter code (§B18 item 1). The field is a real form, so Enter, the phone's
+ * Go key and the Join button all submit; typing or pasting is normalised as you go (no maxlength, which would cut a
+ * pasted link or a code with spaces before it could be cleaned up). */
+export function onlineMenu(create: () => void, join: (code: string) => void, back: () => void, prefill = ''): HTMLElement {
+  const form = el('form', 'code-row');
+  form.noValidate = true;
   const input = el('input', 'code-input');
+  input.type = 'text';
+  input.name = 'room';
   input.dataset.testid = 'code-input';
-  input.maxLength = 4;
-  input.autocapitalize = 'characters';
-  input.autocomplete = 'off';
+  // Attributes, not properties: WebKit ignores the autocapitalize property, but iOS Safari reads the attribute.
+  const hints: [string, string][] = [['inputmode', 'text'], ['autocapitalize', 'characters'], ['autocomplete', 'off'], ['autocorrect', 'off'], ['spellcheck', 'false'], ['enterkeyhint', 'go']];
+  for (const [k, v] of hints) input.setAttribute(k, v);
   input.setAttribute('aria-label', fmt('online.codeLabel'));
   input.placeholder = fmt('online.codeLabel');
-  const go = button('online.go', () => {
-    const code = input.value.trim().toUpperCase();
-    if (CODE_RE.test(code)) join(code);
-    else input.focus();
-  }, 'join-code');
-  input.onkeydown = (e) => e.key === 'Enter' && go.click();
-  const row = el('div', 'code-row');
-  row.append(input, go);
-  return screen('online', el('h2', '', 'title.online'), button('online.create', create, 'create-room', 'primary'), el('h3', '', 'online.joinTitle'), row, button('back', back, 'back', 'secondary'));
+  input.value = normalizeCode(prefill);
+  input.addEventListener('input', () => {
+    const v = normalizeCode(input.value);
+    if (v !== input.value) input.value = v;
+  });
+  const go = button('online.go', () => undefined, 'join-code');
+  go.type = 'submit';
+  const err = el('p', 'code-error');
+  err.dataset.testid = 'code-error';
+  err.setAttribute('role', 'alert');
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const code = normalizeCode(input.value);
+    if (code.length === 4) return join(code);
+    err.textContent = fmt('online.codeShort');
+    input.focus();
+  };
+  form.append(input, go);
+  return screen('online', el('h2', '', 'title.online'), button('online.create', create, 'create-room', 'primary'), el('h3', '', 'online.joinTitle'), form, err, button('back', back, 'back', 'secondary'));
 }
 
 export function waitingRoom(code: string, back: () => void): HTMLElement {

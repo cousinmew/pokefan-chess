@@ -714,5 +714,6 @@
   "settings.cartridge": "Changer de cartouche",
   "settings.cartridgeHold": "Reste appuyé 2 secondes",
   "settings.cartridgeNow": "En cours : {name}",
-  "settings.lang": "Langue"
+  "settings.lang": "Langue",
+  "online.codeShort": "Tape le code de 4 lettres."
 }

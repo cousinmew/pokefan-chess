@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Online game controller. The relay is the source of truth (V4): local moves are sent, and the board only
 // changes when a `state` arrives. A capture plays its battle locally on both screens from the state diff.
-import { REACTION_COUNT, type Seat, type ServerMsg, type Skin } from '../../worker/src/protocol';
+import { CODE_RE, REACTION_COUNT, type Seat, type ServerMsg, type Skin } from '../../worker/src/protocol';
 import type { StringKey } from '../game/text';
 import { button, el, toast } from '../ui/dom';
 import { message, waitingRoom } from '../ui/online';
@@ -46,6 +46,8 @@ export class OnlineGame {
 
   join(code: string): void {
     this.close();
+    // Room codes never use I or O: such a code cannot exist, so say so instead of dialling the relay.
+    if (!CODE_RE.test(code)) return this.host.show(message('online.unknown', () => this.host.goTitle()));
     this.started = false;
     this.queue = [];
     this.applied = [];

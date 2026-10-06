@@ -714,5 +714,6 @@
   "settings.cartridge": "Cambiar de cartucho",
   "settings.cartridgeHold": "Mantén pulsado 2 segundos",
   "settings.cartridgeNow": "Jugando ahora: {name}",
-  "settings.lang": "Idioma"
+  "settings.lang": "Idioma",
+  "online.codeShort": "Escribe el código de 4 letras."
 }

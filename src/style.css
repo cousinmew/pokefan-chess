@@ -354,3 +354,4 @@ body.cart-yellow { --sq: max(52px, calc(min(100vw - 8px, 100dvh - 190px) / 8)); 
 body.cart-yellow .tb-main { font-size: 20px; }
 body.cart-yellow .textbox { min-height: 56px; }
 @media (prefers-reduced-motion: reduce) { .sq.star::after { animation: none; } }
+.code-error { margin: 0; min-height: 1.2em; color: #c03028; font-weight: 700; font-size: 13px; }

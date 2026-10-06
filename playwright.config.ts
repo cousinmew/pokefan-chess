@@ -26,8 +26,8 @@ export default defineConfig({
           { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium' as const, viewport: { width: 360, height: 640 } } },
         ]
       : []),
-    // Mobile Safari engine: the capture battle must play on a phone (tests tagged @webkit).
-    { name: 'webkit-iphone', grep: /@webkit/, use: { ...devices['iPhone 13'] } },
+    // Mobile Safari engine: tests tagged @webkit run only here, @both run here and in chromium.
+    { name: 'webkit-iphone', grep: /@webkit|@both/, use: { ...devices['iPhone 13'] } },
   ],
   webServer: live
     ? undefined

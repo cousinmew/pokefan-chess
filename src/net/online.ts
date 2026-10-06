@@ -4,6 +4,16 @@ import { RECONNECT_BACKOFF_MS, RELAY_URL } from '../config';
 import { load, save } from '../store/persist';
 import type { ClientMsg, ServerMsg, Skin } from '../../worker/src/protocol';
 
+/** A room code from whatever was typed or pasted (§B18 item 1): a full link works, case and spaces do not matter,
+ * anything that is not a letter is dropped, and only the first 4 letters count. */
+export function normalizeCode(raw: string): string {
+  const fromLink = /[?&]room=([^&#]*)/i.exec(raw)?.[1];
+  return decodeURIComponent(fromLink ?? raw)
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 4);
+}
+
 /** The relay origin. Tests point it at `wrangler dev` with ?debug=1&relay=... */
 export function relayBase(): string {
   const p = new URLSearchParams(location.search);

@@ -713,5 +713,6 @@
   "settings.cartridge": "Switch cartridge",
   "settings.cartridgeHold": "Hold for 2 seconds",
   "settings.cartridgeNow": "Now playing: {name}",
-  "settings.lang": "Language"
+  "settings.lang": "Language",
+  "online.codeShort": "Type the 4 letter code."
 }
