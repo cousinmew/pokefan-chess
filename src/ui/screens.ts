@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Splash, title, team select, level select, How to Play and the intro card (Part I §5).
 import { AI_LEVELS, INTRO_MS, SPLASH_AUTO_MS, type AiLevel } from '../config';
-import { GLYPHS, speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
+import { speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
 import { fmt, type StringKey } from '../game/text';
 import { sound } from '../audio/audio';
 import { button, el, footer, screen, toast } from './dom';
+import { manualScreen, type Page } from './manual';
+import { trainerSprite } from './kanto';
+import { SPECIES } from '../board/pieces';
 
 function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLElement {
   const sp = speciesFor(color, role, square);
@@ -34,34 +37,128 @@ export function splash(onDone: () => void): HTMLElement {
   return s;
 }
 
+export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | 'online' | 'dex' | 'team' | 'card' | 'settings' | 'share';
+
+/** What the hub shows about you: the Continue target, the mini Trainer Card and each tile's progress chip. */
+export interface HubData {
+  continueText: string | null;
+  card: { name: string; level: number; badges: string[] };
+  chips: Partial<Record<HubTile, string>>;
+  mascots: Partial<Record<HubTile, string>>;
+}
+
 export interface TitleActions {
   canContinue: boolean;
   battle(): void;
   resume(): void;
   computer(): void;
   twoPlayers(): void;
-  howTo(): void;
+  howTo(page?: Page): void;
   settings(): void;
   online(): void;
   kanto(): void;
+  training(): void;
+  dex(): void;
+  team(): void;
+  card(): void;
+  /** The hub's data; absent in old callers, then the tiles show no chips. */
+  hub?: HubData;
 }
 
+// Which manual page a tile's "?" opens (§B16): every mode tile, plus Pokédex and My Team.
+const HELP: Partial<Record<HubTile, Page>> = { journey: 'journey', training: 'training', battle: 'battle', computer: 'computer', two: 'two', online: 'online', dex: 'catching', team: 'pieces' };
+const TESTID: Record<HubTile, string> = { journey: 'kanto', training: 'training', battle: 'quick-battle', computer: 'vs-computer', two: 'two-players', online: 'play-online', dex: 'hub-dex', team: 'hub-team', card: 'hub-card', settings: 'settings', share: 'share' };
+
+/** The home hub (§B16): three zones of chunky tiles, each with a mascot, a subtitle that is always visible,
+ * a progress chip and a "?" that opens its manual page. One column on phones, three on desktops. */
 export function title(a: TitleActions): HTMLElement {
-  const kings = el('div', 'kings');
-  kings.append(sprite('w', 'k', 'e1'), sprite('b', 'k', 'e8'));
-  const list = el('div', 'buttons');
-  list.append(button('title.battle', a.battle, 'quick-battle', 'primary'));
-  if (a.canContinue) list.append(button('title.continue', a.resume, 'continue'));
-  list.append(
-    button('title.vsComputer', a.computer, 'vs-computer'),
-    button('title.twoPlayers', a.twoPlayers, 'two-players'),
-    button('title.online', a.online, 'play-online'),
-    button('title.kanto', a.kanto, 'kanto', 'primary'),
-    button('title.howTo', a.howTo, 'how-to'),
-    button('title.settings', a.settings, 'settings'),
-    button('title.share', share, 'share'),
+  const data = a.hub;
+  const act: Record<HubTile, () => void> = {
+    journey: a.kanto, training: a.training, battle: a.battle, computer: a.computer, two: a.twoPlayers, online: a.online,
+    dex: a.dex, team: a.team, card: a.card, settings: a.settings, share: () => void share(),
+  };
+  const tile = (id: HubTile) => {
+    const wrap = el('div', 'tile-wrap');
+    const t = el('button', `tile tile-${id}`);
+    t.type = 'button';
+    t.dataset.testid = TESTID[id];
+    const mascot = data?.mascots[id];
+    const pic = el('span', 'tile-pic');
+    if (mascot?.startsWith('trainer:')) pic.append(trainerSprite(mascot.slice(8), 'trainer-sprite tile-mascot'));
+    else if (mascot) {
+      const img = el('img', 'tile-mascot');
+      img.src = spriteUrl(SPECIES[mascot]!.dex);
+      img.alt = '';
+      pic.append(img);
+    }
+    const txt = el('span', 'tile-text');
+    const h = el('span', 'tile-title', `hub.${id}.title` as StringKey);
+    const sub = el('span', 'tile-sub', `hub.${id}.sub` as StringKey);
+    txt.append(h, sub);
+    const chip = data?.chips[id];
+    if (chip) {
+      const c = el('span', 'tile-chip');
+      c.textContent = chip;
+      txt.append(c);
+    }
+    const tip = el('span', 'tile-tip', `hub.${id}.tip` as StringKey);
+    tip.setAttribute('aria-hidden', 'true');
+    t.append(pic, txt, tip);
+    t.onclick = () => {
+      sound.blip();
+      act[id]();
+    };
+    wrap.append(t);
+    const page = HELP[id];
+    if (page) {
+      const q = el('button', 'tile-help');
+      q.type = 'button';
+      q.textContent = '?';
+      q.dataset.testid = `help-${id}`;
+      q.setAttribute('aria-label', fmt('hub.help', { mode: fmt(`hub.${id}.title` as StringKey) }));
+      q.onclick = () => a.howTo(page);
+      wrap.append(q);
+    }
+    return wrap;
+  };
+  const zone = (name: StringKey, ids: HubTile[]) => {
+    const z = el('section', 'hub-zone');
+    z.append(el('h2', 'zone-title', name), ...ids.map(tile));
+    return z;
+  };
+  const top = el('div', 'hub-top');
+  if (a.canContinue && data?.continueText) {
+    const c = el('button', 'hub-continue');
+    c.dataset.testid = 'continue';
+    c.append(el('b', '', 'hub.continue'), el('span'));
+    (c.lastChild as HTMLElement).textContent = data.continueText;
+    c.onclick = () => {
+      sound.blip();
+      a.resume();
+    };
+    top.append(c);
+  }
+  if (data) {
+    const mini = el('button', 'hub-card');
+    mini.dataset.testid = 'hub-card-mini';
+    const name = el('b');
+    name.textContent = data.card.name;
+    const lvl = el('span');
+    lvl.textContent = fmt('hub.card.miniLevel', { level: String(Math.round(data.card.level)) });
+    const dots = el('span', 'badges');
+    for (const b of ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']) dots.append(el('span', `badge ${data.card.badges.includes(b) ? `won ${b}` : 'empty'}`));
+    mini.append(name, lvl, dots);
+    mini.onclick = a.card;
+    top.append(mini);
+  }
+  top.append(button('hub.manual', () => a.howTo(), 'how-to', 'hub-manual'));
+  const zones = el('div', 'hub-zones');
+  zones.append(
+    zone('hub.zone.journey', ['journey', 'training']),
+    zone('hub.zone.battle', ['battle', 'computer', 'two', 'online']),
+    zone('hub.zone.trainer', ['dex', 'team', 'card', 'settings', 'share']),
   );
-  return screen('title', heading(), kings, list, footer());
+  return screen('title', heading(), top, zones, footer());
 }
 
 async function share(): Promise<void> {
@@ -101,27 +198,9 @@ export function levelSelect(pick: (l: AiLevel) => void, back: () => void): HTMLE
   return screen('level', el('h2', '', 'level.pick'), list, button('back', back, 'back', 'secondary'));
 }
 
-export function howTo(back: () => void): HTMLElement {
-  const legend = el('div', 'legend');
-  const rows: [Role, StringKey, string, string][] = [
-    ['k', 'role.k', 'e1', 'e8'],
-    ['q', 'role.q', 'd1', 'd8'],
-    ['r', 'role.r', 'a1', 'a8'],
-    ['b', 'role.bLight', 'f1', 'c8'],
-    ['b', 'role.bDark', 'c1', 'f8'],
-    ['n', 'role.n', 'b1', 'b8'],
-    ['p', 'role.p', 'a2', 'a7'],
-  ];
-  for (const [role, label, w, b] of rows) {
-    const row = el('div', 'legend-row');
-    const name = el('span', 'role');
-    name.textContent = `${GLYPHS.w[role]} ${fmt(label)}`;
-    row.append(sprite('w', role, w, 'legend-sprite'), name, sprite('b', role, b, 'legend-sprite'));
-    legend.append(row);
-  }
-  const teams = el('div', 'legend-row legend-head');
-  teams.append(el('b', '', 'team.red'), el('span'), el('b', '', 'team.rocket'));
-  return screen('howto', el('h2', '', 'title.howTo'), el('p', 'rules', 'howto.rules'), el('h3', '', 'howto.legend'), teams, legend, button('back', back, 'back', 'secondary'), footer());
+/** How to Play is now the manual (§B16), open on `page`. */
+export function howTo(back: () => void, page: Page = 'journey', tryIt: (p: Page) => void = () => undefined): HTMLElement {
+  return manualScreen(page, tryIt, back, footer());
 }
 
 /** "X wants to battle!" for INTRO_MS, tap to skip. */

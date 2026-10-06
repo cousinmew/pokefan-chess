@@ -14,14 +14,14 @@ export function exampleOf(rows: PuzzleRow[]): PuzzleRow | null {
   return rows.find((r) => r[2].split(' ').length >= 3) ?? rows[0] ?? null;
 }
 
-/** A small looping board: the position, then each move with its squares tinted. */
-function miniBoard(row: PuzzleRow): HTMLElement {
+/** A small looping board: the position, then each move with its squares tinted (lessons and the manual). */
+export function miniBoard(fen: string, line: string[], count = 3): HTMLElement {
   const grid = el('div', 'mini-board');
   grid.dataset.testid = 'mini-board';
-  const moves = row[2].split(' ').slice(0, 3);
+  const moves = line.slice(0, count);
   let step = 0;
   const draw = () => {
-    const chess = new Chess(row[1]);
+    const chess = new Chess(fen);
     let last: string[] = [];
     for (const m of moves.slice(0, step)) {
       chess.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] });
@@ -60,7 +60,7 @@ export function lessonScreen(theme: string, example: PuzzleRow | null, done: () 
   const head = el('div', 'lesson-head');
   head.append(trainerSprite(oak, 'trainer-sprite slide-in'), el('p', '', 'lesson.oak'));
   const body: HTMLElement[] = [head, title, goal];
-  if (example) body.push(el('p', 'small', 'lesson.example'), miniBoard(example));
+  if (example) body.push(el('p', 'small', 'lesson.example'), miniBoard(example[1], example[2].split(' ')));
   const s = screen('lesson', ...body, button('lesson.ok', done, 'lesson-ok', 'primary'));
   return s;
 }

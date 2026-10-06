@@ -61,3 +61,7 @@
 
 - After every puzzle the game waits for you: the winning line replays with arrows and the key idea is drawn, or your mistake is shown with the reply that punishes it and a Show answer button. Step through with ◀ ▶.
 - The first four gyms need 3 of 5 to win.
+
+## 1.9.0 (C5)
+
+- A new home hub: Journey, Battle and Trainer tiles with a Pokémon on each, a one line description, your progress, and a "?" to its page in the new How to Play booklet. Continue picks up where you left off.

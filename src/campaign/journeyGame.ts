@@ -13,6 +13,7 @@ import { pool } from './trainer';
 import trainers from '../data/trainers.json';
 import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
+import { save } from '../store/persist';
 import { addCatch, awardMew, championLevel, chooseStarter, EVOLUTIONS, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
 import { beatTrainer, clearPlace, nextTrainer, PLACES, placeCleared, RIVAL, routeOf, teamOf, themesFor, trainingThemes, visit, type Drill, type Place, type Trainer } from './journey';
 import { THEMES } from './trainer';
@@ -88,18 +89,38 @@ export class JourneyGame {
     this.host.show(oakIntro(lines, personSprite('oak'), this.campaign.introSeen, afterIntro));
   }
 
+  /** Where Pokédex, My Team, Trainer Card and Training go back to: the map, or the home hub (§B16). */
+  private exit: () => void = () => this.showMap();
+
+  /** Opens one of the Trainer screens straight from the hub; Back returns to the hub. */
+  openFromHub(what: 'dex' | 'team' | 'card' | 'training', back: () => void): void {
+    this.campaign = loadCampaign();
+    this.exit = back;
+    if (what === 'dex') this.showDex();
+    else if (what === 'team') this.showTeam();
+    else if (what === 'card') this.showCard();
+    else this.showTraining();
+  }
+
+  private showTeam(): void {
+    this.host.show(teamScreen(this.campaign, (team) => this.set({ ...this.campaign, team }), () => this.exit(), () => this.set({ ...this.campaign, teamNotice: [] })));
+  }
+
+  private showCard(): void {
+    this.host.show(cardScreen(this.campaign, this.host.puzzle.trainer.rating.r, () => this.exit()));
+  }
+
   showMap(): void {
+    this.exit = () => this.showMap();
+    save('last', 'journey');
     this.host.puzzle.stop();
     this.host.modal.hidden = true;
     this.host.show(
       mapScreen(this.campaign, {
         place: (i) => this.enterPlace(PLACES[i]!),
         dex: () => this.showDex(),
-        team: () =>
-          this.host.show(
-            teamScreen(this.campaign, (team) => this.set({ ...this.campaign, team }), () => this.showMap(), () => this.set({ ...this.campaign, teamNotice: [] })),
-          ),
-        card: () => this.host.show(cardScreen(this.campaign, this.host.puzzle.trainer.rating.r, () => this.showMap())),
+        team: () => this.showTeam(),
+        card: () => this.showCard(),
         training: () => this.showTraining(),
         back: () => this.host.goTitle(),
         hof: () => this.showHof(() => this.showMap()),
@@ -425,14 +446,14 @@ export class JourneyGame {
       trainingScreen(
         trainingThemes(this.campaign),
         (theme) => void this.host.puzzle.start({ themes: [theme], onResult: () => undefined, onLeave: () => this.showTraining() }),
-        () => this.showMap(),
+        () => this.exit(),
         (theme) => void this.lesson(theme, () => this.showTraining()),
       ),
     );
   }
 
   showDex(): void {
-    this.host.show(dexScreen(this.campaign, (id) => this.openDex(id), () => this.showMap()));
+    this.host.show(dexScreen(this.campaign, (id) => this.openDex(id), () => this.exit()));
   }
 
   private openDex(id: string): void {

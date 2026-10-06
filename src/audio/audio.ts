@@ -70,6 +70,10 @@ export const sound = {
   sparkle(): void {
     this.tone(880, 160, 'sine', 1760);
   },
+  /** A hub tile is chosen (§B16). */
+  blip(): void {
+    this.tone(1200, 35, 'square', 1500);
+  },
   /** A piece is picked up: short rising blip. */
   pickup(): void {
     this.tone(520, 50, 'square', 880);

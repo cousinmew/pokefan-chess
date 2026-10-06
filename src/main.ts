@@ -22,6 +22,11 @@ import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
+import { furthest, PLACES, trainingThemes } from './campaign/journey';
+import { DEX } from './campaign/kanto';
+import { placeName } from './ui/kanto';
+import type { Page } from './ui/manual';
+import type { StringKey } from './game/text';
 import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
 import type { Rng } from './game/rng';
@@ -295,40 +300,83 @@ function boot(): App {
     return g && typeof g.pgn === 'string' && typeof g.fen === 'string' ? g : null;
   }
 
+  function showOnline(): void {
+    show(
+      onlineMenu(
+        () => {
+          show(message('online.joining', goTitle, { code: '...' }));
+          createRoom().then(
+            (code) => online.join(code),
+            (err: unknown) => {
+              console.warn('relay unavailable:', err instanceof Error ? err.message : err);
+              show(message('online.offline', goTitle));
+            },
+          );
+        },
+        (code) => online.join(code),
+        goTitle,
+      ),
+    );
+  }
+
+  /** The manual's "Try it" (§B16): straight into that page's mode. */
+  function tryMode(p: Page): void {
+    const quick = load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT;
+    if (p === 'journey' || p === 'catching') return journey.open();
+    if (p === 'training') return journey.openFromHub('training', goTitle);
+    if (p === 'battle') return startGame(quick);
+    if (p === 'computer') return show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle));
+    if (p === 'two') return startGame({ mode: 'two-players', human: 'w', level: 1 });
+    if (p === 'pieces') return journey.openFromHub('team', goTitle);
+    showOnline();
+  }
+
   function goTitle(): void {
     online.close();
     puzzle.stop();
     setSkins({});
     music.play('title');
+    // Continue resumes the last thing (§B16): the journey spot or a game in progress.
+    const g = savedGame();
+    const c = journey.campaign;
+    const last = load<string>('last');
+    const journeyFirst = !!c.starter && (last === 'journey' || !g);
+    const here = PLACES[furthest(c)];
+    const quick = load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT;
+    const rating = puzzle.trainer.rating.r;
     show(
       title({
-        canContinue: savedGame() !== null,
-        battle: () => startGame(load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT),
+        canContinue: !!g || !!c.starter,
+        hub: {
+          continueText: journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null,
+          card: { name: c.name || fmt('name.1'), level: rating, badges: c.badges },
+          chips: {
+            journey: c.champion ? fmt('hub.chip.champion') : c.starter ? fmt('hub.chip.badges', { n: String(c.badges.length) }) : fmt('hub.chip.new'),
+            training: fmt('hub.chip.lessons', { n: String(trainingThemes(c).length) }),
+            battle: quick.mode === 'two-players' ? fmt('hub.chip.quickTwo') : fmt('hub.chip.quickLevel', { level: fmt(`level.${quick.level}` as StringKey) }),
+            computer: fmt('hub.chip.levels'),
+            two: fmt('hub.chip.device'),
+            online: fmt('hub.chip.code'),
+            dex: fmt('hub.chip.dex', { n: String(DEX.filter((s) => c.caught[s]).length) }),
+            team: fmt('hub.chip.team', { n: String(Object.values(c.team).filter(Boolean).length) }),
+            card: fmt('hub.chip.level', { n: String(Math.round(rating)) }),
+          },
+          mascots: { journey: c.starter ?? 'pikachu', training: 'trainer:oak', battle: 'charizard', computer: 'nidoking', two: 'snorlax', online: 'porygon', dex: 'bulbasaur', team: 'eevee', card: 'trainer:red-gen1', settings: 'magnemite', share: 'pidgey' },
+        },
+        battle: () => startGame(quick),
         resume: () => {
-          const g = savedGame();
+          if (journeyFirst) return journey.open();
           if (g) startGame(g, g);
         },
+        training: () => journey.openFromHub('training', goTitle),
+        dex: () => journey.openFromHub('dex', goTitle),
+        team: () => journey.openFromHub('team', goTitle),
+        card: () => journey.openFromHub('card', goTitle),
         computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
         twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
         kanto: () => journey.open(),
-        howTo: () => show(howTo(goTitle)),
-        online: () =>
-          show(
-            onlineMenu(
-              () => {
-                show(message('online.joining', goTitle, { code: '...' }));
-                createRoom().then(
-                  (code) => online.join(code),
-                  (err: unknown) => {
-                    console.warn('relay unavailable:', err instanceof Error ? err.message : err);
-                    show(message('online.offline', goTitle));
-                  },
-                );
-              },
-              (code) => online.join(code),
-              goTitle,
-            ),
-          ),
+        howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
+        online: () => showOnline(),
         settings: () =>
           show(
             settingsScreen(
@@ -356,6 +404,7 @@ function boot(): App {
 
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
     configure(setup);
+    if (setup.mode === 'two-players' || setup.mode === 'computer') save('last', 'game');
     save('lastQuickPlay', { mode: app.mode, human: app.human, level: app.level });
     show(gameView);
     restart(undefined, resume?.pgn, withIntro);
