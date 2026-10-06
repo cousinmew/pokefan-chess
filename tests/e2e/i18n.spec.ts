@@ -117,3 +117,16 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
   await expect(page.getByTestId('story')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
 });
+
+test('phase 2: Japanese uses kana Pokémon names and the system CJK fonts; Chinese and German too', async ({ page }) => {
+  for (const [l, king, font] of [['ja', 'ピカチュウ', /Hiragino Sans/], ['zh-Hans', '皮卡丘', /PingFang SC/], ['de', 'PIKACHU', /ui-monospace/]] as const) {
+    await page.addInitScript((x) => localStorage.setItem('kc:v1:lang', JSON.stringify(x)), l);
+    await page.goto('./?debug=1&start=two');
+    // Japanese and Chinese names carry word joiners (U+2060) so they never break across lines.
+    await expect.poll(async () => ((await page.locator('[data-square="e1"]').getAttribute('aria-label')) ?? '').replaceAll('\u2060', '')).toContain(king);
+    expect(await page.evaluate(() => [document.documentElement.lang, getComputedStyle(document.body).fontFamily])).toEqual([l, expect.stringMatching(font)]);
+  }
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('lang-button')).toHaveText('DE');
+});

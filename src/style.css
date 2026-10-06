@@ -11,6 +11,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.3 ui-monospace, Menlo, Consolas, monospace; }
+/* Japanese and Chinese (§B17): the system CJK fonts, never a downloaded one; strict line breaking. */
+html:lang(ja), html:lang(ja) body, html:lang(ja) button, html:lang(ja) select { font-family: ui-monospace, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif; line-break: strict; }
+html:lang(zh-Hans), html:lang(zh-Hans) body, html:lang(zh-Hans) button, html:lang(zh-Hans) select { font-family: ui-monospace, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif; line-break: strict; }
 #app { display: flex; flex-direction: column; align-items: center; min-height: 100dvh; padding: 4px 0; }
 header.game-header { display: flex; width: calc(var(--sq) * 8); justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
 header.game-header button { min-height: 44px; font: inherit; font-size: 13px; border: 2px solid var(--ink); background: #fff; border-radius: 4px; cursor: pointer; padding: 0 10px; }
@@ -341,6 +344,8 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .menu button.lang-code { min-width: 56px; min-height: 52px; font-weight: 700; font-size: 18px; letter-spacing: 1px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
 .lang-pop { position: absolute; top: 58px; inset-inline-end: 0; z-index: 5; width: max-content; max-width: 90vw; padding: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink); }
 .lang-pop[hidden] { display: none; }
+.hub-top .lang-pop { inset-inline-start: 0; inset-inline-end: auto; }
+.lang-pop { max-width: min(90vw, 360px); }
 .yellow-top { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
 /* YELLOW level picker (§B18 item 4). */
 .yellow-levels { display: flex; flex-direction: column; gap: 12px; width: 100%; }

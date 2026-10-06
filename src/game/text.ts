@@ -11,10 +11,12 @@ export interface Line {
   caption?: StringKey;
 }
 
-/** Phase 1 languages (§B17). Language names are written in their own language (strings "lang.<code>"). */
-export const LANGS = ['en', 'fr', 'he', 'es'] as const;
+/** Phase 1 and 2 languages (§B17). Language names are written in their own language (strings "lang.<code>"). */
+export const LANGS = ['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans'] as const;
 export type Lang = (typeof LANGS)[number];
 export const RTL: readonly Lang[] = ['he'];
+/** No spaces between words: YELLOW's limit is 16 characters, and inserted names must never break across lines. */
+export const CJK: readonly Lang[] = ['ja', 'zh-Hans'];
 
 const dicts = import.meta.glob<Record<string, string>>('../data/strings.*.json', { eager: true, import: 'default' });
 let lang: Lang = 'en';
@@ -29,7 +31,9 @@ export const currentLang = () => lang;
 
 // Hebrew shows English Pokémon and place names in Latin letters: isolate each inserted value so it
 // reads correctly inside right to left text (U+2068 first strong isolate, U+2069 pop isolate).
-const isolate = (v: string) => (RTL.includes(lang) ? `⁨${v}⁩` : v);
+// Japanese and Chinese break lines between any two characters: a word joiner (U+2060) between the characters of an
+// inserted value (a Pokémon, move or place name) keeps it on one line.
+const isolate = (v: string) => (RTL.includes(lang) ? `⁨${v}⁩` : CJK.includes(lang) ? [...v].join('⁠') : v);
 
 export function fmt(key: StringKey, vars: Vars = {}): string {
   const text = dict[key] ?? strings[key];

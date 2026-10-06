@@ -58,7 +58,7 @@ export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTML
   const b = el('button', 'lang-code');
   b.type = 'button';
   b.dataset.testid = 'lang-button';
-  b.textContent = current.toUpperCase();
+  b.textContent = current.split('-')[0]!.toUpperCase(); // zh-Hans shows ZH
   b.setAttribute('aria-label', `${fmt('shelf.lang')}: ${fmt(`lang.${current}` as StringKey)}`);
   b.setAttribute('aria-expanded', 'false');
   if (picker) {

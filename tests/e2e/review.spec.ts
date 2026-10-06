@@ -77,7 +77,10 @@ test('missed: your move in red, a legal Stockfish refutation, the review stays, 
       break;
     }
   }
-  await expect(page.getByTestId('review')).toBeVisible();
+  // A pawn reaching the last rank opens the promotion picker first.
+  const promo = page.getByTestId('promotion');
+  if (await promo.isVisible().catch(() => false)) await promo.locator('button[data-role="q"]').click();
+  await expect(page.getByTestId('review')).toBeVisible({ timeout: 10_000 });
   await expect.poll(() => kc<{ source: string } | null>(page, 'refutation'), { timeout: 15_000 }).not.toBeNull();
   // The line may already be replaying: step back to its first frame, where your move is the red arrow.
   while (await page.getByTestId('review-prev').isEnabled()) await page.getByTestId('review-prev').click();

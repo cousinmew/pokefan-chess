@@ -90,3 +90,7 @@
 - A secret code unlocks MEIR as your trainer.
 - Trainers stand beside the board and react to captures, check and the end.
 
+## 2.4.0 (languages, phase 2)
+
+- Six more languages: Deutsch, Italiano, Nederlands, Português, 日本語 and 简体中文, with official Pokémon and move names where the games have them (kana in Japanese).
+- Japanese and Chinese use the device's own fonts, and Pokémon names never break across lines.
