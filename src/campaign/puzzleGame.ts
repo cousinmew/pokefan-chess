@@ -20,6 +20,13 @@ export interface PuzzleHost {
 
 type Phase = 'idle' | 'setup' | 'player' | 'checking' | 'reply' | 'over';
 
+/** Tall grass on a Kanto route (§B3): the route's themes, and what happens after each result. */
+export interface PuzzleContext {
+  themes: string[];
+  onResult(result: 'solved' | 'assisted' | 'missed'): void;
+  onLeave(): void;
+}
+
 export class PuzzleGame {
   readonly bar: HTMLElement;
   trainer = loadTrainer();
@@ -29,6 +36,9 @@ export class PuzzleGame {
   private pending: Answer | null = null;
   private hints = 0;
   private theme = 'mixed';
+  private context: PuzzleContext | null = null;
+  private readonly themeSel: HTMLSelectElement;
+  private readonly leaveBtn: HTMLButtonElement;
   private gen = 0;
   // Seeded per visit from the clock (the seeded RNG is the only randomness, G3), so visits differ.
   private readonly rng = createRng(Date.now() >>> 0);
@@ -42,6 +52,7 @@ export class PuzzleGame {
     this.ratingEl.dataset.testid = 'trainer-rating';
     this.stepEl = el('p', 'step');
     const sel = el('select');
+    this.themeSel = sel;
     sel.dataset.testid = 'puzzle-theme';
     sel.setAttribute('aria-label', fmt('puzzle.theme'));
     for (const t of ['mixed', ...THEMES]) {
@@ -54,18 +65,25 @@ export class PuzzleGame {
       void this.start();
     };
     const row = el('div', 'puzzle-buttons');
-    row.append(sel, button('puzzle.hint', () => this.hint(), 'hint'), button('puzzle.next', () => void this.start(), 'next-puzzle'));
+    this.leaveBtn = button('route.leave', () => this.context?.onLeave(), 'leave-grass');
+    row.append(sel, button('puzzle.hint', () => this.hint(), 'hint'), button('puzzle.next', () => void this.start(), 'next-puzzle'), this.leaveBtn);
     this.bar.append(this.ratingEl, this.stepEl, row);
     this.label();
   }
 
-  async start(): Promise<void> {
+  /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one. */
+  async start(ctx?: PuzzleContext | null): Promise<void> {
+    if (ctx !== undefined) this.context = ctx;
+    this.themeSel.hidden = this.context !== null;
+    this.leaveBtn.hidden = this.context === null;
     const g = ++this.gen;
     this.phase = 'idle';
     this.hints = 0;
     this.bar.hidden = false;
     this.host.say('puzzle.loading');
-    const theme = this.theme === 'mixed' ? THEMES[Math.floor(this.rng.next() * THEMES.length)]! : this.theme;
+    const wanted = this.context ? this.context.themes : [this.theme];
+    const choices = wanted.includes('mixed') ? THEMES : wanted.filter((t) => THEMES.includes(t));
+    const theme = choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
     const rows = await pool(theme);
     if (g !== this.gen) return;
     this.row = pick(rows, this.trainer.rating.r, this.trainer.seen, this.rng);
@@ -97,6 +115,7 @@ export class PuzzleGame {
       this.host.say('puzzle.wrong', { move: san });
       this.host.hint([answer.slice(0, 2), answer.slice(2, 4)]);
       this.label();
+      this.context?.onResult('missed');
       return;
     }
     this.pending = res;
@@ -122,6 +141,7 @@ export class PuzzleGame {
         board.locked = true;
         this.label();
         this.host.say(this.hints > 0 ? 'puzzle.assisted' : 'puzzle.solved', { rating: String(Math.round(this.trainer.rating.r)) });
+        this.context?.onResult(this.hints > 0 ? 'assisted' : 'solved');
       } else {
         this.phase = 'reply';
         board.locked = true;

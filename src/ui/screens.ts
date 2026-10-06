@@ -44,6 +44,7 @@ export interface TitleActions {
   settings(): void;
   online(): void;
   puzzles(): void;
+  kanto(): void;
 }
 
 export function title(a: TitleActions): HTMLElement {
@@ -56,6 +57,7 @@ export function title(a: TitleActions): HTMLElement {
     button('title.vsComputer', a.computer, 'vs-computer'),
     button('title.twoPlayers', a.twoPlayers, 'two-players'),
     button('title.online', a.online, 'play-online'),
+    button('title.kanto', a.kanto, 'kanto', 'primary'),
     button('title.puzzles', a.puzzles, 'puzzles'),
     button('title.howTo', a.howTo, 'how-to'),
     button('title.settings', a.settings, 'settings'),

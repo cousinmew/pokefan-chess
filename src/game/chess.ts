@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Thin wrapper over chess.js. chess.js decides every legal move and every end (prime directive 2).
 import { Chess, type Move, type Square } from 'chess.js';
-import { species, speciesFor, speciesIdFor, teamOf, type Color, type Role, type SpeciesId } from '../board/pieces';
+import { speciesFor, speciesIdFor, teamOf, type Color, type Role, type SpeciesId } from '../board/pieces';
 import roster from '../data/roster.gen1.json';
 import type { Line, StringKey } from './text';
 
@@ -146,13 +146,10 @@ export class Game {
     }
     const king = this.checkedKing();
     if (king && !this.chess.isCheckmate()) {
-      const k = species(teamKing(this.turn()));
+      const k = speciesFor(this.turn(), 'k', king);
       lines.push({ key: 'check', vars: { king: k.name }, caption: 'caption.check' });
     }
     return lines;
   }
 }
 
-function teamKing(color: Color) {
-  return roster.teams[teamOf(color)].pieces.k as keyof typeof roster.species;
-}

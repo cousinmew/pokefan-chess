@@ -132,3 +132,22 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .puzzle-buttons select, .puzzle-buttons button { min-height: 44px; font: inherit; border: 2px solid var(--ink); background: #fff; border-radius: 4px; }
 .puzzle-buttons select { flex: 1; min-width: 0; }
 .puzzle-buttons button { padding: 0 10px; cursor: pointer; }
+.kanto-map { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.kanto-map .node { border: 3px solid var(--ink); border-radius: 6px; padding: 6px 10px; min-height: 48px; text-align: left; display: flex; flex-direction: column; justify-content: center; }
+.kanto-map .town { background: #f8e8c0; font-weight: 700; }
+.kanto-map .gym { background: #e8e8e8; color: #606060; font-weight: 700; border-style: dashed; }
+.kanto-map .route { background: #d8f0c0; }
+.kanto-map .route.locked { background: #f0f0f0; color: #909090; }
+.menu .small, .kanto-map .small { font-size: 11px; font-weight: 400; margin: 0; }
+.map-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.map-top p { margin: 0; width: 100%; text-align: center; }
+.map-top button { flex: 1; }
+.dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; width: 100%; }
+.dex-cell { display: flex; flex-direction: column; align-items: center; font-size: 9px; text-align: center; }
+.dex-sprite { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
+.silhouette { filter: brightness(0) opacity(0.35); }
+.team-row { gap: 6px; }
+.team-row span { flex: 1; }
+.team-row select { max-width: 45%; }
+.team-sprite { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.panel.encounter img { width: 120px; height: 120px; object-fit: contain; image-rendering: pixelated; }

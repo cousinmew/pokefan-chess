@@ -8,7 +8,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     languageOptions: {
-      globals: { window: 'readonly', document: 'readonly', console: 'readonly', process: 'readonly', URL: 'readonly', fetch: 'readonly', Buffer: 'readonly', TextDecoder: 'readonly' },
+      globals: { window: 'readonly', document: 'readonly', console: 'readonly', process: 'readonly', URL: 'readonly', fetch: 'readonly', Buffer: 'readonly', TextDecoder: 'readonly', setTimeout: 'readonly' },
     },
     rules: {
       'max-lines': ['error', { max: 750, skipBlankLines: false, skipComments: false }],

@@ -9,7 +9,8 @@ import { FX } from '../battle/fxRecipes';
 import roster from '../data/roster.gen1.json';
 import { rng } from '../game/rng';
 import { fmt } from '../game/text';
-import type { SpeciesId } from '../board/pieces';
+import { SPECIES, type SpeciesId } from '../board/pieces';
+import { loadCampaign } from '../campaign/kanto';
 import type { App, Mode } from '../main';
 
 export function installHarness(app: App): void {
@@ -66,6 +67,10 @@ export function installHarness(app: App): void {
       }
       return Object.keys(FX).length;
     },
+    /** Kanto: the saved campaign, reseeding encounter rolls, and every species for the sprite sheet. */
+    campaign: () => loadCampaign(),
+    seedEncounters: (n: number) => app.campaignRng.seed(n),
+    species: () => Object.values(SPECIES).map((s) => [s.dex, s.name] as const).sort((a, b) => a[0] - b[0]),
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,

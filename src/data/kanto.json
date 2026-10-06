@@ -1,0 +1,717 @@
+{
+ "schema": 1,
+ "source": "PokeAPI location-area (version red, method walk), pokemon past_types generation-i, red-blue level-up learnsets",
+ "starters": [
+  "bulbasaur",
+  "charmander",
+  "squirtle"
+ ],
+ "routes": [
+  {
+   "id": "route-1",
+   "name": "ROUTE 1",
+   "area": "kanto-route-1-area",
+   "themes": [
+    "mateIn1"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      10,
+      10,
+      5,
+      4,
+      1
+     ],
+     "min": 2,
+     "max": 5
+    },
+    {
+     "species": "rattata",
+     "slots": [
+      20,
+      15,
+      10,
+      5
+     ],
+     "min": 2,
+     "max": 4
+    }
+   ]
+  },
+  {
+   "id": "viridian-forest",
+   "name": "VIRIDIAN FOREST",
+   "area": "viridian-forest-area",
+   "themes": [
+    "castling",
+    "hangingPiece"
+   ],
+   "encounters": [
+    {
+     "species": "caterpie",
+     "slots": [
+      5
+     ],
+     "min": 3,
+     "max": 3
+    },
+    {
+     "species": "metapod",
+     "slots": [
+      5
+     ],
+     "min": 4,
+     "max": 4
+    },
+    {
+     "species": "weedle",
+     "slots": [
+      20,
+      15,
+      10
+     ],
+     "min": 3,
+     "max": 5
+    },
+    {
+     "species": "kakuna",
+     "slots": [
+      20,
+      10,
+      10
+     ],
+     "min": 4,
+     "max": 6
+    },
+    {
+     "species": "pikachu",
+     "slots": [
+      4,
+      1
+     ],
+     "min": 3,
+     "max": 5
+    }
+   ]
+  },
+  {
+   "id": "route-3",
+   "name": "ROUTE 3",
+   "area": "kanto-route-3-area",
+   "themes": [
+    "hangingPiece",
+    "trappedPiece",
+    "advantage"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      15,
+      10
+     ],
+     "min": 6,
+     "max": 8
+    },
+    {
+     "species": "spearow",
+     "slots": [
+      20,
+      10,
+      10,
+      5
+     ],
+     "min": 5,
+     "max": 8
+    },
+    {
+     "species": "jigglypuff",
+     "slots": [
+      5,
+      4,
+      1
+     ],
+     "min": 3,
+     "max": 7
+    }
+   ]
+  },
+  {
+   "id": "route-6",
+   "name": "ROUTE 6",
+   "area": "kanto-route-6-area",
+   "themes": [
+    "fork"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      15,
+      5
+     ],
+     "min": 13,
+     "max": 16
+    },
+    {
+     "species": "oddish",
+     "slots": [
+      20,
+      10,
+      5
+     ],
+     "min": 13,
+     "max": 16
+    },
+    {
+     "species": "mankey",
+     "slots": [
+      10,
+      10,
+      4,
+      1
+     ],
+     "min": 10,
+     "max": 16
+    }
+   ]
+  },
+  {
+   "id": "route-7",
+   "name": "ROUTE 7",
+   "area": "kanto-route-7-area",
+   "themes": [
+    "promotion",
+    "advancedPawn"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 19,
+     "max": 22
+    },
+    {
+     "species": "oddish",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 19,
+     "max": 22
+    },
+    {
+     "species": "mankey",
+     "slots": [
+      15,
+      10,
+      4,
+      1
+     ],
+     "min": 17,
+     "max": 20
+    },
+    {
+     "species": "growlithe",
+     "slots": [
+      5,
+      5
+     ],
+     "min": 18,
+     "max": 20
+    }
+   ]
+  },
+  {
+   "id": "route-14",
+   "name": "ROUTE 14",
+   "area": "kanto-route-14-area",
+   "themes": [
+    "pin"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20
+     ],
+     "min": 26,
+     "max": 26
+    },
+    {
+     "species": "pidgeotto",
+     "slots": [
+      4,
+      1
+     ],
+     "min": 28,
+     "max": 30
+    },
+    {
+     "species": "oddish",
+     "slots": [
+      20,
+      10,
+      5
+     ],
+     "min": 22,
+     "max": 26
+    },
+    {
+     "species": "gloom",
+     "slots": [
+      5
+     ],
+     "min": 30,
+     "max": 30
+    },
+    {
+     "species": "venonat",
+     "slots": [
+      10,
+      10
+     ],
+     "min": 24,
+     "max": 26
+    },
+    {
+     "species": "ditto",
+     "slots": [
+      15
+     ],
+     "min": 23,
+     "max": 23
+    }
+   ]
+  },
+  {
+   "id": "route-8",
+   "name": "ROUTE 8",
+   "area": "kanto-route-8-area",
+   "themes": [
+    "discoveredAttack",
+    "discoveredCheck",
+    "doubleCheck"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 18,
+     "max": 20
+    },
+    {
+     "species": "ekans",
+     "slots": [
+      15,
+      5
+     ],
+     "min": 17,
+     "max": 19
+    },
+    {
+     "species": "mankey",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 18,
+     "max": 20
+    },
+    {
+     "species": "growlithe",
+     "slots": [
+      10,
+      5,
+      4,
+      1
+     ],
+     "min": 15,
+     "max": 18
+    }
+   ]
+  },
+  {
+   "id": "route-21",
+   "name": "ROUTE 21",
+   "area": "kanto-sea-route-21-area",
+   "themes": [
+    "capturingDefender",
+    "deflection",
+    "mateIn2",
+    "backRankMate"
+   ],
+   "encounters": [
+    {
+     "species": "pidgey",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 21,
+     "max": 23
+    },
+    {
+     "species": "pidgeotto",
+     "slots": [
+      10,
+      5
+     ],
+     "min": 30,
+     "max": 32
+    },
+    {
+     "species": "rattata",
+     "slots": [
+      20,
+      10
+     ],
+     "min": 21,
+     "max": 23
+    },
+    {
+     "species": "raticate",
+     "slots": [
+      15
+     ],
+     "min": 30,
+     "max": 30
+    },
+    {
+     "species": "tangela",
+     "slots": [
+      5,
+      4,
+      1
+     ],
+     "min": 28,
+     "max": 32
+    }
+   ]
+  },
+  {
+   "id": "route-22",
+   "name": "ROUTE 22",
+   "area": "kanto-route-22-area",
+   "themes": [
+    "mixed"
+   ],
+   "encounters": [
+    {
+     "species": "rattata",
+     "slots": [
+      20,
+      15,
+      10
+     ],
+     "min": 2,
+     "max": 4
+    },
+    {
+     "species": "spearow",
+     "slots": [
+      5,
+      5
+     ],
+     "min": 3,
+     "max": 5
+    },
+    {
+     "species": "nidoran-f",
+     "slots": [
+      4,
+      1
+     ],
+     "min": 3,
+     "max": 4
+    },
+    {
+     "species": "nidoran-m",
+     "slots": [
+      20,
+      10,
+      10
+     ],
+     "min": 2,
+     "max": 4
+    }
+   ]
+  }
+ ],
+ "species": {
+  "bulbasaur": {
+   "dex": 1,
+   "name": "BULBASAUR",
+   "types": [
+    "grass",
+    "poison"
+   ],
+   "move": "tackle"
+  },
+  "charmander": {
+   "dex": 4,
+   "name": "CHARMANDER",
+   "types": [
+    "fire"
+   ],
+   "move": "scratch"
+  },
+  "squirtle": {
+   "dex": 7,
+   "name": "SQUIRTLE",
+   "types": [
+    "water"
+   ],
+   "move": "tackle"
+  },
+  "pidgey": {
+   "dex": 16,
+   "name": "PIDGEY",
+   "types": [
+    "normal",
+    "flying"
+   ],
+   "move": "gust"
+  },
+  "rattata": {
+   "dex": 19,
+   "name": "RATTATA",
+   "types": [
+    "normal"
+   ],
+   "move": "tackle"
+  },
+  "caterpie": {
+   "dex": 10,
+   "name": "CATERPIE",
+   "types": [
+    "bug"
+   ],
+   "move": "tackle"
+  },
+  "metapod": {
+   "dex": 11,
+   "name": "METAPOD",
+   "types": [
+    "bug"
+   ],
+   "move": "tackle"
+  },
+  "weedle": {
+   "dex": 13,
+   "name": "WEEDLE",
+   "types": [
+    "bug",
+    "poison"
+   ],
+   "move": "poison-sting"
+  },
+  "kakuna": {
+   "dex": 14,
+   "name": "KAKUNA",
+   "types": [
+    "bug",
+    "poison"
+   ],
+   "move": "tackle"
+  },
+  "pikachu": {
+   "dex": 25,
+   "name": "PIKACHU",
+   "types": [
+    "electric"
+   ],
+   "move": "thunder-shock"
+  },
+  "spearow": {
+   "dex": 21,
+   "name": "SPEAROW",
+   "types": [
+    "normal",
+    "flying"
+   ],
+   "move": "peck"
+  },
+  "jigglypuff": {
+   "dex": 39,
+   "name": "JIGGLYPUFF",
+   "types": [
+    "normal"
+   ],
+   "move": "pound"
+  },
+  "oddish": {
+   "dex": 43,
+   "name": "ODDISH",
+   "types": [
+    "grass",
+    "poison"
+   ],
+   "move": "absorb"
+  },
+  "mankey": {
+   "dex": 56,
+   "name": "MANKEY",
+   "types": [
+    "fighting"
+   ],
+   "move": "scratch"
+  },
+  "growlithe": {
+   "dex": 58,
+   "name": "GROWLITHE",
+   "types": [
+    "fire"
+   ],
+   "move": "bite"
+  },
+  "pidgeotto": {
+   "dex": 17,
+   "name": "PIDGEOTTO",
+   "types": [
+    "normal",
+    "flying"
+   ],
+   "move": "gust"
+  },
+  "gloom": {
+   "dex": 44,
+   "name": "GLOOM",
+   "types": [
+    "grass",
+    "poison"
+   ],
+   "move": "absorb"
+  },
+  "venonat": {
+   "dex": 48,
+   "name": "VENONAT",
+   "types": [
+    "bug",
+    "poison"
+   ],
+   "move": "tackle"
+  },
+  "ditto": {
+   "dex": 132,
+   "name": "DITTO",
+   "types": [
+    "normal"
+   ],
+   "move": "tackle"
+  },
+  "ekans": {
+   "dex": 23,
+   "name": "EKANS",
+   "types": [
+    "poison"
+   ],
+   "move": "wrap"
+  },
+  "raticate": {
+   "dex": 20,
+   "name": "RATICATE",
+   "types": [
+    "normal"
+   ],
+   "move": "quick-attack"
+  },
+  "tangela": {
+   "dex": 114,
+   "name": "TANGELA",
+   "types": [
+    "grass"
+   ],
+   "move": "bind"
+  },
+  "nidoran-f": {
+   "dex": 29,
+   "name": "NIDORAN♀",
+   "types": [
+    "poison"
+   ],
+   "move": "tackle"
+  },
+  "nidoran-m": {
+   "dex": 32,
+   "name": "NIDORAN♂",
+   "types": [
+    "poison"
+   ],
+   "move": "tackle"
+  }
+ },
+ "moves": {
+  "tackle": {
+   "name": "TACKLE",
+   "type": "normal",
+   "fx": "slam"
+  },
+  "scratch": {
+   "name": "SCRATCH",
+   "type": "normal",
+   "fx": "slash"
+  },
+  "gust": {
+   "name": "GUST",
+   "type": "normal",
+   "fx": "slam"
+  },
+  "poison-sting": {
+   "name": "POISON STING",
+   "type": "poison",
+   "fx": "sludge"
+  },
+  "thunder-shock": {
+   "name": "THUNDER SHOCK",
+   "type": "electric",
+   "fx": "bolt"
+  },
+  "peck": {
+   "name": "PECK",
+   "type": "flying",
+   "fx": "quick"
+  },
+  "pound": {
+   "name": "POUND",
+   "type": "normal",
+   "fx": "stomp"
+  },
+  "absorb": {
+   "name": "ABSORB",
+   "type": "grass",
+   "fx": "leaf"
+  },
+  "bite": {
+   "name": "BITE",
+   "type": "normal",
+   "fx": "fang"
+  },
+  "wrap": {
+   "name": "WRAP",
+   "type": "normal",
+   "fx": "wrap"
+  },
+  "quick-attack": {
+   "name": "QUICK ATTACK",
+   "type": "normal",
+   "fx": "quick"
+  },
+  "bind": {
+   "name": "BIND",
+   "type": "normal",
+   "fx": "wrap"
+  }
+ }
+}

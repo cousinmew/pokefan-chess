@@ -11,9 +11,14 @@ export default defineConfig({
   retries: 0,
   use: { baseURL: live ?? 'http://localhost:4173' },
   projects: [
-    { name: 'chromium', grepInvert: /@webkit|@fxsheet/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
-    // Review sheet, run on demand: npx playwright test --project fxsheet
-    { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium', viewport: { width: 360, height: 640 } } },
+    { name: 'chromium', grepInvert: /@webkit|@fxsheet|@spritesheet/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    // Review sheets for docs/, only with SHEETS=1 (npm run sheets), so the gate never rewrites them.
+    ...(process.env.SHEETS
+      ? [
+          { name: 'spritesheet', grep: /@spritesheet/, use: { browserName: 'chromium' as const, viewport: { width: 1000, height: 800 } } },
+          { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium' as const, viewport: { width: 360, height: 640 } } },
+        ]
+      : []),
     // Mobile Safari engine: the capture battle must play on a phone (tests tagged @webkit).
     { name: 'webkit-iphone', grep: /@webkit/, use: { ...devices['iPhone 13'] } },
   ],

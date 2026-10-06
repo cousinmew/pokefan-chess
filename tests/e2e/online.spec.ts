@@ -89,3 +89,19 @@ test('online: unknown and full rooms show a friendly message', async ({ browser 
   await joinRoom(third, code);
   await expect(third.getByTestId('online-message')).toHaveText('That room already has two trainers.');
 });
+
+test("online: your friend sees your My Team skins", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  await ctx.addInitScript(() => localStorage.setItem('kc:v1:campaign', JSON.stringify({ starter: 'squirtle', caught: { squirtle: 1 }, routes: {}, team: { k: 'squirtle' } })));
+  const a = await ctx.newPage();
+  await a.goto(`./?debug=1${RELAY}`);
+  await a.getByTestId('screen-splash').click();
+  await a.getByTestId('play-online').click();
+  await a.getByTestId('create-room').click();
+  const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
+  const b = await newPage(browser);
+  await joinRoom(b, code);
+  await expect(b.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'SQUIRTLE', { timeout: 10_000 });
+  await expect(a.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'SQUIRTLE');
+  await expect(b.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDOKING');
+});

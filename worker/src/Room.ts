@@ -2,7 +2,7 @@
 // One Durable Object per room: the server is the source of truth (V4). Hibernating WebSockets, state in storage.
 import { DurableObject } from 'cloudflare:workers';
 import { Chess } from 'chess.js';
-import { REACTION_COUNT, type ClientMsg, type Result, type Seat, type ServerMsg } from './protocol';
+import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin } from './protocol';
 
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
@@ -19,6 +19,7 @@ interface Data {
   result: Result | null;
   rematch: Seat[];
   swap: boolean;
+  skins?: Partial<Record<Seat, Skin>>;
 }
 
 const EXPIRE_MS = 24 * 60 * 60 * 1000; // an untouched room is deleted after a day
@@ -77,7 +78,7 @@ export class Room extends DurableObject<Env> {
     };
     for (const ws of this.ctx.getWebSockets()) {
       const you = this.seatOf(ws);
-      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch });
+      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch, skins: d.skins ?? {} });
     }
   }
 
@@ -97,7 +98,7 @@ export class Room extends DurableObject<Env> {
       ws.close(4404, 'unknown room');
       return;
     }
-    if (msg.type === 'join') return this.join(ws, d, msg.token);
+    if (msg.type === 'join') return this.join(ws, d, msg.token, msg.skin);
     const seat = this.seatOf(ws);
     if (!seat) return;
     switch (msg.type) {
@@ -123,7 +124,7 @@ export class Room extends DurableObject<Env> {
     this.broadcast(d);
   }
 
-  private async join(ws: WebSocket, d: Data, token: unknown): Promise<void> {
+  private async join(ws: WebSocket, d: Data, token: unknown, skin: unknown): Promise<void> {
     if (typeof token !== 'string' || token.length < 8 || token.length > 64) return;
     let seat: Seat | null = d.seats.w === token ? 'w' : d.seats.b === token ? 'b' : null;
     if (!seat) seat = d.seats.w === null ? 'w' : d.seats.b === null ? 'b' : null;
@@ -139,6 +140,7 @@ export class Room extends DurableObject<Env> {
     }
     d.seats[seat] = token;
     delete d.away[seat];
+    d.skins = { ...d.skins, [seat]: cleanSkin(skin) };
     ws.serializeAttachment({ seat });
     await this.store(d);
     this.broadcast(d);
@@ -171,6 +173,7 @@ export class Room extends DurableObject<Env> {
         if (s) ws.serializeAttachment({ seat: other(s) });
       }
       d.away = { w: d.away.b, b: d.away.w };
+      d.skins = { w: d.skins?.b, b: d.skins?.w };
       for (const s of ['w', 'b'] as Seat[]) if (d.away[s] === undefined) delete d.away[s];
     }
     d.moves = [];
@@ -214,6 +217,17 @@ export class Room extends DurableObject<Env> {
     await this.store(d);
     this.broadcast(d);
   }
+}
+
+/** Keeps only known roles with short lowercase species ids. */
+function cleanSkin(raw: unknown): Skin {
+  const out: Skin = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const k of SKIN_KEYS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v === 'string' && /^[a-z][a-z-]{1,23}$/.test(v)) out[k] = v;
+  }
+  return out;
 }
 
 function replay(moves: string[]): Chess {

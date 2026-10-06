@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Writes one 360x640 screenshot per battle effect to docs/fx-sheet/ for review. Run: npx playwright test --project fxsheet
+// Writes one 360x640 screenshot per battle effect to docs/fx-sheet/ for review. Run: npm run sheets
 import { test } from '@playwright/test';
 
 // Effect -> [attacker, defender, share of the effect to show].

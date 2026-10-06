@@ -1,13 +1,42 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Species lookup: role + colour + square colour -> species (Part I §2, bishop species rule).
 import roster from '../data/roster.gen1.json';
+import kanto from '../data/kanto.json';
 import { ASSET_BASE } from '../config';
 
 export type Color = 'w' | 'b';
 export type Role = 'k' | 'q' | 'r' | 'b' | 'n' | 'p';
 export type TeamId = keyof typeof roster.teams;
-export type SpeciesId = keyof typeof roster.species;
-export type MoveId = keyof typeof roster.moves;
+export type SpeciesId = string;
+export type MoveId = string;
+
+export interface MoveInfo {
+  name: string;
+  type: string;
+  fx: string;
+}
+
+/** Every species the game knows: the two v1 teams plus the Kanto route Pokémon. The v1 roster wins on overlap. */
+export const SPECIES: Record<SpeciesId, Species> = { ...(kanto.species as Record<string, Species>), ...(roster.species as Record<string, Species>) };
+export const MOVES: Record<MoveId, MoveInfo> = { ...(kanto.moves as Record<string, MoveInfo>), ...(roster.moves as Record<string, MoveInfo>) };
+
+/** A player's chosen skins (§B5): any role left out keeps the default team's species. */
+export interface TeamSkin {
+  k?: SpeciesId;
+  q?: SpeciesId;
+  r?: SpeciesId;
+  n?: SpeciesId;
+  p?: SpeciesId;
+  bLight?: SpeciesId;
+  bDark?: SpeciesId;
+}
+export const SKIN_ROLES = ['k', 'q', 'r', 'bLight', 'bDark', 'n', 'p'] as const;
+let skins: Partial<Record<Color, TeamSkin>> = {};
+
+/** Sets the skins in use (vs Computer: the player's side; online: both sides; otherwise none). */
+export function setSkins(next: Partial<Record<Color, TeamSkin>>): void {
+  skins = next;
+}
 
 export interface Species {
   dex: number;
@@ -37,13 +66,18 @@ export function isDarkSquare(square: string): boolean {
 }
 
 export function speciesIdFor(color: Color, role: Role, square: string): SpeciesId {
+  const skin = skins[color];
+  const pick = skin?.[role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role];
+  if (pick && SPECIES[pick]) return pick;
   const entry = roster.teams[teamOf(color)].pieces[role];
-  if (typeof entry === 'string') return entry as SpeciesId;
-  return (isDarkSquare(square) ? entry.dark : entry.light) as SpeciesId;
+  if (typeof entry === 'string') return entry;
+  return isDarkSquare(square) ? entry.dark : entry.light;
 }
 
 export function species(id: SpeciesId): Species {
-  return roster.species[id];
+  const s = SPECIES[id];
+  if (!s) throw new Error(`unknown species ${id}`);
+  return s;
 }
 
 export function speciesFor(color: Color, role: Role, square: string): Species {

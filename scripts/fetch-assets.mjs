@@ -8,11 +8,13 @@ const OUT = 'public/assets';
 const SPRITES = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 const CRIES = 'https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/legacy/';
 const roster = JSON.parse(readFileSync('src/data/roster.gen1.json', 'utf8'));
-const dexes = [...new Set(Object.values(roster.species).map((s) => s.dex))].sort((a, b) => a - b);
+const kanto = JSON.parse(readFileSync('src/data/kanto.json', 'utf8'));
+const dexes = [...new Set([...Object.values(roster.species), ...Object.values(kanto.species)].map((s) => s.dex))].sort((a, b) => a - b);
 
-// Upstream errors, checked by eye 2026-10-05: black-white/animated/back/19.gif is Alolan Rattata (dark fur, Sun and Moon).
-// The Showdown animated back sprite is the Kanto form.
-const BACK_OVERRIDE = { 19: 'other/showdown/back/19.gif' };
+// Upstream trap (§B8): black-white/animated/back/19.gif is Alolan Rattata. Every Gen 1 species with an Alolan form
+// takes the Showdown animated back sprite instead, which is the Kanto form. docs/sprite-sheet.png shows every pair.
+const ALOLAN = [19, 20, 26, 27, 28, 37, 38, 50, 51, 52, 53, 74, 75, 76, 88, 89, 103, 105];
+const BACK_OVERRIDE = Object.fromEntries(ALOLAN.map((d) => [d, `other/showdown/back/${d}.gif`]));
 
 const jobs = dexes.flatMap((d) => [
   [`${SPRITES}versions/generation-v/black-white/animated/${d}.gif`, `front/${d}.gif`],

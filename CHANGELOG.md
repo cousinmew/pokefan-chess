@@ -35,3 +35,7 @@
 ## 1.3.0 (C1)
 
 - Puzzles: 8,035 Lichess puzzles in 18 themes, served near your Trainer Rating (an honest estimate), with hints, auto played replies and saved progress.
+
+## 1.4.0 (C2)
+
+- Kanto Adventure: Oak's starter, a map of 9 routes with the real Red tall grass tables, puzzles that become wild encounters, catch odds earned by how you solved, route mastery, a Pokédex, and My Team skins that play vs Computer and online.

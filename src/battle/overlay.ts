@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
 import { BATTLE, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
-import { species, spriteUrl, type SpeciesId } from '../board/pieces';
+import { MOVES, species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
 import { sound } from '../audio/audio';
 import { FX, type FxRecipe, type Pt } from './fxRecipes';
 import { resolveMove } from './types';
-import roster from '../data/roster.gen1.json';
 import type { BattleSprites } from './sprites';
 
 const W = 320;
@@ -152,7 +151,7 @@ export class Overlay {
         enter: () => {
           this.textEl.textContent = usedText;
           this.fx = recipe;
-          this.flashColor = TYPE_COLORS[roster.moves[mv.moveId].type] ?? '#ffffff';
+          this.flashColor = TYPE_COLORS[MOVES[mv.moveId]?.type ?? 'normal'] ?? '#ffffff';
         },
         tick: (p) => {
           this.fxT = p;

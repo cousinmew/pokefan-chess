@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Gen 1 effectiveness for the types in this roster (Part I §2.1). Cosmetic only: never touches chess.
-import roster from '../data/roster.gen1.json';
-import { species, type MoveId, type Species, type SpeciesId } from '../board/pieces';
+import { MOVES, species, type MoveId, type Species, type SpeciesId } from '../board/pieces';
 import type { StringKey } from '../game/text';
 
 type T = 'electric' | 'fire' | 'flying' | 'normal' | 'grass' | 'poison' | 'water' | 'ground' | 'rock';
@@ -42,11 +41,11 @@ export function resolveMove(attacker: Species | SpeciesId, defender: Species | S
   const a = typeof attacker === 'string' ? species(attacker) : attacker;
   const d = typeof defender === 'string' ? species(defender) : defender;
   let moveId = a.move as MoveId;
-  let mult = multiplier(roster.moves[moveId].type, d.types);
+  let mult = multiplier(MOVES[moveId]!.type, d.types);
   if (mult === 0 && a.fallback) {
     moveId = a.fallback as MoveId;
-    mult = multiplier(roster.moves[moveId].type, d.types);
+    mult = multiplier(MOVES[moveId]!.type, d.types);
   }
-  const m = roster.moves[moveId];
+  const m = MOVES[moveId]!;
   return { moveId, name: m.name, fx: m.fx, mult, effKey: effectivenessKey(mult) };
 }

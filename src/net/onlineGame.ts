@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Online game controller. The relay is the source of truth (V4): local moves are sent, and the board only
 // changes when a `state` arrives. A capture plays its battle locally on both screens from the state diff.
-import { REACTION_COUNT, type Seat, type ServerMsg } from '../../worker/src/protocol';
+import { REACTION_COUNT, type Seat, type ServerMsg, type Skin } from '../../worker/src/protocol';
 import type { StringKey } from '../game/text';
 import { button, el, toast } from '../ui/dom';
 import { message, waitingRoom } from '../ui/online';
@@ -19,6 +19,10 @@ export interface OnlineHost {
   /** Ends the game for a reason the board cannot see (timeout, resign). */
   endWith(key: StringKey): void;
   say(key: StringKey): void;
+  /** Your My Team skins, sent when joining. */
+  mySkin(): Skin;
+  /** Applies both players' skins and redraws. */
+  applySkins(skins: Partial<Record<Seat, Skin>>): void;
 }
 
 export class OnlineGame {
@@ -46,7 +50,7 @@ export class OnlineGame {
     this.queue = [];
     this.applied = [];
     this.host.show(message('online.joining', () => this.leave(), { code }));
-    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'));
+    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'), this.host.mySkin());
   }
 
   close(): void {
@@ -124,6 +128,7 @@ export class OnlineGame {
 
   private onMsg(msg: ServerMsg): void {
     if (msg.type === 'state') {
+      this.host.applySkins(msg.skins ?? {});
       this.queue.push(msg);
       this.drain();
     } else if (msg.type === 'reject') {

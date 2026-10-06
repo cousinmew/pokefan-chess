@@ -24,7 +24,7 @@ describe('Gen 1 type chart', () => {
     const ids = move === 'normal' ? NORMAL_MOVES : [move];
     for (const id of ids) {
       it(`${id} against all 14 species`, () => {
-        for (const sp of ALL) expect(multiplier(moves[id]!.type, roster.species[sp].types), `${id} vs ${sp}`).toBe(row[sp] ?? 1);
+        for (const sp of ALL) expect(multiplier(moves[id]!.type, (roster.species as Record<string, { types: string[] }>)[sp]!.types), `${id} vs ${sp}`).toBe(row[sp] ?? 1);
       });
     }
   }
