@@ -13,7 +13,7 @@ afterEach(() => store.clear());
 
 describe('queen grandfathering (C3 quick fix)', () => {
   it('a save from before C2c keeps its queen slot, even with no badge', () => {
-    store.set('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'charmander', caught: { charmander: 1, charizard: 1 }, team: { q: 'charizard' } }));
+    store.set('kc:v1:p1:campaign', JSON.stringify({ v: 2, starter: 'charmander', caught: { charmander: 1, charizard: 1 }, team: { q: 'charizard' } }));
     const c = loadCampaign();
     expect(c.queenOpen).toBe(true);
     expect(teamBadges(c)).toBe(1);
@@ -21,7 +21,7 @@ describe('queen grandfathering (C3 quick fix)', () => {
   });
 
   it('a pre C2c save that C2c already reverted gets its eligible queen back from the notice', () => {
-    store.set('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', caught: { squirtle: 1, blastoise: 1 }, team: {}, teamRules: 1, teamNotice: [['q', 'blastoise'], ['p', 'blastoise']] }));
+    store.set('kc:v1:p1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', caught: { squirtle: 1, blastoise: 1 }, team: {}, teamRules: 1, teamNotice: [['q', 'blastoise'], ['p', 'blastoise']] }));
     const c = loadCampaign();
     expect(c.team.q).toBe('blastoise');
     expect(c.teamNotice).toEqual([['p', 'blastoise']]);
@@ -29,7 +29,7 @@ describe('queen grandfathering (C3 quick fix)', () => {
   });
 
   it('a save made after C2c (intro seen) waits for the first badge', () => {
-    store.set('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', introSeen: true, teamRules: 1, caught: { squirtle: 1 } }));
+    store.set('kc:v1:p1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', introSeen: true, teamRules: 1, caught: { squirtle: 1 } }));
     expect(teamBadges(loadCampaign())).toBe(0);
   });
 });

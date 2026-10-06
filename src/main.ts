@@ -17,7 +17,7 @@ import { TextBox } from './ui/textBox';
 import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen } from './ui/settings';
-import { load, remove, save } from './store/persist';
+import { bootProfiles, currentSlot, load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -33,7 +33,12 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { currentLang } from './game/text';
-import { shelfScreen, yellowHome, type Cartridge } from './ui/shelf';
+import { langButton, shelfScreen, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
+import { addProfile, deleteProfile, needsPicker, renameProfile, summaries, switchTo } from './profiles';
+import { profileScreen } from './ui/profiles';
+import { saveSection } from './ui/saveSettings';
+import { decorateHome } from './ui/notices';
+import { registerShell } from './pwa';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
 import { loadCampaign } from './campaign/kanto';
@@ -102,7 +107,9 @@ function setCssVars(): void {
 function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
-  // Language first (§B17), so every screen is built in it; then the cartridge (YELLOW simple or BLUE story).
+  // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
+  bootProfiles();
+  registerShell();
   applyLanguage(savedLang(), false);
   let cart = load<Cartridge>('cartridge');
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
@@ -316,9 +323,18 @@ function boot(): App {
           cartridge: cart ?? 'blue',
           onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()),
         },
+        saveSection({ players: () => showProfiles(showSettings), restored: () => switchTo(currentSlot()) }),
       ),
     );
   }
+
+  /** Who's playing? (§B18 item 2): after the splash when the device has more than one player, and from Settings. */
+  function showProfiles(back?: () => void): void {
+    const again = () => showProfiles(back);
+    const a = { pick: switchTo, add: addProfile, refresh: again, back, rename: (n: number, name: string) => (renameProfile(n, name), again()) };
+    show(profileScreen(summaries(), currentSlot(), { ...a, remove: (n) => deleteProfile(n) || again() }));
+  }
+  const langBtn = () => langButton(currentLang(), (l) => (applyLanguage(l), goTitle()));
 
   const drawReview = (frame: Frame) => drawFrame(reviewLayer, boardWrap, board, frame);
   gameView.append(header, main);
@@ -351,14 +367,15 @@ function boot(): App {
     music.play('title');
     if (yellow()) {
       // YELLOW home (§B17): Play (vs Youngster with Pikachu), Learn (Pikachu's Path), Friend (Two Players).
-      return show(
-        yellowHome({
-          play: () => startGame({ mode: 'computer', human: 'w', level: 1 }),
-          learn: () => path.open(),
-          friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
-          settings: showSettings,
-        }),
-      );
+      const home = yellowHome({
+        lang: langBtn(),
+        // Play opens the level picker (§B18 item 4), Youngster first.
+        play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle)),
+        learn: () => path.open(),
+        friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+        settings: showSettings,
+      });
+      return show(decorateHome(home, el('span')));
     }
     // Continue resumes the last thing (§B16): the journey spot or a game in progress.
     const g = savedGame();
@@ -368,27 +385,26 @@ function boot(): App {
     const here = PLACES[furthest(c)];
     const quick = load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT;
     const rating = puzzle.trainer.rating.r;
-    show(
-      title({
-        canContinue: !!g || !!c.starter,
-        hub: hubData(c, rating, quick, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
-        battle: () => startGame(quick),
-        resume: () => {
-          if (journeyFirst) return journey.open();
-          if (g) startGame(g, g);
-        },
-        training: () => journey.openFromHub('training', goTitle),
-        dex: () => journey.openFromHub('dex', goTitle),
-        team: () => journey.openFromHub('team', goTitle),
-        card: () => journey.openFromHub('card', goTitle),
-        computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
-        twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
-        kanto: () => journey.open(),
-        howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
-        online: () => showOnline(),
-        settings: showSettings,
-      }),
-    );
+    const hub = title({
+      canContinue: !!g || !!c.starter,
+      hub: hubData(c, rating, quick, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
+      battle: () => startGame(quick),
+      resume: () => {
+        if (journeyFirst) return journey.open();
+        if (g) startGame(g, g);
+      },
+      training: () => journey.openFromHub('training', goTitle),
+      dex: () => journey.openFromHub('dex', goTitle),
+      team: () => journey.openFromHub('team', goTitle),
+      card: () => journey.openFromHub('card', goTitle),
+      computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle)),
+      twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+      kanto: () => journey.open(),
+      howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
+      online: () => showOnline(),
+      settings: showSettings,
+    });
+    show(decorateHome(hub, langBtn()));
   }
 
   function configure(setup: Setup): void {
@@ -715,8 +731,9 @@ function boot(): App {
     show(
       splash(() => {
         preloadBattleSprites();
-        // The cartridge shelf shows on first launch only (§B17).
-        if (cart) goTitle();
+        // Who's playing first on a shared device; the cartridge shelf shows on a player's first launch only (§B17).
+        if (needsPicker()) showProfiles();
+        else if (cart) goTitle();
         else showShelf();
       }),
     );

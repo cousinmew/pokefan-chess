@@ -326,6 +326,46 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .hold-btn { position: relative; overflow: hidden; min-height: 52px; font: inherit; font-weight: 700; border: 3px solid var(--ink); border-radius: 8px; background: #fff; cursor: pointer; touch-action: none; user-select: none; }
 .hold-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: #f8d030; }
 .hold-text { position: relative; }
+/* Language button (§B18 item 3): the current code, a tap opens the four languages. */
+.lang-top { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.screen-shelf .lang-top { align-self: flex-end; }
+.hub-top > .lang-top { flex: 0 0 auto; }
+.menu button.lang-code { min-width: 56px; min-height: 52px; font-weight: 700; font-size: 18px; letter-spacing: 1px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
+.lang-pop { position: absolute; top: 58px; inset-inline-end: 0; z-index: 5; width: max-content; max-width: 90vw; padding: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink); }
+.lang-pop[hidden] { display: none; }
+.yellow-top { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
+/* YELLOW level picker (§B18 item 4). */
+.yellow-levels { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.big-level { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 84px; padding: 8px 20px; font: inherit; border: 4px solid var(--ink); border-radius: 18px; background: #fff; box-shadow: 0 5px 0 var(--ink); cursor: pointer; }
+.big-level b { font-size: 26px; }
+.big-level .stars { font-size: 28px; color: #d8a000; -webkit-text-stroke: 1px var(--ink); }
+.big-level.default { background: #f8d030; }
+.big-level:focus-visible { outline: 4px solid #3050f0; outline-offset: 2px; }
+/* Players and the save (§B18 item 2). */
+.profile-list { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.profile-slot { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; }
+.profile-slot.current { box-shadow: 0 0 0 4px #3050f0; }
+.profile-slot.cart-yellow { background: #fff6c8; } .profile-slot.cart-blue { background: #e0ecff; }
+.menu button.profile-pick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; text-align: start; border: none; background: transparent; }
+.profile-sprite { width: 56px; height: 56px; flex: none; }
+.profile-info { display: flex; flex-direction: column; gap: 2px; }
+.profile-info b { font-size: 20px; }
+.profile-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-tools > * { flex: 1 1 120px; }
+.profile-confirm { flex-basis: 100%; margin: 0; font-weight: 700; }
+.save-box { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; box-sizing: border-box; }
+.save-box h3, .save-box p { margin: 0; }
+.save-protected { font-weight: 700; }
+.save-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.save-row > * { flex: 1 1 140px; }
+.save-code { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+.save-code[hidden] { display: none; }
+.save-note { font-size: 13px; }
+.save-code-input { min-height: 44px; padding: 0 8px; font: inherit; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; border: 2px solid var(--ink); border-radius: 6px; }
+.hub-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; box-sizing: border-box; border: 3px dashed var(--ink); border-radius: 12px; background: #fffbe0; }
+.hub-note p { flex: 1 1 200px; margin: 0; }
+.note-buttons { display: flex; flex: none; gap: 6px; }
+.menu .note-buttons button { min-width: 72px; padding: 0 12px; }
 /* YELLOW home: three huge tiles and a small gear. */
 .screen-yellow { gap: 16px; }
 .yellow-gear { align-self: flex-end; width: 52px; height: 52px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }

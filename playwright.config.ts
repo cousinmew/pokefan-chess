@@ -11,6 +11,8 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: live ?? 'http://localhost:4173',
+    // The offline service worker would bypass page.route mocks; the PWA test opts back in.
+    serviceWorkers: 'block',
     // Tests start on the BLUE cartridge, as a returning player; the shelf test clears this to see first launch.
     storageState: { cookies: [], origins: [{ origin: new URL(live ?? 'http://localhost:4173').origin, localStorage: [{ name: 'kc:v1:cartridge', value: '"blue"' }] }] },
   },

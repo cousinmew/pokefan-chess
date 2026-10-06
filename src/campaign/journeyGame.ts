@@ -267,6 +267,7 @@ export class JourneyGame {
       c = { ...c, badges: [...c.badges, p.badge] };
       lines.push(fmt('badge.received', { badge: fmt(`badge.${p.badge}` as StringKey) }));
       if (c.badges.length === 1 && !c.queenOpen) lines.push(fmt('badge.queen'));
+      save('backupDue', true); // the hub then offers "Back up your save" (§B18 item 2)
     }
     this.set(c);
     music.play('victory');

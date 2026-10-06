@@ -7,6 +7,7 @@ import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type
 
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
+  VAULT: DurableObjectNamespace<import('./Vault').Vault>;
   ALLOWED_ORIGINS: string;
   RECONNECT_MS: string;
 }

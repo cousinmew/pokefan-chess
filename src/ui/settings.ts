@@ -17,10 +17,10 @@ export interface CartridgeSettings {
   onSwitch(): void;
 }
 
-function holdButton(label: string, ms: number, done: () => void): HTMLButtonElement {
+export function holdButton(label: string, ms: number, done: () => void, testid = 'switch-cartridge'): HTMLButtonElement {
   const b = el('button', 'hold-btn');
   b.type = 'button';
-  b.dataset.testid = 'switch-cartridge';
+  b.dataset.testid = testid;
   const fill = el('span', 'hold-fill');
   const text = el('span', 'hold-text');
   text.textContent = label;
@@ -51,7 +51,7 @@ function holdButton(label: string, ms: number, done: () => void): HTMLButtonElem
   return b;
 }
 
-export function settingsScreen(s: Settings, changed: () => void, back: () => void, cart?: CartridgeSettings): HTMLElement {
+export function settingsScreen(s: Settings, changed: () => void, back: () => void, cart?: CartridgeSettings, extra?: HTMLElement): HTMLElement {
   const rows = el('div', 'settings');
   const row = (label: StringKey, control: HTMLElement) => {
     const r = el('label', 'setting');
@@ -136,5 +136,5 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
     sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
     rows.prepend(sw);
   }
-  return screen('settings', el('h2', '', 'title.settings'), rows, button('back', back, 'back', 'secondary'));
+  return screen('settings', el('h2', '', 'title.settings'), rows, ...(extra ? [extra] : []), button('back', back, 'back', 'secondary'));
 }

@@ -75,3 +75,10 @@
 
 - Clearer pieces on phones: sprites cropped to fill their square, a bold chip showing each chess piece, a full width board, and three piece styles (Pokémon + badge, Big badge, Classic).
 - A Who's who legend under the board (tap a role to find those pieces), press and hold a piece for its card, and an option for still sprites.
+
+## 2.2.0 (C6 saves)
+
+- Up to 4 players per device, each with their own trainer, cartridge, language and progress; an existing save becomes player 1. Who's playing? shows after the splash when there is more than one.
+- Export and Import save, "Save protected" in Settings, an opt in save code to carry progress to another device (no names, no accounts, deleted after 180 days unused), and a "Back up your save" note after each badge.
+- Installable web app with an offline app shell and a one time Add to Home Screen tip.
+- A language button (EN, FR, HE, ES) on every home screen, and YELLOW's Play now picks a level with 1 to 4 stars.

@@ -92,7 +92,7 @@ describe('151 Pokédex (§B12)', () => {
   });
 
   it('a C2 (v1) save migrates without losing a catch', () => {
-    store.set('kc:v1:campaign', JSON.stringify({ starter: 'charmander', caught: { charmander: 1, pidgey: 2 }, routes: { 'route-1': { last: [true, true, true, true, true, true, true, true], streak: 2 } }, team: { q: 'pidgey' } }));
+    store.set('kc:v1:p1:campaign', JSON.stringify({ starter: 'charmander', caught: { charmander: 1, pidgey: 2 }, routes: { 'route-1': { last: [true, true, true, true, true, true, true, true], streak: 2 } }, team: { q: 'pidgey' } }));
     const c = loadCampaign();
     expect(c.caught).toEqual({ charmander: 1, pidgey: 2 });
     // The team rules (§B14) then revert the queen slot: locked until a badge, and Pidgey is not fully evolved.
@@ -109,7 +109,7 @@ describe('team rules (§B14)', () => {
   it('a real C2b save with an ineligible team migrates slot by slot, with one notice', async () => {
     const { whyNot } = await import('../../worker/src/team');
     // Shape and values of a save written by 07fb1c0 (C2b).
-    store.set('kc:v1:campaign', JSON.stringify({
+    store.set('kc:v1:p1:campaign', JSON.stringify({
       v: 2, name: 'RED', starter: 'charmander', caught: { charmander: 2, charmeleon: 1, pidgey: 4, pidgeotto: 1, rattata: 2, mewtwo: 1 }, shiny: { pidgey: 1 },
       oak: { pidgey: 3 }, candy: { charmander: 4, pidgey: 10, rattata: 6 }, seen: ['charmander', 'charmeleon', 'pidgey', 'pidgeotto', 'rattata', 'mewtwo'],
       caughtAt: { charmander: 'pallet', pidgey: 'route-1' }, routes: { 'route-1': { last: [true, true], streak: 2, shinyStreak: 2 } },
@@ -121,7 +121,7 @@ describe('team rules (§B14)', () => {
     expect(c.teamNotice).toEqual([['q', 'charmander'], ['n', 'mewtwo'], ['bLight', 'rattata']]);
     expect(c.caught.mewtwo).toBe(1);
     // Saved once: the next load keeps the team and does not repeat the notice list.
-    expect(JSON.parse(store.get('kc:v1:campaign')!).teamRules).toBe(2);
+    expect(JSON.parse(store.get('kc:v1:p1:campaign')!).teamRules).toBe(2);
     expect(whyNot('q', 'mewtwo', 'charmander', 1)).toBeNull();
     expect(whyNot('n', 'tauros', 'charmander', 1)).toBeNull();
     expect(whyNot('p', 'tauros', 'charmander', 1)).toBeNull();

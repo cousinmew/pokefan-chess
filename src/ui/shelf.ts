@@ -34,13 +34,61 @@ export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement 
   return row;
 }
 
+/** The always visible language button (§B18 item 3): the current code, one tap from the four languages.
+ * With `picker` (the shelf already shows one) the tap moves to that picker instead of opening a second. */
+export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTMLElement): HTMLElement {
+  const wrap = el('div', 'lang-top');
+  const b = el('button', 'lang-code');
+  b.type = 'button';
+  b.dataset.testid = 'lang-button';
+  b.textContent = current.toUpperCase();
+  b.setAttribute('aria-label', `${fmt('shelf.lang')}: ${fmt(`lang.${current}` as StringKey)}`);
+  b.setAttribute('aria-expanded', 'false');
+  if (picker) {
+    b.onclick = () => (picker.querySelector<HTMLElement>('.on') ?? picker).focus();
+    wrap.append(b);
+    return wrap;
+  }
+  const pop = langPicker(current, pick);
+  pop.classList.add('lang-pop');
+  pop.hidden = true;
+  b.onclick = () => {
+    pop.hidden = !pop.hidden;
+    b.setAttribute('aria-expanded', String(!pop.hidden));
+  };
+  wrap.append(b, pop);
+  return wrap;
+}
+
 export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void): HTMLElement {
   const row = el('div', 'shelf');
   row.append(cartridge('yellow', () => pick('yellow')), cartridge('blue', () => pick('blue')));
-  return screen('shelf', el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), langPicker(current, lang));
+  const picker = langPicker(current, lang);
+  return screen('shelf', langButton(current, lang, picker), el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
+}
+
+/** YELLOW's Play tile opens this (§B18 item 4): the four levels as big buttons with 1 to 4 stars, Youngster first. */
+export function yellowLevels(pick: (level: 1 | 2 | 3 | 4) => void, back: () => void): HTMLElement {
+  const list = el('div', 'yellow-levels');
+  for (const n of [1, 2, 3, 4] as const) {
+    const b = el('button', `big-level${n === 1 ? ' default' : ''}`);
+    b.type = 'button';
+    b.dataset.testid = `yellow-level-${n}`;
+    const stars = el('span', 'stars');
+    stars.textContent = '★'.repeat(n);
+    stars.setAttribute('aria-hidden', 'true');
+    b.append(el('b', '', `yellow.level.${n}` as StringKey), stars);
+    b.setAttribute('aria-label', `${fmt(`yellow.level.${n}` as StringKey)}, ${fmt('yellow.stars', { n: String(n) })}`);
+    b.onclick = () => pick(n);
+    list.append(b);
+  }
+  const view = screen('yellow-levels', el('h2', '', 'yellow.levels'), list, button('back', back, 'back', 'secondary'));
+  window.setTimeout(() => (list.firstElementChild as HTMLElement | null)?.focus(), 0);
+  return view;
 }
 
 export interface YellowActions {
+  lang: HTMLElement;
   play(): void;
   learn(): void;
   friend(): void;
@@ -63,7 +111,9 @@ export function yellowHome(a: YellowActions): HTMLElement {
   gear.setAttribute('aria-label', fmt('title.settings'));
   gear.append(pixelIcon('gear', 'gear-icon'));
   gear.onclick = a.settings;
-  return screen('yellow', gear, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend));
+  const top = el('div', 'yellow-top');
+  top.append(a.lang, gear);
+  return screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend));
 }
 
 export interface PathActions {

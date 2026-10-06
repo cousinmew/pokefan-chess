@@ -53,7 +53,7 @@ test('switching cartridge needs a 2 second hold', async ({ page }) => {
   await page.waitForTimeout(2300);
   await page.mouse.up();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('kc:v1:cartridge'))).toBe('"yellow"');
+  expect(await page.evaluate(() => localStorage.getItem('kc:v1:p1:cartridge'))).toBe('"yellow"');
 });
 
 test('YELLOW in Hebrew: a full lesson of Pikachu\'s Path, board left to right, a sticker at the end', async ({ page }) => {

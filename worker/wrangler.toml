@@ -12,6 +12,14 @@ RECONNECT_MS = "60000"
 name = "ROOM"
 class_name = "Room"
 
+[[durable_objects.bindings]]
+name = "VAULT"
+class_name = "Vault"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Vault"]

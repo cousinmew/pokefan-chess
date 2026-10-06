@@ -1,29 +1,110 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// localStorage under kc:v1:. Every access is guarded: the game works with storage blocked (§4.8).
+// localStorage, one namespace per save slot (§B18 item 2): kc:v1:p<n>:<key>. Every access is guarded: the game works
+// with storage blocked (§4.8). kc:v1:profiles holds the slot list and the current slot.
 import { STORAGE_NS } from '../config';
 
-export function load<T>(key: string): T | null {
+export const MAX_SLOTS = 4;
+export interface ProfileMeta {
+  slots: number[];
+  current: number;
+}
+
+const META = `${STORAGE_NS}profiles`;
+export const profilePrefix = (n: number) => `${STORAGE_NS}p${n}:`;
+let prefix = profilePrefix(1);
+let slot = 1;
+
+function get(full: string): string | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_NS + key);
-    return raw ? (JSON.parse(raw) as T) : null;
+    return window.localStorage.getItem(full);
   } catch (err) {
-    console.warn(`storage read ${key} failed:`, err instanceof Error ? err.name : err);
+    console.warn('storage read failed:', err instanceof Error ? err.name : err);
     return null;
   }
 }
 
-export function save(key: string, value: unknown): void {
+function set(full: string, value: string): void {
   try {
-    window.localStorage.setItem(STORAGE_NS + key, JSON.stringify(value));
+    window.localStorage.setItem(full, value);
   } catch (err) {
-    console.warn(`storage write ${key} failed:`, err instanceof Error ? err.name : err);
+    console.warn('storage write failed:', err instanceof Error ? err.name : err);
   }
 }
 
-export function remove(key: string): void {
+function drop(full: string): void {
   try {
-    window.localStorage.removeItem(STORAGE_NS + key);
+    window.localStorage.removeItem(full);
   } catch (err) {
-    console.warn(`storage remove ${key} failed:`, err instanceof Error ? err.name : err);
+    console.warn('storage remove failed:', err instanceof Error ? err.name : err);
   }
+}
+
+function keys(): string[] {
+  try {
+    return Object.keys(window.localStorage);
+  } catch (err) {
+    console.warn('storage list failed:', err instanceof Error ? err.name : err);
+    return [];
+  }
+}
+
+const parse = <T>(raw: string | null): T | null => {
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.warn('unreadable stored value:', err instanceof Error ? err.message : err);
+    return null;
+  }
+};
+
+export const readMeta = () => parse<ProfileMeta>(get(META));
+export const writeMeta = (m: ProfileMeta) => set(META, JSON.stringify(m));
+export const currentSlot = () => slot;
+
+/** Picks the slot whose data load/save use from now on. */
+export function useProfile(n: number): void {
+  slot = n;
+  prefix = profilePrefix(n);
+}
+
+/** Boot: the slot list (slot 1 on a new device), and old style kc:v1:<key> data moved into the current slot.
+ * That migrates a save from before profiles into slot 1 once, without losing anything. */
+export function bootProfiles(): ProfileMeta {
+  const m = readMeta() ?? { slots: [1], current: 1 };
+  if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;
+  useProfile(m.current);
+  const legacy = keys().filter((k) => k.startsWith(STORAGE_NS) && k !== META && !/^kc:v1:p\d+:/.test(k));
+  for (const k of legacy) {
+    const v = get(k);
+    if (v !== null) set(prefix + k.slice(STORAGE_NS.length), v);
+    drop(k);
+  }
+  writeMeta(m);
+  return m;
+}
+
+export const load = <T>(key: string): T | null => parse<T>(get(prefix + key));
+export const save = (key: string, value: unknown) => set(prefix + key, JSON.stringify(value));
+export const remove = (key: string) => drop(prefix + key);
+export const loadFrom = <T>(n: number, key: string): T | null => parse<T>(get(profilePrefix(n) + key));
+export const saveTo = (n: number, key: string, value: unknown) => set(profilePrefix(n) + key, JSON.stringify(value));
+
+/** Every key of a slot, for export, save codes and delete. */
+export function profileData(n: number): Record<string, unknown> {
+  const p = profilePrefix(n);
+  const out: Record<string, unknown> = {};
+  for (const k of keys().filter((x) => x.startsWith(p))) out[k.slice(p.length)] = parse(get(k));
+  return out;
+}
+
+export function clearProfile(n: number): void {
+  const p = profilePrefix(n);
+  for (const k of keys().filter((x) => x.startsWith(p))) drop(k);
+}
+
+/** Replaces a slot's data with an exported or downloaded copy. */
+export function restoreProfile(n: number, data: Record<string, unknown>): void {
+  clearProfile(n);
+  for (const [k, v] of Object.entries(data)) if (/^[a-zA-Z0-9:_-]{1,60}$/.test(k)) saveTo(n, k, v);
 }
