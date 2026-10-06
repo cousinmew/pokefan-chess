@@ -89,3 +89,5 @@ export const SHINY_STREAK = 5; // first try solves in a row on a route that guar
 export const STAR_STEPS = [3, 6, 10]; // duplicates sent to Oak for 1, 2 and 3 stars
 export const TRAINER_NEXT_MS = 1400; // pause between puzzles in a trainer battle
 export const PLAYTIME_TICK_MS = 5000; // playtime counter step while the page is visible
+export const LESSON_STEP_MS = 900; // mini lesson example: one move per step, then it loops
+export const INTRO_CARD_MS = 900; // battle intro card before the goal card (§B14)

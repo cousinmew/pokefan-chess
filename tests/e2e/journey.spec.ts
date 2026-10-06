@@ -16,9 +16,13 @@ async function solveOne(page: Page) {
   }
 }
 
-/** A whole trainer battle: solve puzzles until the defeat story box shows. */
+/** A whole trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */
 async function beatTrainer(page: Page) {
+  if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
+  await expect(page.getByTestId('goal-card')).toBeVisible();
+  await page.getByTestId('goal-card').click();
+  await expect(page.getByTestId('puzzle-banner')).toContainText('Goal:');
   for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
     await solveOne(page);
     // After a short pause either the next puzzle starts or the defeat story shows.
@@ -47,6 +51,8 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await page.getByTestId('starter-bulbasaur').click();
   await expect(page.getByTestId('story-text')).toContainText('BULBASAUR');
   await readStory(page, 1);
+  await expect(page.getByTestId('story-text')).toContainText('BLUE:');
+  await readStory(page, 1);
   await expect(page.getByTestId('place-viridian')).toBeDisabled();
 
   await page.getByTestId('route-route-1').click();
@@ -54,6 +60,11 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   for (const who of ['YOUNGSTER TOBY', 'LASS MINA']) {
     await expect(page.getByTestId('battle-trainer')).toHaveText(`Battle ${who}`);
     await page.getByTestId('battle-trainer').click();
+    // The first Route 1 trainer teaches mate in 1: Oak's mini lesson comes first, once.
+    if (who === 'YOUNGSTER TOBY') {
+      await expect(page.getByTestId('mini-board')).toBeVisible();
+      await page.getByTestId('lesson-ok').click();
+    }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
     await beatTrainer(page);
     await readStory(page, who === 'LASS MINA' ? 2 : 1);
@@ -66,8 +77,15 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await readStory(page, 2);
   // BLUE picked the starter strong against BULBASAUR.
   await expect(page.getByTestId('trainer-intro')).toContainText('RIVAL BLUE wants to battle!');
-  await expect(page.locator('[data-testid="trainer-intro"] img').first()).toHaveAttribute('alt', 'CHARMANDER');
-  await beatTrainer(page);
+  await expect(page.locator('[data-testid="trainer-intro"] img[data-species]').first()).toHaveAttribute('alt', 'CHARMANDER');
+  await page.getByTestId('trainer-intro').click();
+  await expect(page.getByTestId('goal-card')).toContainText('BLUE leads with CHARMANDER.');
+  await expect(page.getByTestId('pips')).toHaveText('○○○○○');
+  await page.getByTestId('goal-card').click();
+  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+    await solveOne(page);
+    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+  }
   await readStory(page, 1);
   await expect(page.getByTestId('route-viridian-forest')).toBeEnabled();
   const save = await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.journey());

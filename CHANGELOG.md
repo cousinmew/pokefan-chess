@@ -44,3 +44,9 @@
 
 - Kanto Journey: Oak's intro, your trainer name, route trainers, rival BLUE three times, story boxes, Trainer Card and Training.
 - All 151 in the Pokédex: Red and Blue wild tables, candy and evolution, shinies, stars from Oak, and every caught form as a My Team skin. Effectiveness lines for every Gen 1 type.
+
+## 1.6.0 (C2c)
+
+- Oak's intro with Nidorino, trainer sprites everywhere, battle intro and goal cards with pips, a goal banner over every puzzle, and Oak's mini lessons the first time a theme appears.
+- My Team follows rules now: your starter's family is king, queens are fully evolved (after the first badge), pawns are first stage. Old teams were adjusted once, with a note.
+- Sprites never show as empty boxes, even on a slow connection.

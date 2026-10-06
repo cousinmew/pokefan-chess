@@ -5,6 +5,7 @@ import kanto from '../data/kanto.json';
 import { CANDY_COST, CANDY_PER_CATCH, CANDY_PER_OAK, CATCH, MASTERY_NEED, MASTERY_WINDOW, RARE_SLOT_BELOW, SHINY_ODDS, SHINY_STREAK, STAR_STEPS, STREAK_FOR_RARE } from '../config';
 import { PLACES, placeUnlocked } from './journey';
 import sources from '../data/sources.kanto.json';
+import { enforce, type SkinRole } from '../../worker/src/team';
 import type { Rng } from '../game/rng';
 import { load, save } from '../store/persist';
 import type { TeamSkin } from '../board/pieces';
@@ -93,7 +94,18 @@ export interface Campaign {
   journey: { cleared: string[]; beaten: string[]; visited: string[] };
   team: TeamSkin;
   playMs: number;
+  /** Gym badges earned (C3). The queen slot opens with the first. */
+  badges: string[];
+  /** Oak's intro was seen once, so it can be skipped (§B14). */
+  introSeen: boolean;
+  /** Themes whose mini lesson Oak has shown. */
+  lessonsSeen: string[];
+  /** Team rules version applied to `team`, and the one time notice of what the rules reverted. */
+  teamRules: number;
+  teamNotice: [SkinRole, string][];
 }
+
+export const TEAM_RULES_VERSION = 1;
 
 export const CAMPAIGN_VERSION = 2;
 const FAMILIES = kanto.families as Record<string, string>;
@@ -102,6 +114,7 @@ export const familyOf = (id: string) => FAMILIES[id] ?? id;
 const fresh = (): Campaign => ({
   v: CAMPAIGN_VERSION, name: '', starter: null, caught: {}, shiny: {}, oak: {}, candy: {}, seen: [], caughtAt: {}, routes: {},
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
+  badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
 });
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
@@ -112,6 +125,9 @@ export function loadCampaign(): Campaign {
     ...fresh(), ...c,
     caught: { ...c?.caught }, shiny: { ...c?.shiny }, oak: { ...c?.oak }, candy: { ...c?.candy }, seen: [...(c?.seen ?? [])],
     caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: { ...c?.team },
+    badges: [...(c?.badges ?? [])], lessonsSeen: [...(c?.lessonsSeen ?? [])], teamNotice: [...(c?.teamNotice ?? [])],
+    // Saves from before §B14 have no teamRules: their teams are checked once below.
+    teamRules: c ? (c.teamRules ?? 0) : TEAM_RULES_VERSION,
     journey: { cleared: [...(c?.journey?.cleared ?? [])], beaten: [...(c?.journey?.beaten ?? [])], visited: [...(c?.journey?.visited ?? [])] },
   };
   if (c && (c.v ?? 1) < CAMPAIGN_VERSION) {
@@ -127,6 +143,14 @@ export function loadCampaign(): Campaign {
       if (p.route && !out.journey.visited.includes(p.id)) out.journey.visited.push(p.id);
     }
     out.v = CAMPAIGN_VERSION;
+  }
+  if (out.teamRules < TEAM_RULES_VERSION) {
+    // Migrated, not rejected (§B14 addendum): ineligible slots go back to the default piece, with one notice.
+    const { team, dropped } = enforce(out.team, out.starter, out.badges.length);
+    out.team = team;
+    out.teamNotice = [...out.teamNotice, ...dropped];
+    out.teamRules = TEAM_RULES_VERSION;
+    save('campaign', out);
   }
   return out;
 }

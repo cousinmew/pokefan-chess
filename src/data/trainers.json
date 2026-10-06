@@ -1,0 +1,16 @@
+{
+ "source": "Pokémon Showdown trainer sprites (play.pokemonshowdown.com/sprites/trainers), fetched at build time, checked 6 Oct 2026",
+ "people": {
+  "oak": "oak", "red": "red-gen1", "blue": "blue-gen1", "blue-champion": "blue-gen1champion",
+  "brock": "brock-gen1", "misty": "misty-gen1", "ltsurge": "ltsurge-gen1", "erika": "erika-gen1", "koga": "koga-gen1",
+  "sabrina": "sabrina-gen1", "blaine": "blaine-gen1", "giovanni": "giovanni-gen1",
+  "lorelei": "lorelei-gen1", "bruno": "bruno-gen1", "agatha": "agatha-gen1", "lance": "lance-gen1"
+ },
+ "classes": {
+  "trainer.class.youngster": "youngster-gen1", "trainer.class.lass": "lass-gen1", "trainer.class.bugcatcher": "bugcatcher-gen1",
+  "trainer.class.camper": "camper-gen2", "trainer.class.picnicker": "picnicker-gen2", "trainer.class.birdkeeper": "birdkeeper-gen1",
+  "trainer.class.biker": "biker-gen1", "trainer.class.gambler": "gambler-gen1", "trainer.class.supernerd": "supernerd-gen1",
+  "trainer.class.fisherman": "fisherman-gen1", "trainer.class.swimmer": "swimmer-gen1", "trainer.class.cooltrainer": "acetrainer-gen3",
+  "trainer.class.rival": "blue-gen1"
+ }
+}

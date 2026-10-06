@@ -7,12 +7,45 @@ import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf
 import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
+import { whyNot } from '../../worker/src/team';
 
-function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny = false): HTMLImageElement {
+/** A Pokémon sprite that is never an empty box (§B14 bug): the tiny Gen 1 sprite shows while the animated GIF
+ * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. */
+export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny = false, eager = false): HTMLImageElement {
   const img = el('img', cls + (silhouette ? ' silhouette' : ''));
-  img.src = spriteUrl(SPECIES[id]!.dex, 'front', shiny);
+  const dex = SPECIES[id]!.dex;
+  const retro = spriteUrl(dex, 'retro');
   img.alt = silhouette ? fmt('dex.unknown') : SPECIES[id]!.name;
+  img.dataset.species = id;
+  img.decoding = 'async';
+  if (eager) img.fetchPriority = 'high';
+  img.style.backgroundImage = `url("${retro}")`;
+  img.onload = () => (img.style.backgroundImage = '');
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = retro;
+  };
+  img.src = spriteUrl(dex, 'front', shiny);
   return img;
+}
+
+/** A trainer sprite from assets/trainers/, or a CSS silhouette when it is missing (§B14). */
+export function trainerSprite(sprite: string | undefined, cls = 'trainer-sprite'): HTMLElement {
+  const box = el('div', cls);
+  if (!sprite) {
+    box.classList.add('sil');
+    return box;
+  }
+  const img = el('img');
+  img.alt = '';
+  img.dataset.trainer = sprite;
+  img.onerror = () => {
+    img.remove();
+    box.classList.add('sil');
+  };
+  img.src = `assets/trainers/${sprite}.png`;
+  box.append(img);
+  return box;
 }
 
 function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
@@ -21,9 +54,10 @@ function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
   return p;
 }
 
-/** Gen 1 style text boxes over the screen, one per tap (§B11). */
-export function story(host: HTMLElement, texts: string[], done: () => void): void {
+/** Gen 1 style text boxes over the screen, one per tap (§B11); a trainer can slide in beside them (§B14). */
+export function story(host: HTMLElement, texts: string[], done: () => void, sprite?: string): void {
   const box = el('div', 'panel story');
+  if (sprite) host.append(trainerSprite(sprite, 'trainer-sprite story-trainer slide-in'));
   box.dataset.testid = 'story';
   const p = el('p', 'story-text');
   p.dataset.testid = 'story-text';
@@ -38,17 +72,22 @@ export function story(host: HTMLElement, texts: string[], done: () => void): voi
     if (i < texts.length) return show();
     host.onclick = null;
     host.hidden = true;
+    host.replaceChildren();
     done();
   };
   show();
-  host.replaceChildren(box);
+  host.querySelectorAll('.panel').forEach((n) => n.remove());
+  if (!sprite) host.querySelectorAll('.story-trainer').forEach((n) => n.remove());
+  host.append(box);
   host.hidden = false;
 }
 
-export function nameScreen(pick: (name: string) => void, back: () => void): HTMLElement {
+export function nameScreen(pick: (name: string) => void, back: () => void, red?: string): HTMLElement {
   const row = el('div', 'buttons');
   for (let i = 1; i <= 6; i++) row.append(button(`name.${i}` as StringKey, () => pick(fmt(`name.${i}` as StringKey)), `name-${i}`));
-  return screen('name', el('h2', '', 'name.choose'), row, button('back', back, 'back', 'secondary'));
+  const side = el('div', 'name-step');
+  side.append(trainerSprite(red, 'trainer-sprite slide-in'), row);
+  return screen('name', el('h2', '', 'name.choose'), side, button('back', back, 'back', 'secondary'));
 }
 
 export function oakScreen(pick: (id: string) => void, back: () => void): HTMLElement {
@@ -56,7 +95,8 @@ export function oakScreen(pick: (id: string) => void, back: () => void): HTMLEle
   for (const id of STARTERS) {
     const b = el('button', 'card');
     b.dataset.testid = `starter-${id}`;
-    b.append(mon(id), document.createTextNode(SPECIES[id]!.name));
+    // Animated, bouncing on hover or tap; the cry plays when chosen (main passes it in `pick`).
+    b.append(mon(id, 'menu-sprite bounce', false, false, true), document.createTextNode(SPECIES[id]!.name));
     b.onclick = () => pick(id);
     row.append(b);
   }
@@ -84,10 +124,11 @@ export function mapScreen(c: Campaign, a: MapActions): HTMLElement {
     const testid = p.route ? `route-${p.route}` : `place-${p.id}`;
     const b = el('button', `node ${p.kind}${open ? '' : ' locked'}${i === here ? ' here' : ''}`);
     b.dataset.testid = testid;
-    b.disabled = !open || p.kind === 'gym';
+    b.disabled = !open;
     const title = el('b');
     title.textContent = `${placeName(p)}${done && p.kind !== 'gym' ? ' ✓' : ''}`;
     b.append(title);
+    b.dataset.kind = p.kind;
     if (p.kind === 'gym') b.append(line('map.gymSoon', undefined, 'small'));
     else if (p.route) {
       const r = routeOf(p)!;
@@ -155,13 +196,40 @@ export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement
   );
 }
 
-/** "{CLASS} {NAME} wants to battle!" with the trainer's team (no trainer sprites, §B11). */
-export function trainerIntro(c: Campaign, t: Trainer): HTMLElement {
+/** Battle intro card (§B14): the trainer slides in, "{CLASS} {NAME} wants to battle!" and their 1 to 3 Pokémon. */
+export function trainerIntro(c: Campaign, t: Trainer, sprite: string | undefined): HTMLElement {
   const p = el('div', 'panel trainer-intro');
   p.dataset.testid = 'trainer-intro';
   const team = el('div', 'kings');
-  for (const s of teamOf(c, t)) team.append(mon(s, 'dex-sprite'));
-  p.append(line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
+  for (const s of teamOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
+  p.append(trainerSprite(sprite, 'trainer-sprite slide-in'), line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
+  return p;
+}
+
+/** Goal card (§B14): the lesson title, a one line goal in kid language, one pip per puzzle. Tap to start. */
+export function goalCard(theme: string, puzzles: number, need: number, extra?: string): HTMLElement {
+  const p = el('div', 'panel goal-card');
+  p.dataset.testid = 'goal-card';
+  const title = el('h3');
+  title.textContent = fmt(`lesson.${theme}.title` as StringKey);
+  const pips = el('p', 'pips');
+  pips.textContent = '○'.repeat(puzzles);
+  pips.dataset.testid = 'pips';
+  p.append(title, line(`lesson.${theme}.goal` as StringKey), pips, line('goal.need', { need: String(need), total: String(puzzles) }, 'small'));
+  if (extra) {
+    const x = el('p', 'small');
+    x.textContent = extra;
+    p.append(x);
+  }
+  p.append(el('span', 'tb-tick', 'goal.start'));
+  return p;
+}
+
+/** Gym intro card before C3: the leader and "Coming soon". */
+export function gymCard(nameKey: StringKey, sprite: string | undefined): HTMLElement {
+  const p = el('div', 'panel trainer-intro gym-card');
+  p.dataset.testid = 'gym-card';
+  p.append(trainerSprite(sprite, 'trainer-sprite slide-in'), line(nameKey), line('map.gymSoon', undefined, 'small'), el('span', 'tb-tick', 'story.tap'));
   return p;
 }
 
@@ -187,9 +255,13 @@ export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLE
   return screen('card', el('h2', '', 'card.title'), card, button('back', back, 'back', 'secondary'));
 }
 
-export function trainingScreen(themes: string[], start: (theme: string) => void, back: () => void): HTMLElement {
+export function trainingScreen(themes: string[], start: (theme: string) => void, back: () => void, lesson: (theme: string) => void): HTMLElement {
   const list = el('div', 'buttons');
-  for (const t of themes) list.append(button(`theme.${t}` as StringKey, () => start(t), `train-${t}`));
+  for (const t of themes) {
+    const row = el('div', 'train-row');
+    row.append(button(`theme.${t}` as StringKey, () => start(t), `train-${t}`), button('lesson.again', () => lesson(t), `lesson-${t}`, 'secondary'));
+    list.append(row);
+  }
   return screen('training', el('h2', '', 'training.title'), el('p', 'small', themes.length ? 'training.note' : 'training.none'), list, button('back', back, 'back', 'secondary'));
 }
 
@@ -274,8 +346,18 @@ function forms(c: Campaign): { id: string; label: string }[] {
   return out;
 }
 
-export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void): HTMLElement {
+export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void): HTMLElement {
   const rows = el('div', 'settings');
+  if (c.teamNotice.length) {
+    const note = el('div', 'panel team-notice');
+    note.dataset.testid = 'team-notice';
+    const list = c.teamNotice.map(([role, id]) => `${fmt(ROLE_LABEL[role])}: ${SPECIES[id.split(':')[0] ?? '']?.name ?? id}`).join(', ');
+    note.append(line('team.notice', { list }), button('team.noticeOk', () => {
+      note.remove();
+      clearNotice();
+    }, 'team-notice-ok'));
+    rows.append(note);
+  }
   const team: TeamSkin = { ...c.team };
   const owned = forms(c);
   for (const role of SKIN_ROLES) {
@@ -288,11 +370,20 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
     // The default is the Red team's species for that square (no skins are active on menu screens).
     def.textContent = fmt('team.default', { name: SPECIES[speciesIdFor('w', piece, sq)]!.name });
     sel.append(def);
+    // Ineligible Pokémon are greyed out (§B14); the row says why.
+    let reason: ReturnType<typeof whyNot> = null;
     for (const f of owned) {
       const o = el('option');
       o.value = f.id;
       o.textContent = f.label;
+      const why = whyNot(role, f.id, c.starter, c.badges.length);
+      o.disabled = why !== null;
+      reason ??= why;
       sel.append(o);
+    }
+    if (role === 'q' && c.badges.length < 1) {
+      sel.disabled = true;
+      reason = 'queenLocked';
     }
     sel.value = team[role] ?? '';
     const previewOf = (v: string) => {
@@ -310,6 +401,11 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
     };
     r.append(preview, el('span', '', ROLE_LABEL[role]), sel);
     rows.append(r);
+    if (reason) {
+      const why = line(`team.why.${reason}` as StringKey, undefined, 'small why');
+      why.dataset.testid = `why-${role}`;
+      rows.append(why);
+    }
   }
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }

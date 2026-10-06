@@ -16,5 +16,5 @@
     "noEmit": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "schemas", "worker/src/protocol.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "schemas", "worker/src/protocol.ts", "worker/src/team.ts", "vite.config.ts", "playwright.config.ts"]
 }

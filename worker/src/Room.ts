@@ -2,6 +2,7 @@
 // One Durable Object per room: the server is the source of truth (V4). Hibernating WebSockets, state in storage.
 import { DurableObject } from 'cloudflare:workers';
 import { Chess } from 'chess.js';
+import { enforce } from './team';
 import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin } from './protocol';
 
 export interface Env {
@@ -219,7 +220,8 @@ export class Room extends DurableObject<Env> {
   }
 }
 
-/** Keeps only known roles with short lowercase species ids. */
+/** Keeps only known roles with valid species ids that follow the team rules (§B14). The relay cannot see a
+ * player's starter or badges, so the king may be any starter family and the queen counts as unlocked. */
 function cleanSkin(raw: unknown): Skin {
   const out: Skin = {};
   if (!raw || typeof raw !== 'object') return out;
@@ -228,7 +230,7 @@ function cleanSkin(raw: unknown): Skin {
     // A species id, optionally shiny (:s) and with 1 to 3 stars (:1..:3), e.g. pidgey:s:2.
     if (typeof v === 'string' && /^[a-z][a-z-]{1,23}(:s)?(:[1-3])?$/.test(v)) out[k] = v;
   }
-  return out;
+  return enforce(out, null, 1).team;
 }
 
 function replay(moves: string[]): Chess {

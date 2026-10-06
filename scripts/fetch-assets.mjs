@@ -27,6 +27,11 @@ const jobs = dexes.flatMap((d) => [
   [`${CRIES}${d}.ogg`, `cries/${d}.ogg`],
 ]);
 
+// Trainer sprites (§B14): Pokémon Showdown's Gen 1 style set, saved as assets/trainers/<sprite>.png. Never hotlinked.
+const TRAINERS = 'https://play.pokemonshowdown.com/sprites/trainers/';
+const trainerMap = JSON.parse(readFileSync('src/data/trainers.json', 'utf8'));
+for (const sprite of new Set([...Object.values(trainerMap.people), ...Object.values(trainerMap.classes)])) jobs.push([`${TRAINERS}${sprite}.png`, `trainers/${sprite}.png`]);
+
 let hasFfmpeg = true;
 try {
   execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
@@ -68,7 +73,7 @@ if (missing.length) {
 
 const files = [];
 const walk = (dir) => {
-  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back']) {
+  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back', 'trainers']) {
     const p = join(dir, sub);
     if (!existsSync(p)) continue;
     for (const f of execFileSync('ls', [p], { encoding: 'utf8' }).split('\n').filter(Boolean)) {

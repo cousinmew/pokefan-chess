@@ -28,6 +28,8 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
   await page.getByTestId('name-1').click();
   await page.getByTestId('starter-charmander').click();
+  // Oak's line about your partner, then BLUE slides in for one line.
+  await page.getByTestId('story').click();
   await page.getByTestId('story').click();
   await expect(page.getByTestId('route-viridian-forest')).toBeDisabled();
   await page.getByTestId('route-route-1').click();
@@ -40,18 +42,21 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   const caught = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.campaign())).caught;
   const text = (await page.getByTestId('encounter-text').textContent())!;
   if (text.startsWith('Gotcha')) expect((caught.pidgey ?? 0) + (caught.rattata ?? 0)).toBe(1);
-  // My Team: Charmander as queen, then it plays queen vs Computer.
+  // My Team: the king is your starter's family (§B14), so Charmander plays king vs Computer.
   await page.getByTestId('to-map').click();
   await page.getByTestId('back').click();
   await page.getByTestId('open-team').click();
-  await page.getByTestId('team-q').selectOption('charmander');
+  await expect(page.getByTestId('team-q')).toBeDisabled();
+  await expect(page.getByTestId('why-q')).toHaveText('The queen opens after your first badge.');
+  await page.getByTestId('team-k').selectOption('charmander');
   await page.getByTestId('back').click();
   await page.getByTestId('back').click();
   await page.getByTestId('vs-computer').click();
   await page.getByTestId('team-red').click();
   await page.getByTestId('level-1').click();
-  await expect(page.locator('[data-square="d1"] img')).toHaveAttribute('alt', 'CHARMANDER');
-  await expect(page.locator('[data-square="d8"] img')).toHaveAttribute('alt', 'NIDOQUEEN');
+  await expect(page.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'CHARMANDER');
+  await expect(page.locator('[data-square="d1"] img')).toHaveAttribute('alt', 'CHARIZARD');
+  await expect(page.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDOKING');
 });
 
 test('a C2 save opens on the map; Pokédex counts the starter; Two Players keeps the default teams', async ({ page }) => {

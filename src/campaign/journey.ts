@@ -23,6 +23,8 @@ export interface Place {
   route?: string;
   story?: StringKey[];
   trainers?: Trainer[];
+  /** Gym leader sprite id (C3 gyms; a placeholder card until then). */
+  leader?: string;
 }
 
 export const PLACES = journey.places as Place[];

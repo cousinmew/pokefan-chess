@@ -233,6 +233,18 @@ if (CHECK) {
   writeFileSync(FILES.kanto, JSON.stringify(data.kanto, null, 1) + '\n');
   writeFileSync(FILES.sources, JSON.stringify(data.sources, null, 1) + '\n');
   writeFileSync(FILES.types, JSON.stringify(data.types, null, 1) + '\n');
+  // Team rules data (§B14), shared by My Team and the relay: family, evolved or first stage, final, legendary.
+  const LEGENDARY = ['articuno', 'zapdos', 'moltres', 'mewtwo', 'mew'];
+  const rules = {};
+  for (const id of Object.keys(data.kanto.species)) {
+    rules[id] = {
+      fam: data.kanto.families[id] ?? id,
+      evolved: data.kanto.evolutions.some((e) => e.to === id),
+      final: !data.kanto.evolutions.some((e) => e.from === id),
+      legendary: LEGENDARY.includes(id),
+    };
+  }
+  writeFileSync('worker/src/species-rules.json', JSON.stringify(rules) + '\n');
   const k = data.kanto;
   console.log(`wrote ${FILES.kanto}: ${k.routes.length} routes, ${Object.keys(k.species).length} species, ${Object.keys(k.moves).length} moves, ${k.evolutions.length} evolutions`);
   for (const r of k.routes) console.log(`${r.name}: red ${r.encounters.map((e) => `${e.species} ${e.slots.join('/')}`).join(', ')} | blue ${r.blue.map((e) => `${e.species} ${e.slots.join('/')}`).join(', ')}`);

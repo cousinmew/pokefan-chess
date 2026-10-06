@@ -180,3 +180,37 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .panel.dex-detail .candy { font-weight: 700; }
 .encounter.shiny img { filter: drop-shadow(0 0 6px #f8e030); }
 .shiny-note { color: #c08000; }
+@keyframes slide-in { from { transform: translateX(120%); opacity: 0; } to { transform: none; opacity: 1; } }
+.slide-in { animation: slide-in 400ms ease-out both; }
+.trainer-sprite { width: 80px; height: 80px; display: flex; align-items: flex-end; justify-content: center; flex: none; }
+.trainer-sprite img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.trainer-sprite.big { width: 128px; height: 128px; }
+/* Silhouette fallback when a trainer has no sprite: a head and shoulders drawn in CSS. */
+.trainer-sprite.sil { position: relative; }
+.trainer-sprite.sil::before { content: ''; position: absolute; top: 14%; left: 36%; width: 28%; height: 28%; border-radius: 50%; background: #303030; }
+.trainer-sprite.sil::after { content: ''; position: absolute; bottom: 0; left: 22%; width: 56%; height: 48%; border-radius: 40% 40% 6px 6px; background: #303030; }
+.story-trainer { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%); z-index: 51; }
+.panel.story.inline { position: static; width: 100%; }
+.intro-stage { display: flex; align-items: flex-end; justify-content: center; gap: 12px; min-height: 140px; }
+.intro-mon { animation: slide-in 400ms ease-out both; }
+.name-step { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+.name-step .buttons { flex: 1; }
+@keyframes bounce { 0%, 100% { transform: none; } 40% { transform: translateY(-10px); } }
+.menu-sprite.bounce:hover, .card:active .menu-sprite.bounce, .card:focus-visible .menu-sprite.bounce { animation: bounce 450ms ease-in-out infinite; }
+.menu-sprite, .dex-sprite, .team-sprite { background: center / contain no-repeat; }
+.cards .card { min-width: 0; }
+.cards .card .menu-sprite { width: 100%; max-width: 96px; height: auto; aspect-ratio: 1; }
+.trainer-intro { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.goal-card h3 { margin: 0 0 6px; }
+.goal-card .pips { font-size: 22px; letter-spacing: 6px; margin: 6px 0 2px; }
+.team-notice { margin-bottom: 6px; text-align: left; }
+.why { color: #806020; margin: -2px 0 4px; }
+.lesson-head { display: flex; align-items: center; gap: 8px; }
+.lesson-goal { font-weight: 700; }
+.mini-board { display: grid; grid-template-columns: repeat(8, 30px); grid-template-rows: repeat(8, 30px); border: 3px solid var(--ink); }
+.mini-sq { display: flex; align-items: center; justify-content: center; }
+.mini-sq.light { background: var(--light); }
+.mini-sq.dark { background: var(--dark); }
+.mini-sq.last { box-shadow: inset 0 0 0 3px #f0a020; }
+.mini-sq img { width: 28px; height: 28px; image-rendering: pixelated; }
+.puzzle-banner { white-space: pre-line; font-weight: 700; margin: 0; padding: 4px 6px; background: #fff7d0; border: 2px solid var(--ink); border-radius: 4px; }

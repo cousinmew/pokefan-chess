@@ -27,6 +27,8 @@ export interface PuzzleContext {
   onLeave(): void;
   /** A trainer battle: puzzles advance on their own, so Next is hidden. */
   battle?: boolean;
+  /** The banner above the board for each puzzle, given the side you play (§B14). */
+  banner?: (side: 'w' | 'b') => string;
 }
 
 export class PuzzleGame {
@@ -99,6 +101,7 @@ export class PuzzleGame {
     this.row = pick(rows, this.trainer.rating.r, this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
     const setup = this.run.first();
+    this.refreshBanner();
     this.host.startBoard(this.row[1], this.run.side);
     this.host.app.board.locked = true;
     this.phase = 'setup';
@@ -158,6 +161,11 @@ export class PuzzleGame {
         window.setTimeout(() => g === this.gen && res.reply && this.host.applyMove(res.reply), PUZZLE_REPLY_MS);
       }
     }
+  }
+
+  /** Recomputes the context's banner for the current puzzle. */
+  refreshBanner(): void {
+    if (this.context?.banner && this.run) this.setBanner(this.context.banner(this.run.side));
   }
 
   /** A line above the rating, e.g. a trainer battle's progress. */

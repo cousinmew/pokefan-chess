@@ -95,10 +95,37 @@ describe('151 Pokédex (§B12)', () => {
     store.set('kc:v1:campaign', JSON.stringify({ starter: 'charmander', caught: { charmander: 1, pidgey: 2 }, routes: { 'route-1': { last: [true, true, true, true, true, true, true, true], streak: 2 } }, team: { q: 'pidgey' } }));
     const c = loadCampaign();
     expect(c.caught).toEqual({ charmander: 1, pidgey: 2 });
-    expect(c.team).toEqual({ q: 'pidgey' });
+    // The team rules (§B14) then revert the queen slot: locked until a badge, and Pidgey is not fully evolved.
+    expect(c.team).toEqual({});
+    expect(c.teamNotice).toEqual([['q', 'pidgey']]);
     expect(c.candy).toEqual({ charmander: 3, pidgey: 6 });
     expect(c.seen).toEqual(expect.arrayContaining(['charmander', 'pidgey']));
     expect(c.journey.cleared).toContain('route-1');
     expect(c.v).toBe(2);
+  });
+});
+
+describe('team rules (§B14)', () => {
+  it('a real C2b save with an ineligible team migrates slot by slot, with one notice', async () => {
+    const { whyNot } = await import('../../worker/src/team');
+    // Shape and values of a save written by 07fb1c0 (C2b).
+    store.set('kc:v1:campaign', JSON.stringify({
+      v: 2, name: 'RED', starter: 'charmander', caught: { charmander: 2, charmeleon: 1, pidgey: 4, pidgeotto: 1, rattata: 2, mewtwo: 1 }, shiny: { pidgey: 1 },
+      oak: { pidgey: 3 }, candy: { charmander: 4, pidgey: 10, rattata: 6 }, seen: ['charmander', 'charmeleon', 'pidgey', 'pidgeotto', 'rattata', 'mewtwo'],
+      caughtAt: { charmander: 'pallet', pidgey: 'route-1' }, routes: { 'route-1': { last: [true, true], streak: 2, shinyStreak: 2 } },
+      journey: { cleared: ['route-1'], beaten: ['r1-toby', 'r1-mina'], visited: ['route-1'] },
+      team: { k: 'charmeleon', q: 'charmander', r: 'pidgeotto', n: 'mewtwo', p: 'pidgey:s:1', bLight: 'rattata' }, playMs: 120000,
+    }));
+    const c = loadCampaign();
+    expect(c.team).toEqual({ k: 'charmeleon', r: 'pidgeotto', p: 'pidgey:s:1' });
+    expect(c.teamNotice).toEqual([['q', 'charmander'], ['n', 'mewtwo'], ['bLight', 'rattata']]);
+    expect(c.caught.mewtwo).toBe(1);
+    // Saved once: the next load keeps the team and does not repeat the notice list.
+    expect(JSON.parse(store.get('kc:v1:campaign')!).teamRules).toBe(1);
+    expect(whyNot('q', 'mewtwo', 'charmander', 1)).toBeNull();
+    expect(whyNot('n', 'tauros', 'charmander', 1)).toBeNull();
+    expect(whyNot('p', 'tauros', 'charmander', 1)).toBeNull();
+    expect(whyNot('k', 'squirtle', 'charmander', 1)).toBe('king');
+    expect(whyNot('k', 'blastoise', null, 1)).toBeNull();
   });
 });
