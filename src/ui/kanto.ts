@@ -46,10 +46,16 @@ export function trainerSprite(sprite: string | undefined, cls = 'trainer-sprite'
   img.dataset.trainer = sprite;
   img.onerror = () => {
     img.remove();
+    box.classList.remove('loading');
     box.classList.add('sil');
   };
   // MEIR is original art shipped with the game (§B18 item 7); every other trainer is fetched at build time.
   img.src = trainerSrc(sprite);
+  // A silhouette stands in until the sprite arrives (§B22 item 1).
+  if (!img.complete) {
+    box.classList.add('loading');
+    img.addEventListener('load', () => box.classList.remove('loading'), { once: true });
+  }
   box.append(img);
   return box;
 }

@@ -27,7 +27,9 @@ async function inView(page: Page, testid: string, what: string): Promise<void> {
 async function checkGame(page: Page, what: string): Promise<void> {
   await page.waitForTimeout(150);
   await noScroll(page, what);
-  for (const id of ['board', 'plate-top', 'plate-bottom', 'menu', 'takeback', 'text-main']) await inView(page, id, what);
+  for (const id of ['board', 'plate-top', 'plate-bottom', 'menu', 'takeback', 'text-main', 'start-button']) await inView(page, id, what);
+  // START sits in the top bar row and is at least 44 px tall (§B22 item 3).
+  expect((await page.getByTestId('start-button').boundingBox())!.height, `${what}: START height`).toBeGreaterThanOrEqual(44);
   const board = (await page.getByTestId('board').boundingBox())!;
   expect(Math.min(board.width, board.height), `${what}: board size`).toBeGreaterThanOrEqual(Math.min(280, page.viewportSize()!.width - 16));
 }

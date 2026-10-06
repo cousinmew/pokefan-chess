@@ -850,5 +850,15 @@
   "feedback.fun": "Divertente!",
   "feedback.hint": "Altro? (facoltativo, 200 lettere). Non scrivere il tuo nome.",
   "feedback.thanks": "Grazie! Leggiamo ogni messaggio.",
-  "feedback.failed": "Invio non riuscito. Riprova più tardi."
+  "feedback.failed": "Invio non riuscito. Riprova più tardi.",
+  "newgame.back": "◀ INDIETRO",
+  "start.play": "GIOCA A SCACCHI",
+  "startmenu.journey": "VIAGGIO",
+  "startmenu.computer": "CONTRO IL PC",
+  "startmenu.friend": "CONTRO UN AMICO",
+  "startmenu.online": "ONLINE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPZIONI",
+  "startmenu.quit": "SALVA ED ESCI",
+  "quick.note": "Gioca senza salvataggio: non si salva nulla e il tuo viaggio resta com'è."
 }

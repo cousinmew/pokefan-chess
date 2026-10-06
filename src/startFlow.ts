@@ -7,7 +7,7 @@ import type { Color, TeamSkin } from './board/pieces';
 import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
-import { addProfile, deleteProfile, isFull, needsPicker, renameProfile, replaceProfile, slotCount, summaries, switchTo, takeIntent } from './profiles';
+import { abandonNewGame, addProfile, creatingFrom, deleteProfile, isFull, needsPicker, renameProfile, replaceProfile, slotCount, summaries, switchTo, takeIntent } from './profiles';
 import { currentSlot, loadFrom } from './store/persist';
 import { button, el, screen } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
@@ -28,6 +28,8 @@ export interface StartHost {
   hasCart(): boolean;
   /** NEW GAME after its cartridge is chosen: BLUE opens Oak's intro, YELLOW its home. */
   newGame(): void;
+  /** PLAY CHESS (§B22 item 4): a guest game, nothing saved. */
+  quickPlay(kind: 'computer' | 'friend' | 'online'): void;
 }
 
 /** A save as a Two Players side: its trainer, name and team (null slot = guest). */
@@ -55,6 +57,7 @@ export class StartFlow {
   /** Runs once the splash is dismissed. Tests (?debug=1) skip the start menu unless they ask for it with &menu. */
   afterSplash(): void {
     const intent = takeIntent();
+    if (intent === 'menu') return this.host.hasCart() ? this.menu() : this.shelf(() => this.menu());
     if (intent === 'continue' && this.host.hasCart()) return this.host.resume();
     if (intent === 'newgame') return this.host.hasCart() ? this.host.newGame() : this.shelf(() => this.host.newGame());
     if (this.params.has('debug') && !this.params.has('menu')) {
@@ -63,6 +66,23 @@ export class StartFlow {
     }
     if (!this.host.hasCart()) return this.shelf(() => this.menu());
     this.menu();
+  }
+
+  /** BACK out of a NEW GAME until the name is confirmed (§B22 item 2): a "◀ BACK" in the top left of the shelf,
+   * Oak's intro and the name step, plus Escape, and B except on the shelf (where B is part of the secret code). */
+  decorate(view: HTMLElement): void {
+    const id = view.dataset.testid ?? '';
+    if (creatingFrom() === null || !['screen-shelf', 'screen-intro', 'screen-name'].includes(id)) return;
+    view.prepend(button('newgame.back', abandonNewGame, 'newgame-back', 'newgame-back'));
+    view.classList.add('has-newgame-back');
+    const onKey = (e: KeyboardEvent) => {
+      if (!view.isConnected) return window.removeEventListener('keydown', onKey, true);
+      if (e.key === 'Escape' || (id !== 'screen-shelf' && (e.code === 'KeyB' || e.key.toLowerCase() === 'b'))) {
+        e.preventDefault();
+        abandonNewGame();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
   }
 
   shelf(then: () => void): void {
@@ -78,9 +98,19 @@ export class StartFlow {
     const items: MenuItem[] = [];
     const me = this.current();
     if (this.host.hasCart()) items.push({ id: 'continue', run: () => this.host.resume() });
-    items.push({ id: 'new', run: () => this.newGame() }, { id: 'option', run: () => this.host.settings(() => this.menu()) });
+    items.push({ id: 'new', run: () => this.newGame() }, { id: 'play', run: () => this.quick() }, { id: 'option', run: () => this.host.settings(() => this.menu()) });
     if (slotCount() > 1) items.push({ id: 'switch', run: () => this.players(() => this.menu()) });
     this.host.show(startMenu(items, me && this.host.hasCart() ? summaryBox(me) : null));
+  }
+
+  /** PLAY CHESS (§B22 item 4): straight into a game as a guest. Nothing is saved; the Journey is never touched. */
+  quick(): void {
+    const list = el('div', 'gb-box start-list');
+    for (const kind of ['computer', 'friend', 'online'] as const) {
+      const b = button(`startmenu.${kind}`, () => this.host.quickPlay(kind), `quick-${kind}`, 'start-item');
+      list.append(b);
+    }
+    this.host.show(screen('quick', el('h2', '', 'start.play'), list, el('p', 'small', 'quick.note'), button('back', () => this.menu(), 'back', 'secondary')));
   }
 
   /** SWITCH TRAINER (and C6's "Who's playing?"): one summary per save; picking one loads it and carries on. */

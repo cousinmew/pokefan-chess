@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -14,10 +14,10 @@ import { Game, type Outcome } from './game/chess';
 import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine, youngsterMove } from './ai/engine';
 import { TextBox } from './ui/textBox';
-import { button, el, toast } from './ui/dom';
+import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
-import { settingsScreen } from './ui/settings';
-import { bootProfiles, currentSlot, load, loadFrom, remove, save, saveTo } from './store/persist';
+import { settingsScreen, type CartridgeSettings } from './ui/settings';
+import { bootProfiles, currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -33,11 +33,14 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { slotCount, switchTo } from './profiles';
+import { endCreating, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
+import { setCssVars } from './ui/cssVars';
+import { StartButton, type StartActions } from './ui/startButton';
+import { meirJoins } from './look';
 import { feedbackButton } from './ui/feedbackPanel';
 import { reviewFromUrl } from './ui/reviewMode';
 import { Fitter } from './ui/fit';
@@ -51,7 +54,7 @@ import { applyLooks, computerTeam, ladderFaces, myLook, standing, storyStage } f
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
-import { loadCampaign, saveCampaign, STARTERS } from './campaign/kanto';
+import { loadCampaign, STARTERS } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { normalizeCode } from './net/online';
@@ -101,19 +104,6 @@ export interface App {
 const QUICK_DEFAULT: Setup = { mode: 'computer', human: 'w', level: 1 };
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
-function setCssVars(): void {
-  const s = document.documentElement.style;
-  s.setProperty('--gutter', `${BOARD_SIDE_GUTTER_PX}px`);
-  s.setProperty('--chrome', `${BOARD_CHROME_PX}px`);
-  s.setProperty('--min-sq', `${MIN_SQUARE_PX}px`);
-  s.setProperty('--piece-scale', String(PIECE_SCALE));
-  s.setProperty('--dot', String(LEGAL_DOT_SIZE));
-  s.setProperty('--glyph', String(GLYPH_SIZE));
-  s.setProperty('--pulse', `${CHECK_PULSE_MS}ms`);
-  s.setProperty('--hop', `${SELECT_HOP_PX}px`);
-  s.setProperty('--end-anim', `${END_ANIM_MS}ms`);
-}
-
 function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
@@ -122,7 +112,7 @@ function boot(): App {
   registerShell();
   // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
   warmHubSheet();
-  preloadNow(STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)]), releaseIdle);
+  preloadNow([trainerSrc('oak'), ...STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)])], releaseIdle); // Oak first (§B22 item 1)
   // An animated WebP the browser cannot show falls back to its GIF.
   document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
   applyLanguage(reviewFromUrl() ?? savedLang(), false); // ?review=<lang>: translation review mode (§B21 item 3)
@@ -207,6 +197,9 @@ function boot(): App {
   turnEl.dataset.testid = 'turn';
   const backBtn = button('game.takeBack', () => takeBack(), 'takeback');
   header.append(button('game.menu', () => goTitle(), 'menu'), turnEl, backBtn);
+  // START (§B22 item 3), in the top bar on the game screen, in the corner or the top row elsewhere.
+  const startBtn = new StartButton(() => startActions(), () => yellow() || !!journey.campaign.starter || isGuest());
+  header.append(startBtn.inBar);
   const gameView = el('div', 'game-view');
   gameView.dataset.testid = 'screen-game';
   const main = el('main');
@@ -228,7 +221,7 @@ function boot(): App {
       text.show([{ key }]);
       music.stop();
       music.play(key.endsWith('Win') ? 'victory' : 'defeat');
-      if (key.endsWith('Win')) journey.onlineWin();
+      if (key.endsWith('Win') && !isGuest()) journey.onlineWin();
       showEnd({ key });
     },
     say: (key) => text.plain(fmt(key)),
@@ -311,19 +304,13 @@ function boot(): App {
   plates.attachText(text.el); // your plate and the text box are one bar (change A)
   const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar] });
   /** Story stage and trainers (§B18 items 5 and 8). Online, each side brings its own look from the relay. */
-  const look = () => myLook(!yellow(), journey.campaign.badges.length);
+  const look = () => (isGuest() ? { stage: 2 as const, trainer: 'red' as const } : myLook(!yellow(), journey.campaign.badges.length));
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
-    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks, duo }, (k) => fmt(k as StringKey)), board.orientation);
+    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo }, (k) => fmt(k as StringKey)), board.orientation);
   const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
   const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey), journey.campaign.starter);
-  const unlockMeir = () => {
-    save('trainer', 'meir');
-    journey.campaign = { ...journey.campaign, name: 'MEIR' };
-    saveCampaign(journey.campaign);
-    sound.shimmer();
-    toast('secret.meir');
-  };
+  const unlockMeir = () => (journey.campaign = meirJoins(journey.campaign));
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
   function setCart(c: Cartridge): void {
@@ -337,30 +324,17 @@ function boot(): App {
   if (cart) setCart(cart);
 
   function showSettings(back: () => void = goTitle): void {
-    show(
-      settingsScreen(
-        settings,
-        () => {
-          save('settings', settings);
-          applySettings();
-        },
-        back,
-        {
-          lang: currentLang(),
-          onLang: (l) => (applyLanguage(l), showSettings(back)),
-          cartridge: cart ?? 'blue',
-          onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()),
-        },
-        [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()],
-      ),
-    );
+    const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) };
+    const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()];
+    show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
   }
 
+
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
-  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, newGame: () => (yellow() ? goTitle() : journey.open()) });
+  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()) });
   /** Two Players: each side as a save or a guest when the device has more than one (change C). */
   let duo: Record<Color, DuoSide> | null = null;
-  const twoPlayers = () => (slotCount() > 1 ? flow.duo((w, b) => ((duo = { w: duoSide(w, 'w'), b: duoSide(b, 'b') }), startGame({ mode: 'two-players', human: 'w', level: 1 })), goTitle) : startGame({ mode: 'two-players', human: 'w', level: 1 }));
+  const twoPlayers = () => (slotCount() > 1 && !isGuest() ? flow.duo((w, b) => ((duo = { w: duoSide(w, 'w'), b: duoSide(b, 'b') }), startGame({ mode: 'two-players', human: 'w', level: 1 })), goTitle) : startGame({ mode: 'two-players', human: 'w', level: 1 }));
   const langBtn = () => langButton(currentLang(), (l) => (applyLanguage(l), goTitle()));
 
   const drawReview = (frame: Frame) => drawFrame(reviewLayer, boardWrap, board, frame);
@@ -375,6 +349,8 @@ function boot(): App {
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
     document.body.dataset.screen = view.dataset.testid ?? ''; // attached to feedback
+    flow.decorate(view); // BACK during an unnamed NEW GAME (§B22 item 2)
+    startBtn.place(view);
     if (view === gameView) fitter.start();
     else fitter.stop();
     window.scrollTo(0, 0);
@@ -398,7 +374,30 @@ function boot(): App {
     goTitle();
   }
 
+  /** VS COMPUTER from the hub, START or PLAY CHESS: YELLOW's big levels, or BLUE's team then level. */
+  const vsComputer = () => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)));
+  /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
+  function quit(): void {
+    online.close();
+    puzzle.stop();
+    path.stop();
+    leaveGuest();
+    journey.campaign = loadCampaign();
+    flow.menu();
+  }
+  /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */
+  const startActions = (): StartActions => ({
+    ...(!yellow() && !isGuest() ? { journey: () => journey.open() } : {}),
+    computer: vsComputer,
+    friend: twoPlayers,
+    ...(!yellow() ? { online: () => showOnline() } : {}),
+    ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, goTitle, true)) : journey.openFromHub('dex', goTitle)) } : {}),
+    option: () => showSettings(),
+    quit,
+  });
+
   function goTitle(): void {
+    if (isGuest()) return quit(); // PLAY CHESS ends at the start menu, never at a save's hub (§B22 item 4)
     duo = null;
     journey.campaign = loadCampaign(); // YELLOW's path and team write the save directly
     online.close();
@@ -412,7 +411,7 @@ function boot(): App {
         lang: langBtn(),
         unlock: unlockMeir,
         // Play opens the level picker (§B18 item 4), Youngster first.
-        play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))),
+        play: vsComputer,
         learn: () => path.open(),
         friend: twoPlayers,
         team: () => yellowMode.team(),
@@ -437,7 +436,7 @@ function boot(): App {
       dex: () => journey.openFromHub('dex', goTitle),
       team: () => journey.openFromHub('team', goTitle),
       card: () => journey.openFromHub('card', goTitle),
-      computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)),
+      computer: vsComputer,
       twoPlayers,
       kanto: () => journey.open(),
       howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
@@ -454,7 +453,7 @@ function boot(): App {
     const theirs = setup.mode === 'computer' ? { [cpu]: computerTeam(setup.level, cpu, journey.campaign.starter) } : {};
     if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
     else if (ys) setSkins({ ...theirs, ...ys });
-    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: journey.campaign.team });
+    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : journey.campaign.team });
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
@@ -662,7 +661,7 @@ function boot(): App {
     music.stop();
     if (app.mode === 'challenge') return endChallenge(drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human));
     // An online win evolves trade Pokémon on your team (§B12).
-    if (app.mode === 'online' && end.winner === app.human) journey.onlineWin();
+    if (app.mode === 'online' && end.winner === app.human && !isGuest()) journey.onlineWin();
     if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
     const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
     if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);

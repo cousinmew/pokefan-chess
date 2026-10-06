@@ -7,7 +7,10 @@ import { setStages } from './board/pieces';
 import { ROCKET_STAGE_TRAINERS, stageFor, stageSkin, type Stage } from './board/stages';
 import { loadout } from './board/loadouts';
 import trainers from './data/trainers.json';
-import { load } from './store/persist';
+import { load, save } from './store/persist';
+import { saveCampaign, type Campaign } from './campaign/kanto';
+import { sound } from './audio/audio';
+import { toast } from './ui/dom';
 
 export type PlayerTrainer = 'red' | 'meir';
 const PEOPLE = trainers.people as Record<string, string>;
@@ -96,3 +99,14 @@ export function ladderFaces(human: Color, myName: string, name: (key: string) =>
 
 /** The computer's team for a level and side (change B); BLUE answers your starter. */
 export const computerTeam = (level: number, computer: Color, starter?: string | null): TeamSkin => loadout(levelTrainer(level, computer), starter) ?? {};
+
+/** The secret code worked (§B18 item 7): MEIR is this player's trainer and name. Returns the saved campaign. */
+export function meirJoins(c: Campaign): Campaign {
+  save('trainer', 'meir');
+  const next = { ...c, name: 'MEIR' };
+  saveCampaign(next);
+  sound.shimmer();
+  toast('secret.meir');
+  return next;
+}
+

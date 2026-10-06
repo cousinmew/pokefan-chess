@@ -850,5 +850,15 @@
   "feedback.fun": "Macht Spaß!",
   "feedback.hint": "Noch etwas? (freiwillig, 200 Buchstaben). Schreib nicht deinen Namen.",
   "feedback.thanks": "Danke! Wir lesen jede Nachricht.",
-  "feedback.failed": "Senden hat nicht geklappt. Versuch es später noch mal."
+  "feedback.failed": "Senden hat nicht geklappt. Versuch es später noch mal.",
+  "newgame.back": "◀ ZURÜCK",
+  "start.play": "SCHACH SPIELEN",
+  "startmenu.journey": "REISE",
+  "startmenu.computer": "GEGEN COMPUTER",
+  "startmenu.friend": "GEGEN FREUND",
+  "startmenu.online": "ONLINE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPTIONEN",
+  "startmenu.quit": "SPEICHERN & BEENDEN",
+  "quick.note": "Spielen ohne Spielstand: Nichts wird gespeichert, deine Reise bleibt, wie sie ist."
 }

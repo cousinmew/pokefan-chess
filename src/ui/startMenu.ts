@@ -7,7 +7,7 @@ import { mon, trainerSprite } from './kanto';
 import type { SlotSummary } from './profiles';
 
 export interface MenuItem {
-  id: 'continue' | 'new' | 'option' | 'switch';
+  id: 'continue' | 'new' | 'play' | 'option' | 'switch';
   run(): void;
 }
 

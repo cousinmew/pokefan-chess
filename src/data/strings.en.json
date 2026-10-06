@@ -849,5 +849,15 @@
   "feedback.fun": "Fun!",
   "feedback.hint": "Anything else? (optional, 200 letters). Don't write your name.",
   "feedback.thanks": "Thanks! We read every note.",
-  "feedback.failed": "Couldn't send it. Try again later."
+  "feedback.failed": "Couldn't send it. Try again later.",
+  "newgame.back": "◀ BACK",
+  "start.play": "PLAY CHESS",
+  "startmenu.journey": "JOURNEY",
+  "startmenu.computer": "VS COMPUTER",
+  "startmenu.friend": "VS FRIEND",
+  "startmenu.online": "ONLINE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPTION",
+  "startmenu.quit": "SAVE & QUIT",
+  "quick.note": "Play without a save: nothing is kept, and your Journey stays as it is."
 }

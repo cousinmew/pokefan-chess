@@ -850,5 +850,15 @@
   "feedback.fun": "好玩！",
   "feedback.hint": "还有别的吗？（选填，最多200个字）不要写你的名字。",
   "feedback.thanks": "谢谢！每条留言我们都会看。",
-  "feedback.failed": "发送失败。请稍后再试。"
+  "feedback.failed": "发送失败。请稍后再试。",
+  "newgame.back": "◀ 返回",
+  "start.play": "下象棋",
+  "startmenu.journey": "旅程",
+  "startmenu.computer": "对战电脑",
+  "startmenu.friend": "对战朋友",
+  "startmenu.online": "在线",
+  "startmenu.dex": "图鉴",
+  "startmenu.option": "设置",
+  "startmenu.quit": "保存并退出",
+  "quick.note": "不存档游玩：什么都不会保存，你的旅程保持不变。"
 }

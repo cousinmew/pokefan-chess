@@ -850,5 +850,15 @@
   "feedback.fun": "Весело!",
   "feedback.hint": "Что-нибудь ещё? (необязательно, до 200 букв). Не пиши своё имя.",
   "feedback.thanks": "Спасибо! Мы читаем каждое сообщение.",
-  "feedback.failed": "Не получилось отправить. Попробуй позже."
+  "feedback.failed": "Не получилось отправить. Попробуй позже.",
+  "newgame.back": "◀ НАЗАД",
+  "start.play": "ИГРАТЬ В ШАХМАТЫ",
+  "startmenu.journey": "ПУТЕШЕСТВИЕ",
+  "startmenu.computer": "ПРОТИВ КОМПЬЮТЕРА",
+  "startmenu.friend": "ПРОТИВ ДРУГА",
+  "startmenu.online": "ОНЛАЙН",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "НАСТРОЙКИ",
+  "startmenu.quit": "СОХРАНИТЬ И ВЫЙТИ",
+  "quick.note": "Игра без сохранения: ничего не запоминается, твоё путешествие не меняется."
 }

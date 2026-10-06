@@ -850,5 +850,15 @@
   "feedback.fun": "Divertido!",
   "feedback.hint": "Mais alguma coisa? (opcional, 200 letras). Não escreva seu nome.",
   "feedback.thanks": "Obrigado! Lemos todas as mensagens.",
-  "feedback.failed": "Não deu para enviar. Tente de novo mais tarde."
+  "feedback.failed": "Não deu para enviar. Tente de novo mais tarde.",
+  "newgame.back": "◀ VOLTAR",
+  "start.play": "JOGAR XADREZ",
+  "startmenu.journey": "JORNADA",
+  "startmenu.computer": "CONTRA O PC",
+  "startmenu.friend": "CONTRA AMIGO",
+  "startmenu.online": "ONLINE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPÇÕES",
+  "startmenu.quit": "SALVAR E SAIR",
+  "quick.note": "Jogue sem salvar: nada fica guardado e sua jornada continua igual."
 }

@@ -850,5 +850,15 @@
   "feedback.fun": "たのしい！",
   "feedback.hint": "ほかにある？（かかなくてもいいよ。200もじまで）なまえはかかないでね。",
   "feedback.thanks": "ありがとう！ぜんぶよむよ。",
-  "feedback.failed": "おくれなかった。あとでもういちどためしてね。"
+  "feedback.failed": "おくれなかった。あとでもういちどためしてね。",
+  "newgame.back": "◀ もどる",
+  "start.play": "チェスで あそぶ",
+  "startmenu.journey": "たび",
+  "startmenu.computer": "コンピュータと",
+  "startmenu.friend": "ともだちと",
+  "startmenu.online": "オンライン",
+  "startmenu.dex": "ずかん",
+  "startmenu.option": "せってい",
+  "startmenu.quit": "セーブして おわる",
+  "quick.note": "セーブなしで あそぶよ。たびの きろくは かわらないよ。"
 }

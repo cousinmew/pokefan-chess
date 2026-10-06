@@ -5,6 +5,7 @@ import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TIC
 import { defaultSpecies, SPECIES } from '../board/pieces';
 import { stageEvolutions, stageFor } from '../board/stages';
 import { myTrainer, trainerSpriteId } from '../look';
+import { endCreating } from '../profiles';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
@@ -81,6 +82,7 @@ export class JourneyGame {
       };
       this.host.show(
         nameScreen((name) => {
+          endCreating(); // the save exists from here; BACK is gone (§B22 item 2)
           if (name === 'MEIR') meir();
           this.set({ ...this.campaign, name });
           this.host.show(

@@ -84,9 +84,16 @@ export function bootProfiles(): ProfileMeta {
   return m;
 }
 
-export const load = <T>(key: string): T | null => parse<T>(get(prefix + key));
-export const save = (key: string, value: unknown) => set(prefix + key, JSON.stringify(value));
-export const remove = (key: string) => drop(prefix + key);
+// PLAY CHESS without a save (§B22 item 4): a guest reads and writes only here, in memory. Nothing reaches storage, so
+// the player's saves (Journey included) are never touched.
+let guest: Map<string, string> | null = null;
+export const isGuest = () => guest !== null;
+export const enterGuest = () => void (guest = new Map());
+export const leaveGuest = () => void (guest = null);
+
+export const load = <T>(key: string): T | null => parse<T>(guest ? (guest.get(key) ?? null) : get(prefix + key));
+export const save = (key: string, value: unknown) => (guest ? void guest.set(key, JSON.stringify(value)) : set(prefix + key, JSON.stringify(value)));
+export const remove = (key: string) => (guest ? void guest.delete(key) : drop(prefix + key));
 export const loadFrom = <T>(n: number, key: string): T | null => parse<T>(get(profilePrefix(n) + key));
 export const saveTo = (n: number, key: string, value: unknown) => set(profilePrefix(n) + key, JSON.stringify(value));
 

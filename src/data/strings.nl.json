@@ -850,5 +850,15 @@
   "feedback.fun": "Leuk!",
   "feedback.hint": "Nog iets? (niet verplicht, 200 letters). Schrijf je naam er niet bij.",
   "feedback.thanks": "Bedankt! We lezen elk bericht.",
-  "feedback.failed": "Versturen lukte niet. Probeer het later nog eens."
+  "feedback.failed": "Versturen lukte niet. Probeer het later nog eens.",
+  "newgame.back": "◀ TERUG",
+  "start.play": "SCHAKEN",
+  "startmenu.journey": "REIS",
+  "startmenu.computer": "TEGEN COMPUTER",
+  "startmenu.friend": "TEGEN VRIEND",
+  "startmenu.online": "ONLINE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPTIES",
+  "startmenu.quit": "OPSLAAN & STOPPEN",
+  "quick.note": "Spelen zonder opslag: er wordt niets bewaard en je reis blijft zoals hij is."
 }

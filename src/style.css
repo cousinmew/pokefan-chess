@@ -643,3 +643,24 @@ html.fit-wide .legend-strip { max-height: calc(var(--sq) * 8 - 200px); }
 .feedback-form textarea { min-height: 56px; font: inherit; box-sizing: border-box; width: 100%; }
 .feedback-kinds { display: flex; gap: 6px; }
 .feedback-kinds button { flex: 1; }
+/* §B22 item 1: a silhouette while a trainer sprite is still loading. */
+.trainer-sprite.loading { position: relative; }
+.trainer-sprite.loading img { opacity: 0; }
+.trainer-sprite.loading::before { content: ''; position: absolute; top: 14%; left: 36%; width: 28%; height: 28%; border-radius: 50%; background: #303030; }
+.trainer-sprite.loading::after { content: ''; position: absolute; top: 40%; left: 26%; width: 48%; height: 54%; border-radius: 40% 40% 8% 8%; background: #303030; }
+
+/* §B22 item 3: START, Gen 1 style, in the top bar (never costing board space) or the top corner. */
+.start-btn { flex: none; min-height: 44px; min-width: 64px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 900; letter-spacing: 1px; color: var(--ink); background: #f8f8f0; border: 4px double var(--ink); border-radius: 2px; cursor: pointer; }
+.start-btn[hidden] { display: none; }
+.start-btn.corner { position: fixed; top: 6px; inset-inline-end: 6px; z-index: 25; }
+.hub-top > .start-btn, .yellow-top > .start-btn { flex: none; }
+header.game-header .turn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.start-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.25); }
+.start-pop { position: absolute; top: 56px; inset-inline-end: 8px; width: min(300px, calc(100vw - 16px)); max-height: calc(100dvh - 72px); overflow: auto; }
+.start-pop .start-item { width: 100%; font: inherit; font-weight: 900; font-size: 18px; min-height: 44px; display: flex; align-items: center; gap: 8px; border: none; background: none; text-align: start; cursor: pointer; }
+.start-pop .start-item.on .start-cursor, .start-pop .start-item:focus-visible .start-cursor, .start-pop .start-item:hover .start-cursor { visibility: visible; }
+/* §B22 item 2: BACK out of an unnamed NEW GAME, top left (top right in RTL). */
+.menu button.newgame-back { position: fixed; top: 8px; inset-inline-start: 8px; z-index: 25; min-height: 44px; padding: 0 12px; font-size: 14px; }
+.screen-quick .start-list .start-item { min-height: 56px; }
+html.fit header.game-header .start-btn { min-height: 44px; } /* START stays at least 44 px tall (§B22 item 3) */
+.menu.has-newgame-back { padding-top: 60px; }

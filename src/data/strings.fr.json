@@ -850,5 +850,15 @@
   "feedback.fun": "Amusant !",
   "feedback.hint": "Autre chose ? (facultatif, 200 lettres). N'écris pas ton nom.",
   "feedback.thanks": "Merci ! On lit chaque message.",
-  "feedback.failed": "Envoi impossible. Réessaie plus tard."
+  "feedback.failed": "Envoi impossible. Réessaie plus tard.",
+  "newgame.back": "◀ RETOUR",
+  "start.play": "JOUER AUX ÉCHECS",
+  "startmenu.journey": "VOYAGE",
+  "startmenu.computer": "CONTRE L'ORDI",
+  "startmenu.friend": "CONTRE UN AMI",
+  "startmenu.online": "EN LIGNE",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPTIONS",
+  "startmenu.quit": "SAUVER ET QUITTER",
+  "quick.note": "Joue sans sauvegarde : rien n'est gardé, et ton voyage ne change pas."
 }

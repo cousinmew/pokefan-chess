@@ -850,5 +850,15 @@
   "feedback.fun": "¡Divertido!",
   "feedback.hint": "¿Algo más? (opcional, 200 letras). No escribas tu nombre.",
   "feedback.thanks": "¡Gracias! Leemos todos los mensajes.",
-  "feedback.failed": "No se pudo enviar. Inténtalo más tarde."
+  "feedback.failed": "No se pudo enviar. Inténtalo más tarde.",
+  "newgame.back": "◀ VOLVER",
+  "start.play": "JUGAR AJEDREZ",
+  "startmenu.journey": "VIAJE",
+  "startmenu.computer": "CONTRA LA COMPU",
+  "startmenu.friend": "CONTRA UN AMIGO",
+  "startmenu.online": "EN LÍNEA",
+  "startmenu.dex": "POKéDEX",
+  "startmenu.option": "OPCIONES",
+  "startmenu.quit": "GUARDAR Y SALIR",
+  "quick.note": "Juega sin partida guardada: no se guarda nada y tu viaje sigue igual."
 }

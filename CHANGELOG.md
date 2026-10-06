@@ -122,3 +122,10 @@
 - Puzzle reviews show the right move on the board, after your own move, in plain words, with a REPLAY button and an optional coordinates setting.
 - The first tap no longer stalls on slow phones.
 - Send feedback from OPTION, and translators can suggest better wordings with a review link.
+
+## 2.10.0 (start flow)
+
+- Professor Oak appears at once when a new game starts.
+- Change your mind during NEW GAME: BACK returns to the start menu with nothing saved.
+- A START button on every screen after the intro: Journey, VS Computer, VS Friend, Online, Pokédex, Option, Save & Quit.
+- PLAY CHESS: a quick game without a save.
