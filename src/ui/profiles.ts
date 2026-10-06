@@ -12,6 +12,8 @@ export interface SlotSummary {
   n: number;
   name: string;
   cart: 'yellow' | 'blue' | null;
+  /** The player's trainer sprite id (RED, or MEIR). */
+  trainer: string;
   lang: string;
   badges: number;
   dex: number;
@@ -45,7 +47,7 @@ function slotCard(s: SlotSummary, current: boolean, a: ProfileActions): HTMLElem
   const sub = el('small');
   sub.textContent = [s.cart ? fmt(`shelf.${s.cart}.name` as StringKey) : '', s.lang.toUpperCase(), fmt('profiles.badges', { n: String(s.badges) }), fmt('profiles.dex', { n: String(s.dex) })].filter(Boolean).join(' · ');
   info.append(name, sub);
-  pick.append(s.cart === 'yellow' ? mon('pikachu', 'profile-sprite', false, false, true) : trainerSprite('red-gen1', 'trainer-sprite profile-sprite'), info);
+  pick.append(s.cart === 'yellow' ? mon('pikachu', 'profile-sprite', false, false, true) : trainerSprite(s.trainer, 'trainer-sprite profile-sprite'), info);
   pick.onclick = () => a.pick(s.n);
   const tools = el('div', 'profile-tools');
   const rename = button('profiles.rename', () => tools.replaceChildren(nameRow((nm) => a.rename(s.n, nm))), `slot-rename-${s.n}`, 'secondary');

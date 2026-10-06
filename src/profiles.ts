@@ -31,6 +31,7 @@ export function summaries(): SlotSummary[] {
       n,
       name: c?.name || fmt('profiles.slot', { n: String(n) }),
       cart: loadFrom<'yellow' | 'blue'>(n, 'cartridge'),
+      trainer: loadFrom<string>(n, 'trainer') === 'meir' ? 'meir' : 'red-gen1',
       lang: loadFrom<string>(n, 'lang') ?? 'en',
       badges: c?.badges?.length ?? 0,
       dex: DEX.filter((s) => c?.caught?.[s]).length,

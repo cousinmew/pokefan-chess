@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Online game controller. The relay is the source of truth (V4): local moves are sent, and the board only
 // changes when a `state` arrives. A capture plays its battle locally on both screens from the state diff.
-import { CODE_RE, REACTION_COUNT, type Seat, type ServerMsg, type Skin } from '../../worker/src/protocol';
+import { CODE_RE, REACTION_COUNT, type Seat, type ServerMsg, type Skin, type Look } from '../../worker/src/protocol';
 import type { StringKey } from '../game/text';
 import { button, el, toast } from '../ui/dom';
 import { message, waitingRoom } from '../ui/online';
@@ -21,8 +21,10 @@ export interface OnlineHost {
   say(key: StringKey): void;
   /** Your My Team skins, sent when joining. */
   mySkin(): Skin;
-  /** Applies both players' skins and redraws. */
-  applySkins(skins: Partial<Record<Seat, Skin>>): void;
+  /** Your story stage and trainer (§B18 items 5 and 8), sent when joining. */
+  myLook(): Look;
+  /** Applies both players' skins and looks, and redraws. */
+  applySkins(skins: Partial<Record<Seat, Skin>>, looks: Partial<Record<Seat, Look>>): void;
 }
 
 export class OnlineGame {
@@ -52,7 +54,7 @@ export class OnlineGame {
     this.queue = [];
     this.applied = [];
     this.host.show(message('online.joining', () => this.leave(), { code }));
-    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'), this.host.mySkin());
+    this.client = new OnlineClient(code, (m) => this.onMsg(m), (up) => !up && this.started && this.host.say('online.reconnecting'), this.host.mySkin(), this.host.myLook());
   }
 
   close(): void {
@@ -130,7 +132,7 @@ export class OnlineGame {
 
   private onMsg(msg: ServerMsg): void {
     if (msg.type === 'state') {
-      this.host.applySkins(msg.skins ?? {});
+      this.host.applySkins(msg.skins ?? {}, msg.looks ?? {});
       this.queue.push(msg);
       this.drain();
     } else if (msg.type === 'reject') {

@@ -3,7 +3,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { Chess } from 'chess.js';
 import { enforce } from './team';
-import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin } from './protocol';
+import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin, type Look } from './protocol';
 
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
@@ -22,6 +22,7 @@ interface Data {
   rematch: Seat[];
   swap: boolean;
   skins?: Partial<Record<Seat, Skin>>;
+  looks?: Partial<Record<Seat, Look>>;
 }
 
 const EXPIRE_MS = 24 * 60 * 60 * 1000; // an untouched room is deleted after a day
@@ -80,7 +81,7 @@ export class Room extends DurableObject<Env> {
     };
     for (const ws of this.ctx.getWebSockets()) {
       const you = this.seatOf(ws);
-      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch, skins: d.skins ?? {} });
+      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch, skins: d.skins ?? {}, looks: d.looks ?? {} });
     }
   }
 
@@ -100,7 +101,7 @@ export class Room extends DurableObject<Env> {
       ws.close(4404, 'unknown room');
       return;
     }
-    if (msg.type === 'join') return this.join(ws, d, msg.token, msg.skin);
+    if (msg.type === 'join') return this.join(ws, d, msg.token, msg.skin, msg.look);
     const seat = this.seatOf(ws);
     if (!seat) return;
     switch (msg.type) {
@@ -126,7 +127,7 @@ export class Room extends DurableObject<Env> {
     this.broadcast(d);
   }
 
-  private async join(ws: WebSocket, d: Data, token: unknown, skin: unknown): Promise<void> {
+  private async join(ws: WebSocket, d: Data, token: unknown, skin: unknown, look: unknown): Promise<void> {
     if (typeof token !== 'string' || token.length < 8 || token.length > 64) return;
     let seat: Seat | null = d.seats.w === token ? 'w' : d.seats.b === token ? 'b' : null;
     if (!seat) seat = d.seats.w === null ? 'w' : d.seats.b === null ? 'b' : null;
@@ -143,6 +144,7 @@ export class Room extends DurableObject<Env> {
     d.seats[seat] = token;
     delete d.away[seat];
     d.skins = { ...d.skins, [seat]: cleanSkin(skin) };
+    d.looks = { ...d.looks, [seat]: cleanLook(look) };
     ws.serializeAttachment({ seat });
     await this.store(d);
     this.broadcast(d);
@@ -176,6 +178,7 @@ export class Room extends DurableObject<Env> {
       }
       d.away = { w: d.away.b, b: d.away.w };
       d.skins = { w: d.skins?.b, b: d.skins?.w };
+      d.looks = { w: d.looks?.b, b: d.looks?.w };
       for (const s of ['w', 'b'] as Seat[]) if (d.away[s] === undefined) delete d.away[s];
     }
     d.moves = [];
@@ -223,6 +226,15 @@ export class Room extends DurableObject<Env> {
 
 /** Keeps only known roles with valid species ids that follow the team rules (§B14). The relay cannot see a
  * player's starter or badges, so the king may be any starter family and the queen counts as unlocked. */
+/** Only the known values survive: a stage 0 to 2 and the two player trainers. */
+function cleanLook(raw: unknown): Look {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const out: Look = {};
+  if (r.stage === 0 || r.stage === 1 || r.stage === 2) out.stage = r.stage;
+  if (r.trainer === 'red' || r.trainer === 'meir') out.trainer = r.trainer;
+  return out;
+}
+
 function cleanSkin(raw: unknown): Skin {
   const out: Skin = {};
   if (!raw || typeof raw !== 'object') return out;

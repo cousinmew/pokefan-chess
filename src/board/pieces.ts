@@ -45,6 +45,12 @@ export interface TeamSkin {
 }
 export const SKIN_ROLES = ['k', 'q', 'r', 'bLight', 'bDark', 'n', 'p'] as const;
 let skins: Partial<Record<Color, TeamSkin>> = {};
+let stages: Partial<Record<Color, TeamSkin>> = {};
+
+/** BLUE story stage per side (§B18 item 5): species that stand in for the default team until it evolves. */
+export function setStages(next: Partial<Record<Color, TeamSkin>>): void {
+  stages = next;
+}
 
 /** Sets the skins in use (vs Computer: the player's side; online: both sides; otherwise none). */
 export function setSkins(next: Partial<Record<Color, TeamSkin>>): void {
@@ -94,11 +100,17 @@ export function isDarkSquare(square: string): boolean {
 
 export function speciesIdFor(color: Color, role: Role, square: string): SpeciesId {
   const skin = skins[color];
-  const pick = skin?.[role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role];
+  const key = role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role;
+  const pick = skin?.[key] ?? stages[color]?.[key];
   if (pick && SPECIES[parseVariant(pick).base]) return pick;
+  return defaultSpecies(color, role, isDarkSquare(square));
+}
+
+/** The v1 roster's species for a role (the fully evolved team). */
+export function defaultSpecies(color: Color, role: Role, dark: boolean): SpeciesId {
   const entry = roster.teams[teamOf(color)].pieces[role];
   if (typeof entry === 'string') return entry;
-  return isDarkSquare(square) ? entry.dark : entry.light;
+  return dark ? entry.dark : entry.light;
 }
 
 const variants = new Map<string, Species>();

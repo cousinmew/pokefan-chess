@@ -770,5 +770,21 @@
   "yellow.level.2": "Medium",
   "yellow.level.3": "Hard",
   "yellow.level.4": "Super hard",
-  "yellow.stars": "{n} stars"
+  "yellow.stars": "{n} stars",
+  "secret.pad": "Secret code pad",
+  "secret.up": "Up",
+  "secret.down": "Down",
+  "secret.left": "Left",
+  "secret.right": "Right",
+  "secret.meir": "MEIR joined the adventure!",
+  "plate.grunt": "ROCKET GRUNT",
+  "plate.jessiejames": "JESSIE & JAMES",
+  "plate.giovanni": "GIOVANNI",
+  "plate.blue": "BLUE",
+  "plate.red": "RED",
+  "plate.meir": "MEIR",
+  "settings.battleStyle": "Battle style",
+  "battleStyle.classic": "Classic",
+  "battleStyle.anime": "Anime",
+  "anime.super": "SUPER EFFECTIVE!"
 }

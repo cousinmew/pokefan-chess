@@ -103,7 +103,7 @@ test("online: your friend sees your My Team skins", async ({ browser }) => {
   await joinRoom(b, code);
   await expect(b.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'SQUIRTLE', { timeout: 10_000 });
   await expect(a.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'SQUIRTLE');
-  await expect(b.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDOKING');
+  await expect(b.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDORAN♂');
 });
 
 test('online: a win evolves trade Pokémon on your team (§B12)', async ({ browser }) => {

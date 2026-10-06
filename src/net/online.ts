@@ -2,7 +2,7 @@
 // Relay client: create a room, one WebSocket per player, automatic reconnect with a per tab session token (V6).
 import { RECONNECT_BACKOFF_MS, RELAY_URL } from '../config';
 import { load, save } from '../store/persist';
-import type { ClientMsg, ServerMsg, Skin } from '../../worker/src/protocol';
+import type { ClientMsg, Look, ServerMsg, Skin } from '../../worker/src/protocol';
 
 /** A room code from whatever was typed or pasted (§B18 item 1): a full link works, case and spaces do not matter,
  * anything that is not a letter is dropped, and only the first 4 letters count. */
@@ -59,6 +59,7 @@ export class OnlineClient {
     private readonly onMsg: (msg: ServerMsg) => void,
     private readonly onLink: (up: boolean) => void,
     private readonly skin: Skin = {},
+    private readonly look: Look = {},
   ) {
     this.token = sessionToken(code);
     this.connect();
@@ -80,7 +81,7 @@ export class OnlineClient {
     ws.onopen = () => {
       this.tries = 0;
       this.onLink(true);
-      ws.send(JSON.stringify({ type: 'join', token: this.token, skin: this.skin } satisfies ClientMsg));
+      ws.send(JSON.stringify({ type: 'join', token: this.token, skin: this.skin, look: this.look } satisfies ClientMsg));
     };
     ws.onmessage = (e) => {
       let msg: ServerMsg;

@@ -771,5 +771,21 @@
   "yellow.level.2": "Medio",
   "yellow.level.3": "Difícil",
   "yellow.level.4": "Muy difícil",
-  "yellow.stars": "{n} estrellas"
+  "yellow.stars": "{n} estrellas",
+  "secret.pad": "Mando del código secreto",
+  "secret.up": "Arriba",
+  "secret.down": "Abajo",
+  "secret.left": "Izquierda",
+  "secret.right": "Derecha",
+  "secret.meir": "¡MEIR se unió a la aventura!",
+  "plate.grunt": "RECLUTA ROCKET",
+  "plate.jessiejames": "JESSIE Y JAMES",
+  "plate.giovanni": "GIOVANNI",
+  "plate.blue": "BLUE",
+  "plate.red": "RED",
+  "plate.meir": "MEIR",
+  "settings.battleStyle": "Estilo de combate",
+  "battleStyle.classic": "Clásico",
+  "battleStyle.anime": "Anime",
+  "anime.super": "¡SÚPER EFICAZ!"
 }

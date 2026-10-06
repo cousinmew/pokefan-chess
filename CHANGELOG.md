@@ -82,3 +82,11 @@
 - Export and Import save, "Save protected" in Settings, an opt in save code to carry progress to another device (no names, no accounts, deleted after 180 days unused), and a "Back up your save" note after each badge.
 - Installable web app with an offline app shell and a one time Add to Home Screen tip.
 - A language button (EN, FR, HE, ES) on every home screen, and YELLOW's Play now picks a level with 1 to 4 stars.
+
+## 2.3.0 (C7)
+
+- BLUE story teams start unevolved (Charmander, Bulbasaur, Squirtle, Ponyta; Nidoran, Ekans, Koffing, Diglett, Rhyhorn) and evolve at 3 and 6 badges with an evolution ceremony.
+- Battle style: Anime (speed lines, camera push and shake, afterimages, impact frame, glow, spin out KO, SUPER EFFECTIVE! banner) or Classic; never more than 3 flashes a second, Classic under reduced motion.
+- A secret code unlocks MEIR as your trainer.
+- Trainers stand beside the board and react to captures, check and the end.
+

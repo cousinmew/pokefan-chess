@@ -771,5 +771,21 @@
   "yellow.level.2": "בינוני",
   "yellow.level.3": "קשה",
   "yellow.level.4": "קשה מאוד",
-  "yellow.stars": "{n} כוכבים"
+  "yellow.stars": "{n} כוכבים",
+  "secret.pad": "לוח קוד סודי",
+  "secret.up": "למעלה",
+  "secret.down": "למטה",
+  "secret.left": "שמאלה",
+  "secret.right": "ימינה",
+  "secret.meir": "מאיר הצטרף להרפתקה!",
+  "plate.grunt": "חבר צוות רוקט",
+  "plate.jessiejames": "ג'סי וג'יימס",
+  "plate.giovanni": "ג'ובאני",
+  "plate.blue": "BLUE",
+  "plate.red": "RED",
+  "plate.meir": "מאיר",
+  "settings.battleStyle": "סגנון קרב",
+  "battleStyle.classic": "קלאסי",
+  "battleStyle.anime": "אנימה",
+  "anime.super": "יעיל במיוחד!"
 }

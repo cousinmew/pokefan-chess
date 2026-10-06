@@ -3,7 +3,7 @@
 import './style.css';
 import { LEGEND_FIRST_GAMES, YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
-import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
+import { speciesFor, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { sound } from './audio/audio';
@@ -11,10 +11,10 @@ import { music } from './audio/music';
 import { rng } from './game/rng';
 import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
-import { fmt, type Line } from './game/text';
+import { fmt, type Line, type StringKey } from './game/text';
 import { Engine, youngsterMove } from './ai/engine';
 import { TextBox } from './ui/textBox';
-import { button, el } from './ui/dom';
+import { button, el, toast } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen } from './ui/settings';
 import { bootProfiles, currentSlot, load, remove, save } from './store/persist';
@@ -39,9 +39,13 @@ import { profileScreen } from './ui/profiles';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
+import { endPanel, promotionPanel } from './ui/gamePanels';
+import { Plates } from './ui/plates';
+import { applyLooks, myLook, standing, storyStage } from './look';
+import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
-import { loadCampaign } from './campaign/kanto';
+import { loadCampaign, saveCampaign } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { normalizeCode } from './net/online';
@@ -119,11 +123,12 @@ function boot(): App {
   settings.v = DEFAULT_SETTINGS.v;
   const applySettings = () => {
     sound.enabled = settings.sound;
+    overlay.anime = settings.battleStyle === 'anime';
     sound.volume = settings.volume;
     music.setVolumes(settings.music, settings.volume, settings.sound);
   };
-  applySettings();
   const overlay = new Overlay(rng);
+  applySettings();
   overlay.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const unlock = () => sound.unlock();
   window.addEventListener('pointerdown', unlock, { once: true });
@@ -216,8 +221,12 @@ function boot(): App {
     },
     say: (key) => text.plain(fmt(key)),
     mySkin: () => journey.campaign.team,
-    applySkins: (skins) => {
+    myLook: () => look(),
+    applySkins: (skins, theirs) => {
       setSkins(skins);
+      looks = theirs;
+      applyLooks(looks);
+      showPlates();
       board.render();
       legend.render(legendOn());
     },
@@ -285,7 +294,20 @@ function boot(): App {
   const legend = new Legend(game, board);
   /** Who's who (§B19 item 4): on, off, or auto (YELLOW, and a save's first games). */
   const legendOn = () => settings.legend === 'on' || (settings.legend === 'auto' && (yellow() || (load<number>('gamesPlayed') ?? 0) < LEGEND_FIRST_GAMES));
-  main.append(boardWrap, legend.el, text.el, online.bar, puzzle.bar, path.bar);
+  const plates = new Plates();
+  main.append(plates.top, boardWrap, plates.bottom, legend.el, text.el, online.bar, puzzle.bar, path.bar);
+  /** Story stage and trainers (§B18 items 5 and 8). Online, each side brings its own look from the relay. */
+  const look = () => myLook(!yellow(), journey.campaign.badges.length);
+  let looks: Partial<Record<Color, Look>> = {};
+  const showPlates = () =>
+    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks }, (k) => fmt(k as StringKey)), board.orientation);
+  const unlockMeir = () => {
+    save('trainer', 'meir');
+    journey.campaign = { ...journey.campaign, name: 'MEIR' };
+    saveCampaign(journey.campaign);
+    sound.shimmer();
+    toast('secret.meir');
+  };
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
   function setCart(c: Cartridge): void {
@@ -301,11 +323,18 @@ function boot(): App {
       save('settings', settings);
       save('yellowAnim', true);
     }
+    // YELLOW battles start Classic, BLUE Anime (§B18 item 6), once per player; the setting can change it after.
+    if (c === 'yellow' && !load<boolean>('yellowStyle')) {
+      settings.battleStyle = 'classic';
+      save('settings', settings);
+      save('yellowStyle', true);
+      applySettings();
+    }
   }
   if (cart) setCart(cart);
 
   function showShelf(): void {
-    show(shelfScreen(currentLang(), (c) => (setCart(c), goTitle()), (l) => (applyLanguage(l), showShelf())));
+    show(shelfScreen(currentLang(), (c) => (setCart(c), goTitle()), (l) => (applyLanguage(l), showShelf()), unlockMeir));
   }
 
   function showSettings(): void {
@@ -369,6 +398,7 @@ function boot(): App {
       // YELLOW home (§B17): Play (vs Youngster with Pikachu), Learn (Pikachu's Path), Friend (Two Players).
       const home = yellowHome({
         lang: langBtn(),
+        unlock: unlockMeir,
         // Play opens the level picker (§B18 item 4), Youngster first.
         play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle)),
         learn: () => path.open(),
@@ -411,6 +441,7 @@ function boot(): App {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
+    if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
     app.human = setup.mode === 'two-players' ? 'w' : setup.human;
     app.level = setup.level;
@@ -472,6 +503,8 @@ function boot(): App {
     board.setLastMove(from, to);
     legend.clear();
     if (settings.autoFlip && app.mode === 'two-players' && !out.end) board.orientation = game.turn();
+    plates.orient(board.orientation);
+    if (out.battle) plates.capture(out.move.color);
     board.render({ from, to });
     const sp = speciesFor(out.move.color, out.move.promotion ?? out.move.piece, to);
     const lines = notice ? [notice, ...out.lines] : out.lines;
@@ -484,6 +517,7 @@ function boot(): App {
     if (game.checkedKing()) sound.alarm();
     const checked = game.checkedKing();
     if (checked) sound.cry(speciesFor(game.turn(), 'k', checked).dex);
+    plates.check(checked ? game.turn() : null);
     if (out.end) finish(out);
     persistGame();
     updateTurn();
@@ -597,6 +631,7 @@ function boot(): App {
     // YELLOW (§B17): no "blacked out"; a gentle line instead.
     if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
     text.show([end.line]);
+    plates.end(end.winner ?? null);
     music.stop();
     if (app.mode === 'challenge') return endChallenge(drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human));
     // An online win evolves trade Pokémon on your team (§B12).
@@ -611,73 +646,14 @@ function boot(): App {
   }
 
   function showEnd(line: Line): void {
-    const panel = el('div', 'panel end');
-    panel.dataset.testid = 'end-screen';
-    panel.dataset.endKey = line.key;
-    const p = el('p', '', line.key);
-    p.dataset.testid = 'end-text';
-    const cap = el('p', 'tb-caption');
-    if (line.caption && settings.captions) cap.textContent = fmt(line.caption);
-    const row = el('div', 'end-buttons');
-    if (app.mode === 'online') {
-      const swap = el('label', 'swap');
-      const box = el('input');
-      box.type = 'checkbox';
-      box.dataset.testid = 'swap-sides';
-      swap.append(box, el('span', '', 'online.swap'));
-      row.append(
-        button('end.rematch', () => {
-          modal.hidden = true;
-          online.rematch(box.checked);
-        }, 'rematch'),
-        button('end.menu', () => goTitle(), 'end-menu'),
-      );
-      panel.append(p, cap, swap, row);
-    } else {
-      row.append(
-        button('end.rematch', () => startGame({ mode: app.mode, human: app.human, level: app.level }), 'rematch'),
-        button('end.menu', () => goTitle(), 'end-menu'),
-      );
-      panel.append(p, cap, row);
-    }
-    modal.replaceChildren(panel);
+    const rematch = (swap: boolean) => (app.mode === 'online' ? ((modal.hidden = true), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
+    modal.replaceChildren(endPanel(line, { captions: settings.captions, online: app.mode === 'online', rematch, menu: goTitle }));
     modal.hidden = false;
   }
 
   function pickPromotion(from: string, to: string): void {
-    const color = game.turn();
-    const panel = el('div', 'panel promo');
-    panel.setAttribute('role', 'dialog');
-    panel.dataset.testid = 'promotion';
-    const row = el('div', 'promo-row');
-    for (const role of ['q', 'r', 'b', 'n'] as Role[]) {
-      const sp = speciesFor(color, role, to);
-      const btn = el('button');
-      btn.dataset.role = role;
-      btn.setAttribute('aria-label', sp.name);
-      const img = el('img');
-      img.src = spriteUrl(sp.dex);
-      img.alt = '';
-      const name = el('span');
-      name.textContent = sp.name;
-      const glyph = el('b');
-      glyph.textContent = GLYPHS[color][role];
-      btn.append(img, name, glyph);
-      btn.onclick = () => {
-        modal.hidden = true;
-        submit(from, to, role);
-      };
-      row.append(btn);
-    }
-    const cancel = el('button', 'cancel');
-    cancel.textContent = '✕';
-    cancel.setAttribute('aria-label', fmt('promote.cancel'));
-    cancel.onclick = () => {
-      modal.hidden = true;
-      board.clearSelection();
-    };
-    panel.append(el('p', '', 'promote.title'), row, cancel);
-    modal.replaceChildren(panel);
+    const close = () => (modal.hidden = true);
+    modal.replaceChildren(promotionPanel(game.turn(), to, (role) => (close(), submit(from, to, role)), () => (close(), board.clearSelection())));
     modal.hidden = false;
   }
 
@@ -694,6 +670,7 @@ function boot(): App {
     app.busy = false;
     board.locked = false;
     board.orientation = app.human;
+    showPlates();
     modal.hidden = true;
     board.resetMarks();
     legend.render(legendOn());

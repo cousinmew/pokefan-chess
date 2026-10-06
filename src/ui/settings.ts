@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Settings screen (§4.8): animations, sound and volume, captions, glyphs, auto flip, take back.
-import { ANIM_MODES, CARTRIDGE_HOLD_MS, PIECE_STYLES, type DEFAULT_SETTINGS } from '../config';
+import { ANIM_MODES, BATTLE_STYLES, CARTRIDGE_HOLD_MS, PIECE_STYLES, type DEFAULT_SETTINGS } from '../config';
 import { fmt, type Lang } from '../game/text';
 import { langPicker, type Cartridge } from './shelf';
 import type { StringKey } from '../game/text';
@@ -104,7 +104,7 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   slider('music', 'settings.music');
 
   // Board legibility (§B19): piece style, animated or still sprites, and the Who's who legend.
-  const choose = <K extends 'pieceStyle' | 'legend'>(key: K, values: readonly Settings[K][], prefix: string, label: StringKey) => {
+  const choose = <K extends 'pieceStyle' | 'legend' | 'battleStyle'>(key: K, values: readonly Settings[K][], prefix: string, label: StringKey) => {
     const sel = el('select');
     sel.dataset.testid = `set-${key}`;
     for (const v of values) {
@@ -119,6 +119,8 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
     };
     row(label, sel);
   };
+  // Battle style (§B18 item 6): Anime or Classic; reduced motion always plays Classic.
+  choose('battleStyle', BATTLE_STYLES, 'battleStyle', 'settings.battleStyle');
   choose('pieceStyle', PIECE_STYLES, 'style', 'settings.pieceStyle');
   toggle('animate', 'settings.animate');
   choose('legend', ['auto', 'on', 'off'] as const, 'legend', 'settings.legend');

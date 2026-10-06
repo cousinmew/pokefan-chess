@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// window.__kc, installed only behind ?debug=1 (§6.1). bench/metrics cut in lean mode.
+// window.__kc, installed only behind ?debug=1 (§6.1). bench() times a whole battle (§B18 item 6).
 import { Chess } from 'chess.js';
 import { BATTLE, type AiLevel } from '../config';
 import { youngsterMove } from '../ai/engine';
@@ -53,6 +53,37 @@ export function installHarness(app: App): void {
       while (ov.running && guard++ < 1000) ov.update(1000 / 60);
       if (ov.running) throw new Error(`battle ${attacker} vs ${defender} did not finish`);
       return ov.lines.map((l) => fmt(l.key, l.vars));
+    },
+    /** One whole battle on the fixed timestep, timing every frame (§B18 item 6 budget): p95 frame cost, length and
+     * flashes. `style` forces Classic or Anime for the run. */
+    bench: (attacker: SpeciesId = 'pikachu', defender: SpeciesId = 'blastoise', style: 'anime' | 'classic' = 'anime') => {
+      ov.manual = true;
+      const prev = ov.anime;
+      ov.anime = style === 'anime';
+      void ov.battle(attacker, defender);
+      const used = ov.state().style;
+      const costs: number[] = [];
+      let guard = 0;
+      while (ov.running && guard++ < 1000) {
+        const t0 = performance.now();
+        ov.update(1000 / 60);
+        costs.push(performance.now() - t0);
+      }
+      ov.anime = prev;
+      costs.sort((a, b) => a - b);
+      const p95 = costs[Math.min(costs.length - 1, Math.floor(costs.length * 0.95))] ?? 0;
+      return { style: used, p95, frames: costs.length, totalMs: Math.round((costs.length * 1000) / 60), flashes: ov.flashes.onsets.length, worstSecond: ov.flashes.worstSecond() };
+    },
+    /** Starts a battle in `style` and steps it to the first frame of `phase`; reports the Anime layers on screen. */
+    battleTo: (phase: string, attacker: SpeciesId = 'pikachu', defender: SpeciesId = 'blastoise', style: 'anime' | 'classic' = 'anime') => {
+      ov.manual = true;
+      ov.anime = style === 'anime';
+      void ov.battle(attacker, defender);
+      let guard = 0;
+      while (ov.running && ov.state().phase !== phase && guard++ < 1000) ov.update(1000 / 60);
+      const scr = ov.el.querySelector('.screen');
+      const banner = ov.el.querySelector<HTMLElement>('.anime-banner');
+      return { ...ov.state(), impact: !!scr?.classList.contains('impact'), banner: banner && !banner.hidden ? banner.textContent : null };
     },
     /** FX gallery: plays all 14 effects in sequence in real time, each with a species that uses it. */
     fxGallery: async () => {

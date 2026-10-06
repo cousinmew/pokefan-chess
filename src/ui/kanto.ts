@@ -8,6 +8,7 @@ import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, te
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
 import { whyNot } from '../../worker/src/team';
+import { myTrainer, trainerSpriteId } from '../look';
 
 /** A Pokémon sprite that is never an empty box (§B14 bug): the tiny Gen 1 sprite shows while the animated GIF
  * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. */
@@ -43,7 +44,8 @@ export function trainerSprite(sprite: string | undefined, cls = 'trainer-sprite'
     img.remove();
     box.classList.add('sil');
   };
-  img.src = `assets/trainers/${sprite}.png`;
+  // MEIR is original art shipped with the game (§B18 item 7); every other trainer is fetched at build time.
+  img.src = sprite === 'meir' ? 'art/meir.png' : `assets/trainers/${sprite}.png`;
   box.append(img);
   return box;
 }
@@ -248,6 +250,13 @@ export function choiceScreen(ids: string[], pick: (id: string) => void): HTMLEle
 }
 
 /** Hall of Fame (§B2 row 12): your name, your partner and your team. */
+/** The player's own trainer, RED or MEIR (§B18 item 7). */
+function playerSprite(): HTMLElement {
+  const t = trainerSprite(trainerSpriteId(myTrainer()), 'trainer-sprite player-trainer');
+  t.dataset.testid = 'player-trainer';
+  return t;
+}
+
 export function hofScreen(c: Campaign, team: string[], done: () => void): HTMLElement {
   const grid = el('div', 'kings hof-team');
   grid.dataset.testid = 'hof-team';
@@ -256,6 +265,7 @@ export function hofScreen(c: Campaign, team: string[], done: () => void): HTMLEl
   return screen(
     'hof',
     el('h2', '', 'hof.title'),
+    playerSprite(),
     line('hof.line', { name: c.name || fmt('name.1') }),
     el('p', 'small', 'hof.team'),
     grid,
@@ -299,6 +309,7 @@ export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLE
   const card = el('div', 'trainer-card');
   card.dataset.testid = 'trainer-card';
   card.append(
+    playerSprite(),
     line('card.name', { name: c.name || fmt('name.1') }),
     line('card.level', { level: String(Math.round(rating)) }, 'level'),
     line('card.levelNote', undefined, 'small'),

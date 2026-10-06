@@ -771,5 +771,21 @@
   "yellow.level.2": "Moyen",
   "yellow.level.3": "Difficile",
   "yellow.level.4": "Très difficile",
-  "yellow.stars": "{n} étoiles"
+  "yellow.stars": "{n} étoiles",
+  "secret.pad": "Pavé du code secret",
+  "secret.up": "Haut",
+  "secret.down": "Bas",
+  "secret.left": "Gauche",
+  "secret.right": "Droite",
+  "secret.meir": "MEIR rejoint l'aventure !",
+  "plate.grunt": "SBIRE ROCKET",
+  "plate.jessiejames": "JESSIE ET JAMES",
+  "plate.giovanni": "GIOVANNI",
+  "plate.blue": "BLUE",
+  "plate.red": "RED",
+  "plate.meir": "MEIR",
+  "settings.battleStyle": "Style de combat",
+  "battleStyle.classic": "Classique",
+  "battleStyle.anime": "Anime",
+  "anime.super": "SUPER EFFICACE !"
 }

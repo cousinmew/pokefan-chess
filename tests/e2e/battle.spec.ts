@@ -76,18 +76,18 @@ test("computer captures: the player's Pokémon stays near (back view), the attac
   await page.evaluate(() => {
     const kc = (window as unknown as { __kc: { setMode(m: string, l: number, h: string): void; loadFen(f: string): string } }).__kc;
     kc.setMode('computer', 1, 'w');
-    // Black's only legal move is Kxg7: NIDOKING takes the player's CHARIZARD.
+    // Black's only legal move is Kxg7: NIDORAN♂ takes the player's CHARMANDER (BLUE stage 0, §B18 item 5).
     kc.loadFen('7k/6Q1/8/8/8/8/8/4K3 b - - 0 1');
   });
   await expect(page.getByTestId('battle')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByTestId('battle-text')).toContainText('NIDOKING used', { timeout: 3000 });
+  await expect(page.getByTestId('battle-text')).toContainText('NIDORAN♂ used', { timeout: 3000 });
   const view = await page.evaluate(() =>
     ['.mon.att', '.mon.def'].map((s) => {
       const slot = document.querySelector(s) as HTMLElement;
       return { src: (slot.querySelector('img') as HTMLImageElement).src.split('/').slice(-2).join('/'), top: parseFloat(slot.style.top) };
     }),
   );
-  expect(view[0]!.src).toBe('front/34.gif');
-  expect(view[1]!.src).toBe('back/6.gif');
+  expect(view[0]!.src).toBe('front/32.gif');
+  expect(view[1]!.src).toBe('back/4.gif');
   expect(view[0]!.top).toBeLessThan(view[1]!.top);
 });

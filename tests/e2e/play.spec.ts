@@ -68,6 +68,6 @@ test('promotion picker shows four team Pokémon', async ({ page }) => {
   await page.click('[data-square="b8"]');
   await expect(page.getByTestId('promotion').locator('button[data-role]')).toHaveCount(4);
   await page.click('[data-testid="promotion"] button[data-role="b"]');
-  await expect(page.locator('[data-square="b8"] img')).toHaveAttribute('alt', 'VENUSAUR');
-  await expect(page.getByTestId('text-main')).toHaveText('EEVEE evolved into VENUSAUR!');
+  await expect(page.locator('[data-square="b8"] img')).toHaveAttribute('alt', 'BULBASAUR');
+  await expect(page.getByTestId('text-main')).toHaveText('EEVEE evolved into BULBASAUR!');
 });

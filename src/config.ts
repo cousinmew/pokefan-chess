@@ -13,7 +13,7 @@ export const BOARD_SIDE_GUTTER_PX = 8; // horizontal room left around the board:
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate
 export const ASSET_BASE = 'assets/'; // same origin sprite and cry folder, filled by fetch-assets
-export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, music: 0.3, takeBack: false, v: 2, pieceStyle: 'pokemon' as PieceStyle, animate: true, legend: 'auto' as 'auto' | 'on' | 'off' }; // v: settings schema // settings defaults (reduced motion starts on Quick)
+export const DEFAULT_SETTINGS = { glyphs: true, captions: true, autoFlip: false, anim: 'full' as AnimMode, sound: true, volume: 1, music: 0.3, takeBack: false, v: 2, pieceStyle: 'pokemon' as PieceStyle, animate: true, legend: 'auto' as 'auto' | 'on' | 'off', battleStyle: 'anime' as BattleStyle }; // v: settings schema // settings defaults (reduced motion starts on Quick)
 export const REPO_URL = 'https://github.com/cousinmew/pokefan-chess'; // the only external link (G2)
 export const BATTLE = {
   // T4: about 1.9 s in all with an effectiveness line, 1.62 s without (owner call, 2026-10-05).
@@ -31,6 +31,19 @@ export const BATTLE = {
   spriteWaitMs: 400, // longest wait for both battle sprites to decode before the battle starts
 } as const;
 export const QUICK_FX_MS = 400; // Quick mode: effect on the board square, no overlay
+/** Anime battle style (§B18 item 6), inside the same BATTLE timeline (about 1.9 s). */
+export const ANIME = {
+  speedLines: 22, // radial lines in the type coloured backdrop
+  zoom: 0.1, // camera push in toward the defender, as a fraction of the screen
+  slowFrom: 0.7, // the effect's last 30% of time plays its last 15% of motion: the slow beat before impact
+  slowShare: 0.85,
+  ghosts: 5, // afterimages behind the attacker
+  particles: 28, // glow particles at the hit
+  shakePx: 6, // camera shake at the hit
+  koSpinDeg: 540, // KO spin out
+  koScale: 0.8, // extra scale while it spins away
+  maxFlashesPerSec: 3, // WCAG 2.3.1: never more than 3 flashes in any 1 s window
+};
 export const MAX_FRAME_MS = 100; // clamp for a real frame delta (tab switches)
 export const EVOLVE_MS = 1200; // whole evolution sequence
 export const EVOLVE_START_PERIOD_MS = 300; // first silhouette swap period
@@ -39,6 +52,8 @@ export const EVOLVE_FLASH_MS = 150; // white flash at the end of the evolution
 export const CRY_VOLUME = 0.35; // cry volume in battles and on check
 export const SELECT_CRY_VOLUME = 0.12; // short quiet cry when a piece is selected
 export const SFX_VOLUME = 0.08; // synth blips and ticks
+export const BATTLE_STYLES = ['classic', 'anime'] as const; // §B18 item 6: Anime in BLUE, Classic in YELLOW
+export type BattleStyle = (typeof BATTLE_STYLES)[number];
 export const ANIM_MODES = ['full', 'quick', 'off'] as const; // battle animation settings, Full is default
 export type AnimMode = (typeof ANIM_MODES)[number];
 export const AI_LEVELS = [

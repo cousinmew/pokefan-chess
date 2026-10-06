@@ -5,18 +5,35 @@ import { LESSON_COUNT } from '../campaign/path';
 import { LANGS, fmt, type Lang, type StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 import { pixelIcon } from './icons';
+import { codeReader, dpad, listenForCode } from './secret';
 import { mon } from './kanto';
 
 export type Cartridge = 'yellow' | 'blue';
 
-function cartridge(kind: Cartridge, pick: () => void): HTMLElement {
+/** Three taps on the YELLOW label within this window open the secret D-pad instead of picking (§B18 item 7). */
+const LABEL_TAPS = 3;
+const LABEL_TAP_MS = 400;
+
+function cartridge(kind: Cartridge, pick: () => void, secret?: () => void): HTMLElement {
   const b = el('button', `cartridge ${kind}`);
   b.type = 'button';
   b.dataset.testid = `cart-${kind}`;
   const label = el('span', 'cart-label');
   label.append(el('b', '', `shelf.${kind}.name` as StringKey), el('small', '', `shelf.${kind}.sub` as StringKey));
   b.append(el('span', 'cart-notch'), label, el('span', 'cart-pins'));
-  b.onclick = pick;
+  let taps = 0;
+  let timer = 0;
+  b.onclick = (e) => {
+    if (!secret || !label.contains(e.target as Node)) return pick();
+    // A tap on the label waits a moment for more taps; one or two taps still pick the cartridge.
+    taps++;
+    window.clearTimeout(timer);
+    if (taps >= LABEL_TAPS) {
+      taps = 0;
+      return secret();
+    }
+    timer = window.setTimeout(() => ((taps = 0), pick()), LABEL_TAP_MS);
+  };
   return b;
 }
 
@@ -60,11 +77,16 @@ export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTML
   return wrap;
 }
 
-export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void): HTMLElement {
+export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void, unlock: () => void): HTMLElement {
   const row = el('div', 'shelf');
-  row.append(cartridge('yellow', () => pick('yellow')), cartridge('blue', () => pick('blue')));
+  const read = codeReader();
+  const view = screen('shelf');
+  const openPad = () => view.querySelector('.dpad') ?? row.after(dpad(read, unlock));
+  row.append(cartridge('yellow', () => pick('yellow'), openPad), cartridge('blue', () => pick('blue')));
   const picker = langPicker(current, lang);
-  return screen('shelf', langButton(current, lang, picker), el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
+  view.append(langButton(current, lang, picker), el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
+  listenForCode(view, unlock, read);
+  return view;
 }
 
 /** YELLOW's Play tile opens this (§B18 item 4): the four levels as big buttons with 1 to 4 stars, Youngster first. */
@@ -90,6 +112,8 @@ export function yellowLevels(pick: (level: 1 | 2 | 3 | 4) => void, back: () => v
 export interface YellowActions {
   lang: HTMLElement;
   play(): void;
+  /** The secret code unlocks MEIR here too (keyboard). */
+  unlock(): void;
   learn(): void;
   friend(): void;
   settings(): void;
@@ -113,7 +137,9 @@ export function yellowHome(a: YellowActions): HTMLElement {
   gear.onclick = a.settings;
   const top = el('div', 'yellow-top');
   top.append(a.lang, gear);
-  return screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend));
+  const view = screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend));
+  listenForCode(view, a.unlock);
+  return view;
 }
 
 export interface PathActions {

@@ -2,7 +2,9 @@
 // Kanto Journey controller (§B11, §B12): Oak's intro, the map, trainer and rival battles (the C1 puzzle player in a
 // battle context), towns, tall grass encounters, the Trainer Card, Training, the Pokédex with candy, and My Team.
 import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TICK_MS } from '../config';
-import { SPECIES } from '../board/pieces';
+import { defaultSpecies, SPECIES } from '../board/pieces';
+import { stageEvolutions, stageFor } from '../board/stages';
+import { myTrainer, trainerSpriteId } from '../look';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
@@ -38,7 +40,7 @@ export interface JourneyHost {
 const PEOPLE = trainers.people as Record<string, string>;
 const CLASSES = trainers.classes as Record<string, string>;
 /** Sprite of a named person (oak, red, blue, brock...) or a trainer class; undefined means the CSS silhouette. */
-export const personSprite = (id: string) => PEOPLE[id];
+export const personSprite = (id: string) => (id === 'red' ? trainerSpriteId(myTrainer()) : PEOPLE[id]);
 export const classSprite = (cls: string) => CLASSES[cls];
 
 export class JourneyGame {
@@ -260,6 +262,7 @@ export class JourneyGame {
 
   private win(p: Place, t: Trainer): void {
     const before = placeCleared(this.campaign, p);
+    const stageBefore = stageFor(this.campaign.badges.length);
     let c = beatTrainer(this.campaign, p, t);
     const lines = [fmt(t.defeat)];
     // Badge ceremony (§B13 C3): the gym's badge, and the queen slot with the first one.
@@ -279,7 +282,13 @@ export class JourneyGame {
       if (p.kind === 'route' && !now) return this.showRoute(p);
       this.showMap();
     };
-    this.story(lines, () => (now && !before ? this.reward(p, next) : next()), this.spriteOf(t) ?? undefined);
+    const tell = () => this.story(lines, () => (now && !before ? this.reward(p, next) : next()), this.spriteOf(t) ?? undefined);
+    // A badge that crosses 3 or 6 evolves both story teams (§B18 item 5): one evolution ceremony per piece.
+    const stage = stageFor(this.campaign.badges.length);
+    const evos = (['w', 'b'] as const).flatMap((col) => stageEvolutions(col, stageBefore, stage, (role, dark) => defaultSpecies(col, role, dark)));
+    if (!evos.length) return tell();
+    music.play('evolution');
+    void evos.reduce((done, [a, b]) => done.then(() => this.host.evolveAnim(a, b)), Promise.resolve()).then(tell);
   }
 
   /** Rewards for clearing a place the first time (§B12 part 2): gifts, then a choice. Never twice. */
