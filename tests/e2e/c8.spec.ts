@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // C8 (§B20 items 1 to 3): trainers in the level pickers, on the battle screen, and titles on the name plates.
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const seed = (page: Page, cart = 'blue') =>
   page.addInitScript((c) => {
@@ -82,5 +83,57 @@ test('Quick mode: no battle screen, the reactions show on the plates', async ({ 
   await page.waitForTimeout(100);
   await kc('e4d5');
   await expect(page.locator('.plate[data-color="w"] .plate-say')).toHaveText('Go!');
-  await expect(page.locator('.plate[data-color="b"] .plate-say')).toHaveText('Oh no!');
+  // The opponent's reaction is in their bar (change A).
+  await expect(page.getByTestId('plate-top-msg')).toHaveText('Oh no!');
+});
+
+// Change B: each computer trainer brings their own team.
+const TEAMS = JSON.parse(readFileSync('src/data/trainer-teams.json', 'utf8')).trainers as Record<string, { team: Record<string, string> }>;
+const KANTO = JSON.parse(readFileSync('src/data/kanto.json', 'utf8')) as { species: Record<string, { name: string; move: string }>; moves: Record<string, { name: string }> };
+
+test('all 8 levels show their trainer and team preview (King, Queen, Pawn)', async ({ page }) => {
+  await seed(page);
+  await hub(page);
+  for (const side of ['red', 'rocket'] as const) {
+    await page.getByTestId('vs-computer').click();
+    await page.getByTestId(`team-${side}`).click();
+    for (const n of [1, 2, 3, 4]) {
+      const sprite = (await page.getByTestId(`level-${n}`).locator('.opponent-sprite').getAttribute('data-trainer'))!;
+      const t = TEAMS[sprite]!.team;
+      const shown = await page.getByTestId(`level-${n}`).getByTestId('loadout').locator('img').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.species));
+      expect(shown, `${side} ${n} ${sprite}`).toEqual([sprite === 'blue-gen1' ? 'blastoise' : t.k, t.q, t.p]);
+    }
+    await page.getByTestId('back').click();
+  }
+});
+
+test('a game puts the trainer team on the board, and its capture uses that species move', async ({ page }) => {
+  await seed(page);
+  await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'full', battleStyle: 'classic' })));
+  await hub(page);
+  await page.getByTestId('vs-computer').click();
+  await page.getByTestId('team-red').click();
+  await page.getByTestId('level-3').click();
+  await page.getByTestId('intro').click();
+  const at = (sq: string) => page.locator(`[data-square="${sq}"]`);
+  await expect(at('e8')).toHaveAttribute('aria-label', /MEOWTH/);
+  await expect(at('d8')).toHaveAttribute('aria-label', /ARBOK/);
+  await expect(at('a7')).toHaveAttribute('aria-label', /EKANS/);
+  await expect(at('b8')).toHaveAttribute('aria-label', /LICKITUNG/);
+  // Black's only legal move is Kxg7: the Rocket king (MEOWTH) attacks with its own move.
+  await page.evaluate(() => (window as unknown as { __kc: { loadFen(f: string): string } }).__kc.loadFen('7k/6Q1/8/8/8/8/8/4K3 b - - 0 1'));
+  const move = KANTO.moves[KANTO.species.meowth!.move]!.name;
+  await expect(page.getByTestId('battle-text')).toContainText(`MEOWTH used ${move}`, { timeout: 8000 });
+});
+
+test('playing Rocket: Brock brings Geodude and Onix', async ({ page }) => {
+  await seed(page);
+  await hub(page);
+  await page.getByTestId('vs-computer').click();
+  await page.getByTestId('team-rocket').click();
+  await page.getByTestId('level-2').click();
+  await page.getByTestId('intro').click();
+  await expect(page.locator('[data-square="d1"]')).toHaveAttribute('aria-label', /ONIX/);
+  await expect(page.locator('[data-square="a2"]')).toHaveAttribute('aria-label', /GEODUDE/);
+  await expect(page.getByTestId('plate-top')).toContainText('BROCK');
 });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -17,7 +17,7 @@ import { TextBox } from './ui/textBox';
 import { button, el, toast } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen } from './ui/settings';
-import { bootProfiles, currentSlot, load, remove, save } from './store/persist';
+import { bootProfiles, currentSlot, load, loadFrom, remove, save, saveTo } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -33,18 +33,20 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { currentLang } from './game/text';
-import { langButton, shelfScreen, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { addProfile, deleteProfile, needsPicker, renameProfile, summaries, switchTo } from './profiles';
-import { profileScreen } from './ui/profiles';
+import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
+import { slotCount, switchTo } from './profiles';
+import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
+import { Fitter } from './ui/fit';
+import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
 import { warmHubSheet } from './ui/icons';
 import { preloadNow, releaseIdle } from './ui/loader';
 import { endPanel, promotionPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
-import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
+import { applyLooks, computerTeam, ladderFaces, myLook, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
@@ -303,14 +305,16 @@ function boot(): App {
   /** Who's who (§B19 item 4): on, off, or auto (YELLOW, and a save's first games). */
   const legendOn = () => settings.legend === 'on' || (settings.legend === 'auto' && (yellow() || (load<number>('gamesPlayed') ?? 0) < LEGEND_FIRST_GAMES));
   const plates = new Plates();
-  main.append(plates.top, boardWrap, plates.bottom, legend.el, text.el, online.bar, puzzle.bar, path.bar);
+  main.append(plates.top, boardWrap, plates.bottom, legend.el, online.bar, puzzle.bar, path.bar);
+  plates.attachText(text.el); // your plate and the text box are one bar (change A)
+  const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar] });
   /** Story stage and trainers (§B18 items 5 and 8). Online, each side brings its own look from the relay. */
   const look = () => myLook(!yellow(), journey.campaign.badges.length);
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
-    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks }, (k) => fmt(k as StringKey)), board.orientation);
+    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: journey.campaign.name || fmt('name.1'), looks, duo }, (k) => fmt(k as StringKey)), board.orientation);
   const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
-  const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey));
+  const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey), journey.campaign.starter);
   const unlockMeir = () => {
     save('trainer', 'meir');
     journey.campaign = { ...journey.campaign, name: 'MEIR' };
@@ -326,28 +330,11 @@ function boot(): App {
     document.body.classList.toggle('cart-yellow', c === 'yellow');
     text.oneLine = c === 'yellow';
     overlay.simple = c === 'yellow';
-    // YELLOW battles start on Quick the first time (toggle to Full in settings).
-    if (c === 'yellow' && !load<boolean>('yellowAnim')) {
-      settings.anim = YELLOW_DEFAULT_ANIM;
-      settings.pieceStyle = 'badge'; // YELLOW starts on Big badge (§B19 item 3)
-      save('settings', settings);
-      save('yellowAnim', true);
-    }
-    // YELLOW battles start Classic, BLUE Anime (§B18 item 6), once per player; the setting can change it after.
-    if (c === 'yellow' && !load<boolean>('yellowStyle')) {
-      settings.battleStyle = 'classic';
-      save('settings', settings);
-      save('yellowStyle', true);
-      applySettings();
-    }
+    if (c === 'yellow' && firstYellowDefaults(settings)) applySettings();
   }
   if (cart) setCart(cart);
 
-  function showShelf(): void {
-    show(shelfScreen(currentLang(), (c) => (setCart(c), goTitle()), (l) => (applyLanguage(l), showShelf()), unlockMeir));
-  }
-
-  function showSettings(): void {
+  function showSettings(back: () => void = goTitle): void {
     show(
       settingsScreen(
         settings,
@@ -355,24 +342,23 @@ function boot(): App {
           save('settings', settings);
           applySettings();
         },
-        goTitle,
+        back,
         {
           lang: currentLang(),
-          onLang: (l) => (applyLanguage(l), showSettings()),
+          onLang: (l) => (applyLanguage(l), showSettings(back)),
           cartridge: cart ?? 'blue',
           onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()),
         },
-        saveSection({ players: () => showProfiles(showSettings), restored: () => switchTo(currentSlot()) }),
+        saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }),
       ),
     );
   }
 
-  /** Who's playing? (§B18 item 2): after the splash when the device has more than one player, and from Settings. */
-  function showProfiles(back?: () => void): void {
-    const again = () => showProfiles(back);
-    const a = { pick: switchTo, add: addProfile, refresh: again, back, rename: (n: number, name: string) => (renameProfile(n, name), again()) };
-    show(profileScreen(summaries(), currentSlot(), { ...a, remove: (n) => deleteProfile(n) || again() }));
-  }
+  // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
+  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, newGame: () => (yellow() ? goTitle() : journey.open()) });
+  /** Two Players: each side as a save or a guest when the device has more than one (change C). */
+  let duo: Record<Color, DuoSide> | null = null;
+  const twoPlayers = () => (slotCount() > 1 ? flow.duo((w, b) => ((duo = { w: duoSide(w, 'w'), b: duoSide(b, 'b') }), startGame({ mode: 'two-players', human: 'w', level: 1 })), goTitle) : startGame({ mode: 'two-players', human: 'w', level: 1 }));
   const langBtn = () => langButton(currentLang(), (l) => (applyLanguage(l), goTitle()));
 
   const drawReview = (frame: Frame) => drawFrame(reviewLayer, boardWrap, board, frame);
@@ -386,6 +372,8 @@ function boot(): App {
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
+    if (view === gameView) fitter.start();
+    else fitter.stop();
     window.scrollTo(0, 0);
   }
 
@@ -398,7 +386,17 @@ function boot(): App {
   const showOnline = () => modes.online();
   const tryMode = (p: Page) => modes.tryIt(p);
 
+  /** CONTINUE (change C) and the hub's Continue: the journey spot or the game in progress, else the home screen. */
+  function resume(): void {
+    const g = savedGame();
+    const c = journey.campaign;
+    if (!yellow() && c.starter && (load<string>('last') === 'journey' || !g)) return journey.open();
+    if (g) return startGame(g, g);
+    goTitle();
+  }
+
   function goTitle(): void {
+    duo = null;
     journey.campaign = loadCampaign(); // YELLOW's path and team write the save directly
     online.close();
     puzzle.stop();
@@ -413,7 +411,7 @@ function boot(): App {
         // Play opens the level picker (§B18 item 4), Youngster first.
         play: () => show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))),
         learn: () => path.open(),
-        friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+        friend: twoPlayers,
         team: () => yellowMode.team(),
         settings: showSettings,
       });
@@ -431,16 +429,13 @@ function boot(): App {
       canContinue: !!g || !!c.starter,
       hub: hubData(c, rating, quick, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
       battle: () => startGame(quick),
-      resume: () => {
-        if (journeyFirst) return journey.open();
-        if (g) startGame(g, g);
-      },
+      resume,
       training: () => journey.openFromHub('training', goTitle),
       dex: () => journey.openFromHub('dex', goTitle),
       team: () => journey.openFromHub('team', goTitle),
       card: () => journey.openFromHub('card', goTitle),
       computer: () => show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)),
-      twoPlayers: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+      twoPlayers,
       kanto: () => journey.open(),
       howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
       online: () => showOnline(),
@@ -452,12 +447,16 @@ function boot(): App {
   function configure(setup: Setup): void {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
-    if (ys) setSkins(ys);
-    else if (setup.mode === 'computer') setSkins({ [setup.human]: journey.campaign.team });
+    const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
+    const theirs = setup.mode === 'computer' ? { [cpu]: computerTeam(setup.level, cpu, journey.campaign.starter) } : {};
+    if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
+    else if (ys) setSkins({ ...theirs, ...ys });
+    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: journey.campaign.team });
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
     app.human = setup.mode === 'two-players' ? 'w' : setup.human;
+    board.mine = app.human;
     app.level = setup.level;
     app.aiFailed = false;
   }
@@ -522,6 +521,7 @@ function boot(): App {
   }
 
   function settle(out: Outcome, from: string, to: string): void {
+    plates.quiet();
     app.busy = false;
     board.locked = false;
     board.setLastMove(from, to);
@@ -661,6 +661,8 @@ function boot(): App {
     // An online win evolves trade Pokémon on your team (§B12).
     if (app.mode === 'online' && end.winner === app.human) journey.onlineWin();
     if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
+    const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
+    if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);
     if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
     if (end.reason === 'checkmate') {
       const king = game.checkedKing();
@@ -701,7 +703,8 @@ function boot(): App {
     legend.render(legendOn());
     const opponent: Color = app.human === 'w' ? 'b' : 'w';
     const introKey = app.mode === 'two-players' || app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed';
-    text.plain(fmt(introKey));
+    // The intro is the opponent's line, in their bar when they have one (change A).
+    text.plain(plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
     persistGame();
     updateTurn();
     if (withIntro) {
@@ -733,10 +736,7 @@ function boot(): App {
     show(
       splash(() => {
         preloadBattleSprites();
-        // Who's playing first on a shared device; the cartridge shelf shows on a player's first launch only (§B17).
-        if (needsPicker()) showProfiles();
-        else if (cart) goTitle();
-        else showShelf();
+        flow.afterSplash();
       }),
     );
   return app;

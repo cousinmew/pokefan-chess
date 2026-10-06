@@ -13,9 +13,10 @@ describe('BLUE story stages (§B18 item 5)', () => {
   it('follows the table, and every stage species exists', () => {
     setStages({ w: stageSkin('w', 0), b: stageSkin('b', 0) });
     expect(['d1', 'c1', 'f1', 'b1', 'a1', 'e1', 'a2'].map((sq) => speciesIdFor('w', ({ d1: 'q', c1: 'b', f1: 'b', b1: 'n', a1: 'r', e1: 'k', a2: 'p' } as const)[sq as 'd1'], sq))).toEqual(['charmander', 'bulbasaur', 'squirtle', 'ponyta', 'snorlax', 'pikachu', 'eevee']);
-    expect(['e8', 'd8', 'c8', 'f8', 'b8', 'a8', 'a7'].map((sq) => speciesIdFor('b', ({ e8: 'k', d8: 'q', c8: 'b', f8: 'b', b8: 'n', a8: 'r', a7: 'p' } as const)[sq as 'e8'], sq))).toEqual(['nidoran-m', 'nidoran-f', 'ekans', 'koffing', 'diglett', 'rhyhorn', 'rattata']);
+    expect(['e8', 'd8', 'c8', 'f8', 'b8', 'a8', 'a7'].map((sq) => speciesIdFor('b', ({ e8: 'k', d8: 'q', c8: 'b', f8: 'b', b8: 'n', a8: 'r', a7: 'p' } as const)[sq as 'e8'], sq))).toEqual(['raticate', 'golbat', 'ekans', 'koffing', 'zubat', 'sandslash', 'rattata']); // stage 0 Rocket = the Grunt's team (change B)
     setStages({ w: stageSkin('w', 1), b: stageSkin('b', 1) });
-    expect(speciesIdFor('b', 'q', 'd8')).toBe('nidorina');
+    expect(speciesIdFor('b', 'q', 'd8')).toBe('arbok'); // Jessie & James
+    expect(speciesIdFor('b', 'k', 'e8')).toBe('meowth');
     setStages({ w: stageSkin('w', 2), b: stageSkin('b', 2) });
     expect(speciesIdFor('w', 'q', 'd1')).toBe('charizard');
     for (const c of ['w', 'b'] as const) for (const st of [0, 1] as const) for (const id of Object.values(stageSkin(c, st))) expect(SPECIES[id!], id).toBeDefined();
@@ -25,7 +26,6 @@ describe('BLUE story stages (§B18 item 5)', () => {
     const base = (c: 'w' | 'b') => (role: 'k' | 'q' | 'r' | 'b' | 'n' | 'p', dark: boolean) => defaultSpecies(c, role, dark);
     expect(stageEvolutions('w', 0, 1, base('w'))).toEqual([['charmander', 'charmeleon'], ['ponyta', 'rapidash'], ['squirtle', 'wartortle'], ['bulbasaur', 'ivysaur']]);
     expect(stageEvolutions('w', 1, 2, base('w'))).toEqual([['charmeleon', 'charizard'], ['wartortle', 'blastoise'], ['ivysaur', 'venusaur']]);
-    expect(stageEvolutions('b', 1, 2, base('b')).map((e) => e[1])).toEqual(['nidoking', 'nidoqueen']);
     expect(stageEvolutions('w', 1, 1, base('w'))).toEqual([]);
   });
 });

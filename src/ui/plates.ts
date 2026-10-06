@@ -2,6 +2,8 @@
 // Trainers beside the board (§B18 item 8): a name plate above the board for the side at the top and one below for
 // the side at the bottom, each with its trainer. Phones: a 48 px sprite inside the plate; desktop: a larger one.
 // Reactions are CSS only: a hop for a capture, a shake for a lost piece, "!" on check, the loser fades at the end.
+// Change A: each plate is also a message bar. Yours holds the text box; the opponent's shows what their side says
+// ("TEAM ROCKET wants to battle!", reactions). With no trainers (Pikachu's Path) your bar keeps the text box.
 import type { Color } from '../board/pieces';
 import { el } from './dom';
 import { trainerSprite } from './kanto';
@@ -13,16 +15,48 @@ export class Plates {
   readonly bottom = el('div', 'plate plate-bottom');
   private sides: Partial<Record<Color, Side>> = {};
   private bottomColor: Color = 'w';
+  private readonly who = { top: el('div', 'plate-who'), bottom: el('div', 'plate-who') };
+  private readonly topMsg = el('p', 'plate-msg');
+  private readonly bottomMsg = el('div', 'plate-msg');
 
   constructor() {
     this.top.dataset.testid = 'plate-top';
     this.bottom.dataset.testid = 'plate-bottom';
+    this.topMsg.dataset.testid = 'plate-top-msg';
+    const bubble = () => {
+      const b = el('span', 'plate-bubble');
+      b.textContent = '!';
+      b.setAttribute('aria-hidden', 'true');
+      return b;
+    };
+    this.top.append(this.who.top, this.topMsg, bubble());
+    this.bottom.append(this.who.bottom, this.bottomMsg, bubble());
   }
 
-  /** Who stands on each side; `bottom` is the colour at the bottom of the board. Null hides both plates. */
+  /** Your bar hosts the game's text box (merged plate and message, change A). */
+  attachText(text: HTMLElement): void {
+    this.bottomMsg.append(text);
+  }
+
+  /** A line from one side; false when it belongs in your text box (your side, or no trainers on screen). */
+  message(c: Color, text: string): boolean {
+    if (this.top.hidden || c === this.bottomColor) return false;
+    this.topMsg.textContent = text;
+    return true;
+  }
+
+  /** Clears the opponent's line once play moves on. */
+  quiet(): void {
+    this.topMsg.textContent = '';
+  }
+
+  /** Who stands on each side; `bottom` is the colour at the bottom of the board. Null shows no trainers: the top
+   * plate hides and the bottom one keeps only the text box. */
   set(sides: Record<Color, Side> | null, bottom: Color): void {
     this.sides = sides ?? {};
-    this.top.hidden = this.bottom.hidden = !sides;
+    this.top.hidden = !sides;
+    this.bottom.classList.toggle('no-trainer', !sides);
+    this.topMsg.textContent = '';
     this.orient(bottom);
   }
 
@@ -41,6 +75,8 @@ export class Plates {
   /** A one word reaction bubble over a side's trainer ("Go!", "Oh no!", "Yes!"), for a moment. */
   say(c: Color, word: string): void {
     const plate = this.plateOf(c);
+    // The opponent's reaction goes in their bar's message (change A); yours pops over your sprite.
+    if (plate === this.top) return void (this.topMsg.textContent = word);
     const bubble = plate.querySelector('.plate-say') ?? plate.appendChild(el('span', 'plate-say'));
     bubble.textContent = word;
     this.pulse(plate, 'saying');
@@ -54,7 +90,8 @@ export class Plates {
     const s = this.sides[c];
     plate.dataset.color = c;
     plate.className = plate.className.replace(/ (won|lost|check|hop|shake|saying)\b/g, '');
-    if (!s) return plate.replaceChildren();
+    const who = plate === this.top ? this.who.top : this.who.bottom;
+    if (!s) return who.replaceChildren();
     const sprite = trainerSprite(s.sprite, 'trainer-sprite plate-sprite');
     sprite.dataset.trainer = s.sprite;
     const name = el('span', 'plate-name');
@@ -63,10 +100,7 @@ export class Plates {
     const title = el('small', 'plate-title');
     title.textContent = s.title;
     name.append(b, ' · ', title);
-    const bubble = el('span', 'plate-bubble');
-    bubble.textContent = '!';
-    bubble.setAttribute('aria-hidden', 'true');
-    plate.replaceChildren(sprite, name, bubble);
+    who.replaceChildren(sprite, name);
   }
 
   /** A capture: that side hops, the other shakes. */

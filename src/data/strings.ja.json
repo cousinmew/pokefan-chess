@@ -813,5 +813,21 @@
   "yellow.next.lesson": "つぎのレッスンで{name}！",
   "yellow.next.win": "かつと{name}がもらえる！",
   "yellow.unlocked": "{name}をゲット！",
-  "yellow.none": "まだシールがないよ。"
+  "yellow.none": "まだシールがないよ。",
+  "start.continue": "つづきから はじめる",
+  "start.new": "さいしょから はじめる",
+  "start.option": "せってい",
+  "start.switch": "トレーナーを かえる",
+  "start.player": "しゅじんこう",
+  "start.cart": "カセット",
+  "start.badges": "バッジ",
+  "start.dex": "ずかん",
+  "start.time": "プレイじかん",
+  "start.replace": "4つの セーブが いっぱい。どれを けす？",
+  "start.replaceHold": "ながおしで {name}の セーブを けす",
+  "duo.title": "どっちが どっちを つかう？",
+  "duo.red": "レッドがわ",
+  "duo.rocket": "ロケットがわ",
+  "duo.guest": "ゲスト",
+  "duo.start": "スタート！"
 }

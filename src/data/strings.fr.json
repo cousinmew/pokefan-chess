@@ -813,5 +813,21 @@
   "yellow.next.lesson": "Finis la leçon suivante pour {name} !",
   "yellow.next.win": "Gagne une partie pour avoir {name} !",
   "yellow.unlocked": "Tu as eu {name} !",
-  "yellow.none": "Pas encore d'autocollant ici."
+  "yellow.none": "Pas encore d'autocollant ici.",
+  "start.continue": "CONTINUER",
+  "start.new": "NOUVELLE PARTIE",
+  "start.option": "OPTIONS",
+  "start.switch": "CHANGER DE DRESSEUR",
+  "start.player": "JOUEUR",
+  "start.cart": "CARTOUCHE",
+  "start.badges": "BADGES",
+  "start.dex": "POKéDEX",
+  "start.time": "TEMPS",
+  "start.replace": "Les 4 sauvegardes sont prises. Laquelle remplacer ?",
+  "start.replaceHold": "Maintiens pour remplacer la sauvegarde de {name}",
+  "duo.title": "Qui joue quel camp ?",
+  "duo.red": "Camp RED",
+  "duo.rocket": "Camp ROCKET",
+  "duo.guest": "Invité",
+  "duo.start": "C'est parti !"
 }

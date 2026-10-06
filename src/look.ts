@@ -2,9 +2,10 @@
 // Who stands beside the board and how each team looks (§B18 items 5, 7 and 8). Per profile: the player's trainer
 // (RED, or MEIR once the secret code is entered). BLUE's story stage comes from the badges.
 import type { Look } from '../worker/src/protocol';
-import type { Color } from './board/pieces';
+import type { Color, TeamSkin } from './board/pieces';
 import { setStages } from './board/pieces';
-import { stageFor, stageSkin, type Stage } from './board/stages';
+import { ROCKET_STAGE_TRAINERS, stageFor, stageSkin, type Stage } from './board/stages';
+import { loadout } from './board/loadouts';
 import trainers from './data/trainers.json';
 import { load } from './store/persist';
 
@@ -29,7 +30,7 @@ export function applyLooks(looks: Partial<Record<Color, Look>>): void {
 // (Youngster, Brock, BLUE, RED) when it plays Red. In BLUE story games it follows the team's stage (§B18 item 8).
 const ROCKET_LADDER = ['rocketgrunt', 'rocketgruntf', 'jessiejames-gen1', 'giovanni-gen1'];
 const RED_LADDER = ['youngster-gen1', 'brock-gen1', 'blue-gen1', 'red-gen1'];
-const STAGE_TRAINER = ['rocketgrunt', 'jessiejames-gen1', 'giovanni-gen1'];
+const STAGE_TRAINER = ROCKET_STAGE_TRAINERS;
 const NAME_KEY: Record<string, string> = { rocketgrunt: 'plate.grunt', rocketgruntf: 'plate.grunt', 'jessiejames-gen1': 'plate.jessiejames', 'giovanni-gen1': 'plate.giovanni', 'blue-gen1': 'plate.blue', 'red-gen1': 'plate.red', meir: 'plate.meir', 'youngster-gen1': 'plate.youngster', 'brock-gen1': 'plate.brock' };
 // Titles on the name plates (§B20 item 3): "GIOVANNI · Boss", "MEIR · Trainer".
 const TITLE_KEY: Record<string, string> = { rocketgrunt: 'title.rocket', rocketgruntf: 'title.rocket', 'jessiejames-gen1': 'title.rocket', 'giovanni-gen1': 'title.boss', 'blue-gen1': 'title.rival', 'brock-gen1': 'title.gymLeader', 'youngster-gen1': 'title.trainer', 'red-gen1': 'title.trainer', meir: 'title.trainer' };
@@ -46,6 +47,8 @@ export interface Standing {
   stage: Stage;
   myName: string;
   looks?: Partial<Record<Color, Look>>;
+  /** Two Players with saves (change C): each side's own trainer and name. */
+  duo?: Record<Color, { name: string; trainer: PlayerTrainer }> | null;
 }
 
 export interface Side {
@@ -53,6 +56,8 @@ export interface Side {
   name: string;
   /** "Boss", "Trainer", "Gym Leader"... (§B20 item 3) */
   title: string;
+  /** A computer trainer's own team (change B), for the level picker's preview. */
+  team?: TeamSkin | null;
 }
 
 /** Who stands on each side (§B18 item 8), or null for no plates (Pikachu's Path lessons). */
@@ -63,6 +68,11 @@ export function standing(o: Standing, name: (key: string) => string): Record<Col
   const npc = (sprite: string): Side => ({ sprite, name: name(trainerNameKey(sprite)), title: name(trainerTitleKey(sprite, o.mode === 'computer' ? o.level : undefined)) });
   const pair = (mine: Side, theirs: Side) => ({ [o.human]: mine, [other]: theirs }) as Record<Color, Side>;
   if (o.mode === 'computer') return pair(me, npc(levelTrainer(o.level, other)));
+  if (o.mode === 'two-players' && o.duo) {
+    const d = o.duo;
+    const side = (c: Color): Side => ({ sprite: c === 'b' && d.b.trainer === 'red' && d.w.trainer === 'red' ? 'blue-gen1' : trainerSpriteId(d[c].trainer), name: d[c].name, title: name('title.trainer') });
+    return { w: side('w'), b: side('b') };
+  }
   if (o.mode === 'two-players') return { w: me, b: myTrainer() === 'red' ? npc('blue-gen1') : me };
   if (o.mode === 'online') {
     const w = o.looks?.w?.trainer ?? 'red';
@@ -75,11 +85,14 @@ export function standing(o: Standing, name: (key: string) => string): Record<Col
 }
 
 /** The level picker's faces (§B20 item 1): you, and the computer's ladder for the side it plays. */
-export function ladderFaces(human: Color, myName: string, name: (key: string) => string): { me: Side; them(level: number): Side } {
+export function ladderFaces(human: Color, myName: string, name: (key: string) => string, starter?: string | null): { me: Side; them(level: number): Side } {
   const computer: Color = human === 'w' ? 'b' : 'w';
   const side = (sprite: string, level?: number): Side => ({ sprite, name: name(trainerNameKey(sprite)), title: name(trainerTitleKey(sprite, level)) });
   return {
     me: { sprite: trainerSpriteId(myTrainer()), name: myName, title: name('title.trainer') },
-    them: (level) => side(levelTrainer(level, computer), level),
+    them: (level) => ({ ...side(levelTrainer(level, computer), level), team: loadout(levelTrainer(level, computer), starter) }),
   };
 }
+
+/** The computer's team for a level and side (change B); BLUE answers your starter. */
+export const computerTeam = (level: number, computer: Color, starter?: string | null): TeamSkin => loadout(levelTrainer(level, computer), starter) ?? {};

@@ -813,5 +813,21 @@
   "yellow.next.lesson": "Termine a lição e ganhe {name}!",
   "yellow.next.win": "Vença um jogo e ganhe {name}!",
   "yellow.unlocked": "Você ganhou {name}!",
-  "yellow.none": "Ainda não há adesivo aqui."
+  "yellow.none": "Ainda não há adesivo aqui.",
+  "start.continue": "CONTINUAR",
+  "start.new": "NOVO JOGO",
+  "start.option": "OPÇÕES",
+  "start.switch": "TROCAR TREINADOR",
+  "start.player": "JOGADOR",
+  "start.cart": "CARTUCHO",
+  "start.badges": "INSÍGNIAS",
+  "start.dex": "POKéDEX",
+  "start.time": "TEMPO",
+  "start.replace": "Os 4 jogos salvos estão ocupados. Qual substituir?",
+  "start.replaceHold": "Segure para substituir o jogo de {name}",
+  "duo.title": "Quem joga de que lado?",
+  "duo.red": "Lado RED",
+  "duo.rocket": "Lado ROCKET",
+  "duo.guest": "Convidado",
+  "duo.start": "Começar!"
 }

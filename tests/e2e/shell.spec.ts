@@ -39,6 +39,8 @@ test.describe('360x640', () => {
     await page.getByTestId('screen-splash').click();
     // With storage blocked nothing is remembered, so the cartridge shelf shows: pick BLUE.
     await page.getByTestId('cart-blue').click();
+    // The Gen 1 style start menu follows (change C): CONTINUE goes home.
+    await page.getByTestId('start-continue').click();
     await page.getByTestId('vs-computer').click();
     await page.getByTestId('team-rocket').click();
     await page.getByTestId('level-1').click();
@@ -55,6 +57,7 @@ test.describe('360x640', () => {
   test('settings persist and Continue resumes a game', async ({ page }) => {
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
+    await page.getByTestId('start-continue').click();
     await page.getByTestId('settings').click();
     await page.getByTestId('set-anim').selectOption('off');
     await page.getByTestId('set-glyphs').uncheck();
@@ -67,7 +70,8 @@ test.describe('360x640', () => {
     await expect(page.locator('.glyph')).toHaveCount(0);
     await page.reload();
     await page.getByTestId('screen-splash').click();
-    await page.getByTestId('continue').click();
+    // CONTINUE on the start menu resumes the game in progress (change C).
+    await page.getByTestId('start-continue').click();
     await expect(page.locator('[data-square="e4"]')).toHaveAttribute('data-piece', 'wp');
     await page.getByTestId('menu').click();
     await page.getByTestId('settings').click();

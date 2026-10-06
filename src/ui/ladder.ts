@@ -4,7 +4,7 @@
 import type { Side } from '../look';
 import { fmt } from '../game/text';
 import { el } from './dom';
-import { trainerSprite } from './kanto';
+import { mon, trainerSprite } from './kanto';
 
 /** Trainer sprite, "NAME · Title" and 1 to 4 stars, appended to a level button. */
 export function opponentTag(side: Side, level: number, withStars = true): HTMLElement {
@@ -21,6 +21,16 @@ export function opponentTag(side: Side, level: number, withStars = true): HTMLEl
   stars.setAttribute('aria-label', fmt('yellow.stars', { n: String(level) }));
   text.append(name, title, ...(withStars ? [stars] : []));
   tag.append(sprite, text);
+  // The trainer's own team (change B): King, Queen and Pawn.
+  if (side.team) {
+    const crew = el('span', 'loadout');
+    crew.dataset.testid = 'loadout';
+    for (const role of ['k', 'q', 'p'] as const) {
+      const id = side.team[role];
+      if (id) crew.append(mon(id, 'loadout-mon'));
+    }
+    tag.append(crew);
+  }
   return tag;
 }
 

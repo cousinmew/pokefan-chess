@@ -813,5 +813,21 @@
   "yellow.next.lesson": "Maak de les af voor {name}!",
   "yellow.next.win": "Win een potje voor {name}!",
   "yellow.unlocked": "Je hebt {name}!",
-  "yellow.none": "Nog geen sticker hiervoor."
+  "yellow.none": "Nog geen sticker hiervoor.",
+  "start.continue": "VERDER",
+  "start.new": "NIEUW SPEL",
+  "start.option": "OPTIES",
+  "start.switch": "TRAINER WISSELEN",
+  "start.player": "SPELER",
+  "start.cart": "CARTRIDGE",
+  "start.badges": "BADGES",
+  "start.dex": "POKéDEX",
+  "start.time": "TIJD",
+  "start.replace": "Alle 4 opslagen zijn bezet. Welke vervangen?",
+  "start.replaceHold": "Houd vast om de opslag van {name} te vervangen",
+  "duo.title": "Wie speelt welke kant?",
+  "duo.red": "Kant RED",
+  "duo.rocket": "Kant ROCKET",
+  "duo.guest": "Gast",
+  "duo.start": "Start!"
 }

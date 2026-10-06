@@ -813,5 +813,21 @@
   "yellow.next.lesson": "¡Termina la lección y gana a {name}!",
   "yellow.next.win": "¡Gana una partida y consigue a {name}!",
   "yellow.unlocked": "¡Conseguiste a {name}!",
-  "yellow.none": "Aún no hay sticker aquí."
+  "yellow.none": "Aún no hay sticker aquí.",
+  "start.continue": "CONTINUAR",
+  "start.new": "NUEVA PARTIDA",
+  "start.option": "OPCIONES",
+  "start.switch": "CAMBIAR ENTRENADOR",
+  "start.player": "JUGADOR",
+  "start.cart": "CARTUCHO",
+  "start.badges": "MEDALLAS",
+  "start.dex": "POKéDEX",
+  "start.time": "TIEMPO",
+  "start.replace": "Las 4 partidas están ocupadas. ¿Cuál reemplazar?",
+  "start.replaceHold": "Mantén para reemplazar la partida de {name}",
+  "duo.title": "¿Quién juega cada lado?",
+  "duo.red": "Lado RED",
+  "duo.rocket": "Lado ROCKET",
+  "duo.guest": "Invitado",
+  "duo.start": "¡A jugar!"
 }

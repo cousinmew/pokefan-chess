@@ -292,7 +292,8 @@ export class JourneyGame {
     const tell = () => this.story(lines, () => (now && !before ? this.reward(p, next) : next()), this.spriteOf(t) ?? undefined);
     // A badge that crosses 3 or 6 evolves both story teams (§B18 item 5): one evolution ceremony per piece.
     const stage = stageFor(this.campaign.badges.length);
-    const evos = (['w', 'b'] as const).flatMap((col) => stageEvolutions(col, stageBefore, stage, (role, dark) => defaultSpecies(col, role, dark)));
+    // Rocket's stage brings a new trainer and team (change B), not an evolution: only Red's pieces evolve.
+    const evos = stageEvolutions('w', stageBefore, stage, (role, dark) => defaultSpecies('w', role, dark));
     if (!evos.length) return tell();
     music.play('evolution');
     void evos.reduce((done, [a, b]) => done.then(() => this.host.evolveAnim(a, b)), Promise.resolve()).then(tell);

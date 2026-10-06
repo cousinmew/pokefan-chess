@@ -813,5 +813,21 @@
   "yellow.next.lesson": "下一课得到{name}！",
   "yellow.next.win": "赢一局得到{name}！",
   "yellow.unlocked": "得到了{name}！",
-  "yellow.none": "还没有贴纸。"
+  "yellow.none": "还没有贴纸。",
+  "start.continue": "继续游戏",
+  "start.new": "新游戏",
+  "start.option": "设置",
+  "start.switch": "切换训练家",
+  "start.player": "玩家",
+  "start.cart": "卡带",
+  "start.badges": "徽章",
+  "start.dex": "图鉴",
+  "start.time": "时间",
+  "start.replace": "4个存档已满。要替换哪一个？",
+  "start.replaceHold": "按住以替换{name}的存档",
+  "duo.title": "谁执哪一方？",
+  "duo.red": "红方",
+  "duo.rocket": "火箭方",
+  "duo.guest": "访客",
+  "duo.start": "开始！"
 }

@@ -813,5 +813,21 @@
   "yellow.next.lesson": "סיימו את השיעור הבא וקבלו את {name}!",
   "yellow.next.win": "נצחו משחק וקבלו את {name}!",
   "yellow.unlocked": "קיבלתם את {name}!",
-  "yellow.none": "עוד אין מדבקה לכלי הזה."
+  "yellow.none": "עוד אין מדבקה לכלי הזה.",
+  "start.continue": "המשך",
+  "start.new": "משחק חדש",
+  "start.option": "אפשרויות",
+  "start.switch": "החלפת מאמן",
+  "start.player": "שחקן",
+  "start.cart": "מחסנית",
+  "start.badges": "תגים",
+  "start.dex": "פוקידקס",
+  "start.time": "זמן",
+  "start.replace": "כל 4 השמירות תפוסות. איזו להחליף?",
+  "start.replaceHold": "החזיקו כדי להחליף את השמירה של {name}",
+  "duo.title": "מי משחק באיזה צד?",
+  "duo.red": "צד RED",
+  "duo.rocket": "צד ROCKET",
+  "duo.guest": "אורח",
+  "duo.start": "מתחילים!"
 }

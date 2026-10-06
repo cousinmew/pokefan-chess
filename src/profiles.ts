@@ -20,6 +20,32 @@ function session(write?: boolean): boolean {
 }
 
 const meta = (): ProfileMeta => readMeta() ?? { slots: [1], current: 1 };
+export const slotCount = () => meta().slots.length;
+export const isFull = () => meta().slots.length >= MAX_SLOTS;
+
+// What the page should do after a switch reloads it (change C): resume the save, or start a new game.
+const INTENT = 'kc:v1:intent';
+export type Intent = 'continue' | 'newgame';
+function setIntent(i: Intent): void {
+  try {
+    window.sessionStorage.setItem(INTENT, i);
+  } catch (err) {
+    console.warn('session storage blocked:', err instanceof Error ? err.name : err);
+  }
+}
+/** Reads and clears the intent left by a switch. */
+export function takeIntent(): Intent | null {
+  try {
+    const i = window.sessionStorage.getItem(INTENT);
+    window.sessionStorage.removeItem(INTENT);
+    return i === 'continue' || i === 'newgame' ? i : null;
+  } catch (err) {
+    console.warn('session storage blocked:', err instanceof Error ? err.name : err);
+    return null;
+  }
+}
+/** h:mm from milliseconds of play. */
+export const playTime = (ms = 0) => `${Math.floor(ms / 3_600_000)}:${String(Math.floor(ms / 60_000) % 60).padStart(2, '0')}`;
 
 /** The picker shows after the splash only when the device has more than one player, once per visit. */
 export const needsPicker = () => meta().slots.length > 1 && !session();
@@ -35,15 +61,23 @@ export function summaries(): SlotSummary[] {
       lang: loadFrom<string>(n, 'lang') ?? 'en',
       badges: c?.badges?.length ?? 0,
       dex: DEX.filter((s) => c?.caught?.[s]).length,
+      time: playTime(c?.playMs),
     };
   });
 }
 
-export function switchTo(n: number): void {
+export function switchTo(n: number, intent: Intent | null = null): void {
   const m = meta();
   if (m.slots.includes(n)) writeMeta({ ...m, current: n });
   session(true);
+  if (intent) setIntent(intent);
   location.reload();
+}
+
+/** NEW GAME with all 4 slots in use: this save is wiped and a new game starts in its place (after a 2 s hold). */
+export function replaceProfile(n: number): void {
+  clearProfile(n);
+  switchTo(n, 'newgame');
 }
 
 /** A fresh player in the first free slot; it opens on the cartridge shelf. */
@@ -53,7 +87,7 @@ export function addProfile(): void {
   if (!n || m.slots.length >= MAX_SLOTS) return;
   clearProfile(n);
   writeMeta({ slots: [...m.slots, n].sort(), current: m.current });
-  switchTo(n);
+  switchTo(n, 'newgame');
 }
 
 export function renameProfile(n: number, name: string): void {

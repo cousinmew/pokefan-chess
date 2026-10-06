@@ -27,6 +27,8 @@ async function settings(page: Page, values: Record<string, string>) {
 }
 
 test('chips are at least 18 px with 4.5:1 contrast, and the board fills the width', async ({ page }) => {
+  // With Who's who on, the board also has to share the height (change A, tests/e2e/layout.spec.ts); off, it fills the width.
+  await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, legend: 'off' })));
   await page.goto('./?debug=1&start=two');
   const chips = await page.locator('#board .chip').evaluateAll((els) =>
     els.map((e) => {

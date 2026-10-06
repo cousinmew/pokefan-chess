@@ -812,5 +812,21 @@
   "yellow.next.lesson": "Finish the next lesson to get {name}!",
   "yellow.next.win": "Win a game to get {name}!",
   "yellow.unlocked": "You got {name}!",
-  "yellow.none": "No sticker for this piece yet."
+  "yellow.none": "No sticker for this piece yet.",
+  "start.continue": "CONTINUE",
+  "start.new": "NEW GAME",
+  "start.option": "OPTION",
+  "start.switch": "SWITCH TRAINER",
+  "start.player": "PLAYER",
+  "start.cart": "CARTRIDGE",
+  "start.badges": "BADGES",
+  "start.dex": "POKéDEX",
+  "start.time": "TIME",
+  "start.replace": "All 4 saves are in use. Which one should the new game replace?",
+  "start.replaceHold": "Hold to replace {name}'s save",
+  "duo.title": "Who plays which side?",
+  "duo.red": "RED side",
+  "duo.rocket": "ROCKET side",
+  "duo.guest": "Guest",
+  "duo.start": "Start!"
 }

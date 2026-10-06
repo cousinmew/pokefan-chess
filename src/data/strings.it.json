@@ -813,5 +813,21 @@
   "yellow.next.lesson": "Finisci la lezione per avere {name}!",
   "yellow.next.win": "Vinci una partita per {name}!",
   "yellow.unlocked": "Hai preso {name}!",
-  "yellow.none": "Ancora nessun adesivo qui."
+  "yellow.none": "Ancora nessun adesivo qui.",
+  "start.continue": "CONTINUA",
+  "start.new": "NUOVA PARTITA",
+  "start.option": "OPZIONI",
+  "start.switch": "CAMBIA ALLENATORE",
+  "start.player": "GIOCATORE",
+  "start.cart": "CARTUCCIA",
+  "start.badges": "MEDAGLIE",
+  "start.dex": "POKéDEX",
+  "start.time": "TEMPO",
+  "start.replace": "I 4 salvataggi sono pieni. Quale sostituire?",
+  "start.replaceHold": "Tieni premuto per sostituire il salvataggio di {name}",
+  "duo.title": "Chi gioca quale lato?",
+  "duo.red": "Lato RED",
+  "duo.rocket": "Lato ROCKET",
+  "duo.guest": "Ospite",
+  "duo.start": "Via!"
 }

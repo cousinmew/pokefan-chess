@@ -31,6 +31,8 @@ interface Press {
 export class Board {
   readonly el: HTMLElement;
   orientation: Color = 'w';
+  /** Your side: its pieces get a team coloured ground shadow when the other side has the same species (change A). */
+  mine: Color | null = null;
   locked = false;
   private selected: string | null = null;
   private lastMove: [string, string] | null = null;
@@ -51,6 +53,7 @@ export class Board {
     this.el = document.createElement('div');
     this.el.className = 'board';
     this.el.id = 'board';
+    this.el.dataset.testid = 'board';
     this.el.setAttribute('role', 'grid');
     this.el.tabIndex = 0;
     this.el.addEventListener('pointerdown', (e) => this.onDown(e));
@@ -84,6 +87,17 @@ export class Board {
     return this.cells.get(sq);
   }
 
+  /** Species (by dex) standing on both sides, e.g. Rattata pawns on each team. */
+  private twins(): Set<number> {
+    const seen: Record<Color, Set<number>> = { w: new Set(), b: new Set() };
+    for (const f of FILES) for (let r = 1; r <= 8; r++) {
+      const sq = `${f}${r}`;
+      const p = this.game.pieceAt(sq);
+      if (p) seen[p.color].add(speciesFor(p.color, p.type, sq).dex);
+    }
+    return new Set([...seen.w].filter((d) => seen.b.has(d)));
+  }
+
   render(slide?: { from: string; to: string }): void {
     const before = slide ? this.cells.get(slide.from)?.getBoundingClientRect() : undefined;
     this.el.replaceChildren();
@@ -91,6 +105,7 @@ export class Board {
     const legal = this.selected ? this.game.legalFrom(this.selected) : [];
     const checked = this.game.checkedKing();
     const { glyphs, pieceStyle, animate } = this.hooks.settings();
+    const twins = this.twins();
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
         const file = this.orientation === 'w' ? f : 7 - f;
@@ -115,6 +130,7 @@ export class Board {
           cell.dataset.piece = `${piece.color}${piece.type}`;
           cell.setAttribute('aria-label', fmt('square.piece', { piece: sp.name, square: sq }));
           // Piece style (§B19 item 3): Pokémon + badge, Big badge (sprite behind the chip), or Classic symbols only.
+          if (piece.color === this.mine && twins.has(sp.dex) && pieceStyle !== 'classic') cell.append(Object.assign(document.createElement('span'), { className: `ground ground-${piece.color}` }));
           if (pieceStyle !== 'classic') cell.append(pieceImg(sp, animate, pieceStyle === 'badge'));
           if (sp.stars) {
             const star = document.createElement('span');

@@ -106,3 +106,9 @@
 - The secret code works on every keyboard and layout, shows its progress as ten dots, and typing MEIR at the name step works too.
 - Menus and starters appear sooner on slow connections: one icon sheet, starters first, battle sprites in idle time, smaller WebP sprites where they help, and a sprite cache after the first visit.
 - YELLOW has My Team: pick stickers for each piece, with 30 stickers unlocked in a fixed order by lessons and then wins.
+
+## 2.7.0 (fit, trainer teams, start menu)
+
+- Game screens always fit the window, from 320x480 to 2560x1440, with no scrolling; your name plate and the message box are one bar.
+- Each computer trainer brings their own Pokémon: Brock's Geodude and Onix, Jessie & James's Meowth and Arbok, Giovanni's Nidoking, and more.
+- A Gen 1 style start menu: CONTINUE, NEW GAME, OPTION and SWITCH TRAINER, with each player's own save, and Two Players where each side plays as their own save.

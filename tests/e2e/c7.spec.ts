@@ -25,7 +25,8 @@ test('BLUE teams start unevolved and evolve at 3 and 6 badges; YELLOW keeps fina
   await seed(page, ['boulder']);
   await vsComputer(page, 1);
   await expect(label(page, 'd1')).toHaveAttribute('aria-label', /CHARMANDER/);
-  await expect(label(page, 'd8')).toHaveAttribute('aria-label', /NIDORAN/);
+  // vs Computer the Rocket side is the level's trainer and team (change B): the Grunt at level 1.
+  await expect(label(page, 'd8')).toHaveAttribute('aria-label', /GOLBAT/);
   await expect(label(page, 'g1')).toHaveAttribute('aria-label', /PONYTA/);
 });
 
@@ -33,7 +34,7 @@ test('three badges: the middle forms', async ({ page }) => {
   await seed(page, ['boulder', 'cascade', 'thunder']);
   await vsComputer(page, 1);
   await expect(label(page, 'd1')).toHaveAttribute('aria-label', /CHARMELEON/);
-  await expect(label(page, 'e8')).toHaveAttribute('aria-label', /NIDORINO/);
+  await expect(label(page, 'e8')).toHaveAttribute('aria-label', /RATICATE/);
 });
 
 test('YELLOW keeps the classic final forms', async ({ page }) => {

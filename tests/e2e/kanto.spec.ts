@@ -58,7 +58,7 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   await page.getByTestId('level-1').click();
   await expect(page.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'CHARMANDER');
   await expect(page.locator('[data-square="d1"] img')).toHaveAttribute('alt', 'CHARMANDER'); // a new BLUE player's queen (§B18 item 5)
-  await expect(page.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'NIDORAN♂');
+  await expect(page.locator('[data-square="e8"] img')).toHaveAttribute('alt', 'RATICATE'); // the Grunt's team at level 1 (change B)
 });
 
 test('a C2 save opens on the map; Pokédex counts the starter; Two Players keeps the default teams', async ({ page }) => {

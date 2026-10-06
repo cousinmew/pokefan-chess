@@ -813,5 +813,21 @@
   "yellow.next.lesson": "Nächste Lektion schaffen, {name} bekommen!",
   "yellow.next.win": "Gewinne ein Spiel für {name}!",
   "yellow.unlocked": "Du hast {name}!",
-  "yellow.none": "Noch kein Sticker dafür."
+  "yellow.none": "Noch kein Sticker dafür.",
+  "start.continue": "WEITER",
+  "start.new": "NEUES SPIEL",
+  "start.option": "OPTIONEN",
+  "start.switch": "TRAINER WECHSELN",
+  "start.player": "SPIELER",
+  "start.cart": "MODUL",
+  "start.badges": "ORDEN",
+  "start.dex": "POKéDEX",
+  "start.time": "ZEIT",
+  "start.replace": "Alle 4 Spielstände sind belegt. Welchen ersetzen?",
+  "start.replaceHold": "Halten, um {name}s Spielstand zu ersetzen",
+  "duo.title": "Wer spielt welche Seite?",
+  "duo.red": "Seite RED",
+  "duo.rocket": "Seite ROCKET",
+  "duo.guest": "Gast",
+  "duo.start": "Los geht's!"
 }
