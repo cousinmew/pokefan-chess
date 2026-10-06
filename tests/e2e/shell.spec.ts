@@ -37,6 +37,8 @@ test.describe('360x640', () => {
     const errors = watchErrors(page);
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
+    // With storage blocked nothing is remembered, so the cartridge shelf shows: pick BLUE.
+    await page.getByTestId('cart-blue').click();
     await page.getByTestId('vs-computer').click();
     await page.getByTestId('team-rocket').click();
     await page.getByTestId('level-1').click();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, REVIEW_COLORS, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -22,20 +22,26 @@ import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
-import { furthest, PLACES, trainingThemes } from './campaign/journey';
-import { DEX } from './campaign/kanto';
+import { furthest, PLACES } from './campaign/journey';
+import { hubData } from './ui/hubData';
 import { placeName } from './ui/kanto';
 import type { Page } from './ui/manual';
-import type { StringKey } from './game/text';
 import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
+import { drawFrame } from './ui/reviewLayer';
+import { applyLanguage, savedLang } from './i18n';
+import { currentLang } from './game/text';
+import { shelfScreen, yellowHome, type Cartridge } from './ui/shelf';
+import { PathGame } from './campaign/pathGame';
+import { dexScreen } from './ui/kanto';
+import { loadCampaign } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { createRoom } from './net/online';
 import { message, onlineMenu } from './ui/online';
 import { CODE_RE } from '../worker/src/protocol';
 
-export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge';
+export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge' | 'path';
 
 /** A Journey game vs the computer (Victory Road drills, Champion BLUE): optional move limit, result to the Journey. */
 export interface Challenge {
@@ -96,6 +102,9 @@ function setCssVars(): void {
 function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
+  // Language first (§B17), so every screen is built in it; then the cartridge (YELLOW simple or BLUE story).
+  applyLanguage(savedLang(), false);
+  let cart = load<Cartridge>('cartridge');
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   // v1 forced Quick (no battle screen) under reduced motion and could save it. Reduced motion now keeps Full, calmer.
@@ -117,6 +126,7 @@ function boot(): App {
   live.setAttribute('aria-live', 'polite');
   const announce = (t: string) => (live.textContent = t);
   const text = new TextBox(() => settings.captions);
+  const yellow = () => cart === 'yellow';
   const stage = el('div', 'stage');
   const modal = el('div', 'overlay');
   modal.hidden = true;
@@ -152,7 +162,8 @@ function boot(): App {
       if (game.isPromotion(from, to)) pickPromotion(from, to);
       else submit(from, to);
     },
-    settings: () => settings,
+    // YELLOW: glyphs always on (§B17).
+    settings: () => ({ ...settings, glyphs: settings.glyphs || yellow() }),
     announce,
     onSelect: (sq) => {
       const p = game.pieceAt(sq);
@@ -241,47 +252,67 @@ function boot(): App {
   reviewLayer.setAttribute('class', 'review-layer');
   reviewLayer.dataset.testid = 'review-layer';
   boardWrap.append(board.el, reviewLayer);
-  main.append(boardWrap, text.el, online.bar, puzzle.bar);
+  const path = new PathGame({
+    show,
+    modal,
+    startBoard: (fen) => {
+      configure({ mode: 'path', human: fen.split(' ')[1] === 'b' ? 'b' : 'w', level: 1 });
+      show(gameView);
+      restart(fen);
+    },
+    applyMove: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
+    say: (key, vars) => text.plain(fmt(key, vars)),
+    marks: (stars, hints) => {
+      board.stars = stars;
+      board.hints = hints;
+      board.render();
+    },
+    home: () => goTitle(),
+    stickers: (back) => show(dexScreen(loadCampaign(), () => undefined, back, true)),
+    rng: journey.rng,
+  });
+  main.append(boardWrap, text.el, online.bar, puzzle.bar, path.bar);
 
-  function drawReview(frame: Frame): void {
-    const ns = 'http://www.w3.org/2000/svg';
-    const box = boardWrap.getBoundingClientRect();
-    reviewLayer.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
-    const centre = (sq: string) => {
-      const r = board.squareEl(sq)?.getBoundingClientRect();
-      return r ? { x: r.left - box.left + r.width / 2, y: r.top - box.top + r.height / 2, s: r.width } : { x: 0, y: 0, s: 0 };
-    };
-    const parts: SVGElement[] = [];
-    const defs = document.createElementNS(ns, 'defs');
-    for (const c of REVIEW_COLORS) {
-      const m = document.createElementNS(ns, 'marker');
-      Object.entries({ id: `head-${c[0]}`, viewBox: '0 0 10 10', refX: '5', refY: '5', markerWidth: '3', markerHeight: '3', orient: 'auto-start-reverse' }).forEach(([k, v]) => m.setAttribute(k, v));
-      const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
-      path.setAttribute('fill', c[1]);
-      m.append(path);
-      defs.append(m);
+  /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
+  function setCart(c: Cartridge): void {
+    cart = c;
+    save('cartridge', c);
+    document.body.classList.toggle('cart-yellow', c === 'yellow');
+    text.oneLine = c === 'yellow';
+    overlay.simple = c === 'yellow';
+    // YELLOW battles start on Quick the first time (toggle to Full in settings).
+    if (c === 'yellow' && !load<boolean>('yellowAnim')) {
+      settings.anim = YELLOW_DEFAULT_ANIM;
+      save('settings', settings);
+      save('yellowAnim', true);
     }
-    parts.push(defs);
-    for (const a of frame.arrows) {
-      const p = centre(a.from);
-      const q = centre(a.to);
-      const line = document.createElementNS(ns, 'line');
-      const color = REVIEW_COLORS.find((c) => c[0] === a.color)?.[1] ?? '#30a030';
-      Object.entries({ x1: p.x, y1: p.y, x2: q.x, y2: q.y, stroke: color, 'stroke-width': p.s * 0.16, 'stroke-linecap': 'round', opacity: '0.85', 'marker-end': `url(#head-${a.color})` }).forEach(([k, v]) => line.setAttribute(k, String(v)));
-      line.dataset.arrow = `${a.from}${a.to}`;
-      line.dataset.color = a.color;
-      parts.push(line);
-    }
-    for (const sq of frame.marks) {
-      const c = centre(sq);
-      const ring = document.createElementNS(ns, 'circle');
-      Object.entries({ cx: c.x, cy: c.y, r: c.s * 0.38, fill: 'none', stroke: '#e03030', 'stroke-width': c.s * 0.08, opacity: '0.85' }).forEach(([k, v]) => ring.setAttribute(k, String(v)));
-      ring.dataset.mark = sq;
-      parts.push(ring);
-    }
-    reviewLayer.replaceChildren(...parts);
   }
+  if (cart) setCart(cart);
+
+  function showShelf(): void {
+    show(shelfScreen(currentLang(), (c) => (setCart(c), goTitle()), (l) => (applyLanguage(l), showShelf())));
+  }
+
+  function showSettings(): void {
+    show(
+      settingsScreen(
+        settings,
+        () => {
+          save('settings', settings);
+          applySettings();
+        },
+        goTitle,
+        {
+          lang: currentLang(),
+          onLang: (l) => (applyLanguage(l), showSettings()),
+          cartridge: cart ?? 'blue',
+          onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()),
+        },
+      ),
+    );
+  }
+
+  const drawReview = (frame: Frame) => drawFrame(reviewLayer, boardWrap, board, frame);
   gameView.append(header, main);
 
   function show(view: HTMLElement): void {
@@ -334,8 +365,20 @@ function boot(): App {
   function goTitle(): void {
     online.close();
     puzzle.stop();
+    path.stop();
     setSkins({});
     music.play('title');
+    if (yellow()) {
+      // YELLOW home (§B17): Play (vs Youngster with Pikachu), Learn (Pikachu's Path), Friend (Two Players).
+      return show(
+        yellowHome({
+          play: () => startGame({ mode: 'computer', human: 'w', level: 1 }),
+          learn: () => path.open(),
+          friend: () => startGame({ mode: 'two-players', human: 'w', level: 1 }),
+          settings: showSettings,
+        }),
+      );
+    }
     // Continue resumes the last thing (§B16): the journey spot or a game in progress.
     const g = savedGame();
     const c = journey.campaign;
@@ -347,21 +390,7 @@ function boot(): App {
     show(
       title({
         canContinue: !!g || !!c.starter,
-        hub: {
-          continueText: journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null,
-          card: { name: c.name || fmt('name.1'), level: rating, badges: c.badges },
-          chips: {
-            journey: c.champion ? fmt('hub.chip.champion') : c.starter ? fmt('hub.chip.badges', { n: String(c.badges.length) }) : fmt('hub.chip.new'),
-            training: fmt('hub.chip.lessons', { n: String(trainingThemes(c).length) }),
-            battle: quick.mode === 'two-players' ? fmt('hub.chip.quickTwo') : fmt('hub.chip.quickLevel', { level: fmt(`level.${quick.level}` as StringKey) }),
-            computer: fmt('hub.chip.levels'),
-            two: fmt('hub.chip.device'),
-            online: fmt('hub.chip.code'),
-            dex: fmt('hub.chip.dex', { n: String(DEX.filter((s) => c.caught[s]).length) }),
-            team: fmt('hub.chip.team', { n: String(Object.values(c.team).filter(Boolean).length) }),
-            card: fmt('hub.chip.level', { n: String(Math.round(rating)) }),
-          },
-        },
+        hub: hubData(c, rating, quick, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
         battle: () => startGame(quick),
         resume: () => {
           if (journeyFirst) return journey.open();
@@ -376,17 +405,7 @@ function boot(): App {
         kanto: () => journey.open(),
         howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
         online: () => showOnline(),
-        settings: () =>
-          show(
-            settingsScreen(
-              settings,
-              () => {
-                save('settings', settings);
-                applySettings();
-              },
-              goTitle,
-            ),
-          ),
+        settings: showSettings,
       }),
     );
   }
@@ -410,7 +429,7 @@ function boot(): App {
   }
 
   function persistGame(): void {
-    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge') return;
+    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge' || app.mode === 'path') return;
     if (app.ended || game.chess.history().length === 0) remove('game');
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
@@ -477,6 +496,7 @@ function boot(): App {
       if (challenge.limit && drillStatus(game.chess, challenge.made, challenge.limit, app.human) === 'limit') endChallenge('limit');
     }
     if (app.mode === 'puzzle') puzzle.settled();
+    if (app.mode === 'path') path.settled();
   }
 
   /** Online: only the player whose turn it is may touch the board. */
@@ -507,11 +527,13 @@ function boot(): App {
   function submit(from: string, to: string, promotion?: Role): void {
     if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
     else if (app.mode === 'puzzle') puzzle.submit(from + to + (promotion ?? ''));
+    else if (app.mode === 'path') path.submit(from + to + (promotion ?? ''));
     else playMove(from, to, promotion);
   }
 
   function canTakeBack(): boolean {
-    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge') return false;
+    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge' || app.mode === 'path') return false;
+    if (yellow()) return true; // YELLOW: take back always (§B17)
     if (app.mode === 'two-players') return settings.takeBack;
     return TAKE_BACK_LEVELS.includes(app.level);
   }
@@ -571,6 +593,8 @@ function boot(): App {
     board.locked = true;
     // A puzzle that ends in mate is finished by the puzzle player, not the end screen.
     if (app.mode === 'puzzle') return;
+    // YELLOW (§B17): no "blacked out"; a gentle line instead.
+    if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
     text.show([end.line]);
     music.stop();
     if (app.mode === 'challenge') return endChallenge(drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human));
@@ -704,7 +728,9 @@ function boot(): App {
     show(
       splash(() => {
         preloadBattleSprites();
-        goTitle();
+        // The cartridge shelf shows on first launch only (§B17).
+        if (cart) goTitle();
+        else showShelf();
       }),
     );
   return app;

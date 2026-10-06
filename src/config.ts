@@ -97,3 +97,5 @@ export const REFUTATION_LEVEL = 4; // Stockfish level that finds the punishing r
 export const GYM_NEED_EARLY = 3; // gyms 1 to 4: solve 3 of 5 to win the badge
 export const GYM_NEED_LATE = 4; // gyms 5 to 8: solve 4 of 5
 export const REVIEW_COLORS: [string, string][] = [['green', '#30a030'], ['red', '#e03030'], ['blue', '#3070e0']]; // review arrows: your line, mistakes and key ideas, the opponent's reply
+export const CARTRIDGE_HOLD_MS = 2000; // press and hold to switch cartridge (§B17)
+export const YELLOW_DEFAULT_ANIM = 'quick'; // YELLOW battles start on Quick (toggle to Full in settings)

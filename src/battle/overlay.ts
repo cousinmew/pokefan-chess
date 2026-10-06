@@ -29,6 +29,8 @@ export class Overlay {
   manual = false;
   /** prefers-reduced-motion: no screen shake and no flashes, the battle still plays. */
   calm = false;
+  /** YELLOW (§B17): no type effectiveness lines. */
+  simple = false;
   kind: OverlayKind = 'none';
   lines: Line[] = [];
   sig = 0;
@@ -196,7 +198,7 @@ export class Overlay {
         },
       },
     ];
-    if (mv.effKey) phases.push({ id: 'eff', ms: BATTLE.effMs, enter: () => this.say({ key: mv.effKey! }) });
+    if (mv.effKey && !this.simple) phases.push({ id: 'eff', ms: BATTLE.effMs, enter: () => this.say({ key: mv.effKey! }) });
     phases.push(
       {
         id: 'faint',

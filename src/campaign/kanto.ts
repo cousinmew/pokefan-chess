@@ -109,6 +109,8 @@ export interface Campaign {
   hallOfFame: { date: string; team: string[] }[];
   /** Places whose rewards were given, so a replay gives nothing twice. */
   rewards: string[];
+  /** Pikachu's Path lessons finished (YELLOW, §B17). */
+  path: number;
 }
 
 export const TEAM_RULES_VERSION = 2;
@@ -123,7 +125,7 @@ const fresh = (): Campaign => ({
   v: CAMPAIGN_VERSION, name: '', starter: null, caught: {}, shiny: {}, oak: {}, candy: {}, seen: [], caughtAt: {}, routes: {},
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
   badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
-  queenOpen: false, champion: false, hallOfFame: [], rewards: [],
+  queenOpen: false, champion: false, hallOfFame: [], rewards: [], path: 0,
 });
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:

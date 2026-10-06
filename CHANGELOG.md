@@ -65,3 +65,8 @@
 ## 1.9.0 (C5)
 
 - A new home hub: Journey, Battle and Trainer tiles with a Pokémon on each, a one line description, your progress, and a "?" to its page in the new How to Play booklet. Continue picks up where you left off.
+
+## 2.0.0 (C6)
+
+- Two cartridges: YELLOW, a simple mode for ages 4 to 7 with Pikachu's Path (12 tiny lessons) and a sticker book, and BLUE, the full story. Pick on first launch; switch in Settings by holding the button for 2 seconds.
+- Play in English, Français, עברית or Español. Hebrew reads right to left; the board stays left to right.

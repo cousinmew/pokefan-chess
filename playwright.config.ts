@@ -9,14 +9,19 @@ export default defineConfig({
   testDir: 'tests/e2e',
   reporter: 'line',
   retries: 0,
-  use: { baseURL: live ?? 'http://localhost:4173' },
+  use: {
+    baseURL: live ?? 'http://localhost:4173',
+    // Tests start on the BLUE cartridge, as a returning player; the shelf test clears this to see first launch.
+    storageState: { cookies: [], origins: [{ origin: new URL(live ?? 'http://localhost:4173').origin, localStorage: [{ name: 'kc:v1:cartridge', value: '"blue"' }] }] },
+  },
   projects: [
     // @slow (the full gym walk, ~3 min) runs only in CI, before every deploy; the local gate skips it.
-    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
     // Review sheets for docs/, only with SHEETS=1 (npm run sheets), so the gate never rewrites them.
     ...(process.env.SHEETS
       ? [
           { name: 'spritesheet', grep: /@spritesheet/, use: { browserName: 'chromium' as const, viewport: { width: 1000, height: 800 } } },
+          { name: 'i18nsheet', grep: /@i18nsheet/, use: { browserName: 'chromium' as const } },
           { name: 'hubsheet', grep: /@hubsheet/, use: { browserName: 'chromium' as const } },
           { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium' as const, viewport: { width: 360, height: 640 } } },
         ]

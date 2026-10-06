@@ -7,6 +7,8 @@ export class TextBox {
   private readonly main: HTMLElement;
   private readonly caption: HTMLElement;
   lastKeys: string[] = [];
+  /** YELLOW (§B17): one short line at a time, no captions. */
+  oneLine = false;
 
   constructor(private readonly captionsOn: () => boolean) {
     this.el = document.createElement('div');
@@ -18,10 +20,11 @@ export class TextBox {
 
   show(lines: Line[]): void {
     if (!lines.length) return;
+    if (this.oneLine) lines = lines.slice(0, 1);
     this.lastKeys = lines.map((l) => l.key);
     this.main.textContent = lines.map((l) => fmt(l.key, l.vars)).join(' ');
     const caps = lines.flatMap((l) => (l.caption ? [fmt(l.caption)] : []));
-    this.caption.textContent = this.captionsOn() ? caps.join(' · ') : '';
+    this.caption.textContent = this.captionsOn() && !this.oneLine ? caps.join(' · ') : '';
   }
 
   plain(text: string): void {

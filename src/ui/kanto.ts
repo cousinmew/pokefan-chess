@@ -322,7 +322,7 @@ export function trainingScreen(themes: string[], start: (theme: string) => void,
 }
 
 /** The 151 Pokédex: caught in colour, seen as a silhouette with its name, unseen as ???. */
-export function dexScreen(c: Campaign, open: (id: string) => void, back: () => void): HTMLElement {
+export function dexScreen(c: Campaign, open: (id: string) => void, back: () => void, stickers = false): HTMLElement {
   const grid = el('div', 'dex-grid');
   for (const s of DEX) {
     const caught = !!c.caught[s];
@@ -340,6 +340,8 @@ export function dexScreen(c: Campaign, open: (id: string) => void, back: () => v
     grid.append(cell);
   }
   const caught = DEX.filter((s) => c.caught[s]).length;
+  // YELLOW shows the same 151 slots as a sticker book (§B17).
+  if (stickers) return screen('dex', el('h2', '', 'stickers.title'), line('stickers.count', { n: String(caught) }), grid, button('back', back, 'back', 'secondary'));
   return screen('dex', el('h2', '', 'dex.title'), line('map.pokedex', { caught: String(caught), total: '151' }), grid, button('back', back, 'back', 'secondary'));
 }
 

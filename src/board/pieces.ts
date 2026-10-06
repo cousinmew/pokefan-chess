@@ -2,6 +2,8 @@
 // Species lookup: role + colour + square colour -> species (Part I §2, bishop species rule).
 import roster from '../data/roster.gen1.json';
 import kanto from '../data/kanto.json';
+import namesFr from '../data/names.fr.json';
+import namesEs from '../data/names.es.json';
 import { ASSET_BASE } from '../config';
 
 export type Color = 'w' | 'b';
@@ -19,6 +21,17 @@ export interface MoveInfo {
 /** Every species the game knows: the two v1 teams plus the Kanto route Pokémon. The v1 roster wins on overlap. */
 export const SPECIES: Record<SpeciesId, Species> = { ...(kanto.species as Record<string, Species>), ...(roster.species as Record<string, Species>) };
 export const MOVES: Record<MoveId, MoveInfo> = { ...(kanto.moves as Record<string, MoveInfo>), ...(roster.moves as Record<string, MoveInfo>) };
+
+const EN_NAMES = { species: Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.name])), moves: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.name])) };
+const LOCAL: Record<string, { species: Record<string, string>; moves: Record<string, string> }> = { fr: namesFr, es: namesEs };
+
+/** Species and move names for a language (§B17): PokéAPI's names for fr and es, English names otherwise. */
+export function applyNames(lang: string): void {
+  const local = LOCAL[lang];
+  for (const [id, s] of Object.entries(SPECIES)) s.name = local?.species[id] ?? EN_NAMES.species[id]!;
+  for (const [id, m] of Object.entries(MOVES)) m.name = local?.moves[id] ?? EN_NAMES.moves[id]!;
+  variants.clear();
+}
 
 /** A player's chosen skins (§B5): any role left out keeps the default team's species. */
 export interface TeamSkin {

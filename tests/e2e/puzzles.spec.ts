@@ -8,6 +8,8 @@ const answer = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC })
 async function openPuzzles(page: Page) {
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
+  // With storage blocked the cartridge shelf shows every launch: pick BLUE.
+  if (await page.getByTestId('cart-blue').isVisible()) await page.getByTestId('cart-blue').click();
   // Off: no battle screens, so the test runs at board speed.
   await page.getByTestId('settings').click();
   await page.getByTestId('set-anim').selectOption('off');

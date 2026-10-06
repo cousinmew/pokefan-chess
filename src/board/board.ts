@@ -32,6 +32,8 @@ export class Board {
   private lastMove: [string, string] | null = null;
   /** Squares outlined by a puzzle hint; cleared by the next move. */
   hints: string[] = [];
+  /** Pikachu's Path targets (§B17), drawn as a star. */
+  stars: string[] = [];
   private press: Press | null = null;
   private focus = 'e2';
   private readonly cells = new Map<string, HTMLElement>();
@@ -60,6 +62,7 @@ export class Board {
   resetMarks(): void {
     this.lastMove = null;
     this.hints = [];
+    this.stars = [];
     this.clearSelection();
   }
 
@@ -92,6 +95,7 @@ export class Board {
         if (sq === this.selected) cell.classList.add('selected');
         if (sq === checked) cell.classList.add('check');
         if (this.hints.includes(sq)) cell.classList.add('hint');
+        if (this.stars.includes(sq)) cell.classList.add('star');
         if (sq === this.focus && this.el.matches(':focus-visible')) cell.classList.add('focus');
         const target = legal.find((m) => m.to === sq);
         if (target) cell.classList.add(target.captured ? 'capture' : 'dot');

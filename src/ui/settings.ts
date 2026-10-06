@@ -1,13 +1,57 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Settings screen (§4.8): animations, sound and volume, captions, glyphs, auto flip, take back.
-import { ANIM_MODES, type DEFAULT_SETTINGS } from '../config';
+import { ANIM_MODES, CARTRIDGE_HOLD_MS, type DEFAULT_SETTINGS } from '../config';
+import { fmt, type Lang } from '../game/text';
+import { langPicker, type Cartridge } from './shelf';
 import type { StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 
 type Settings = typeof DEFAULT_SETTINGS;
 type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack';
 
-export function settingsScreen(s: Settings, changed: () => void, back: () => void): HTMLElement {
+/** Language and cartridge (§B17). Switching cartridge needs a 2 second press and hold, so small children can't by accident. */
+export interface CartridgeSettings {
+  lang: Lang;
+  onLang(l: Lang): void;
+  cartridge: Cartridge;
+  onSwitch(): void;
+}
+
+function holdButton(label: string, ms: number, done: () => void): HTMLButtonElement {
+  const b = el('button', 'hold-btn');
+  b.type = 'button';
+  b.dataset.testid = 'switch-cartridge';
+  const fill = el('span', 'hold-fill');
+  const text = el('span', 'hold-text');
+  text.textContent = label;
+  b.append(fill, text);
+  let timer = 0;
+  const start = (e: Event) => {
+    e.preventDefault();
+    if (timer) return;
+    fill.style.transition = `width ${ms}ms linear`;
+    fill.style.width = '100%';
+    timer = window.setTimeout(() => {
+      timer = 0;
+      done();
+    }, ms);
+  };
+  const stop = () => {
+    window.clearTimeout(timer);
+    timer = 0;
+    fill.style.transition = 'none';
+    fill.style.width = '0';
+  };
+  b.addEventListener('pointerdown', start);
+  b.addEventListener('pointerup', stop);
+  b.addEventListener('pointerleave', stop);
+  b.addEventListener('pointercancel', stop);
+  b.addEventListener('keydown', (e) => (e.key === ' ' || e.key === 'Enter') && !e.repeat && start(e));
+  b.addEventListener('keyup', stop);
+  return b;
+}
+
+export function settingsScreen(s: Settings, changed: () => void, back: () => void, cart?: CartridgeSettings): HTMLElement {
   const rows = el('div', 'settings');
   const row = (label: StringKey, control: HTMLElement) => {
     const r = el('label', 'setting');
@@ -63,5 +107,15 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   toggle('glyphs', 'settings.glyphs');
   toggle('autoFlip', 'settings.autoFlip');
   toggle('takeBack', 'settings.takeBack');
+  if (cart) {
+    const lr = el('div', 'setting lang-setting');
+    lr.append(el('span', '', 'settings.lang'), langPicker(cart.lang, cart.onLang));
+    rows.prepend(lr);
+    const sw = el('div', 'setting cart-setting');
+    const now = el('span');
+    now.textContent = fmt('settings.cartridgeNow', { name: fmt(`shelf.${cart.cartridge}.name` as StringKey) });
+    sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
+    rows.prepend(sw);
+  }
   return screen('settings', el('h2', '', 'title.settings'), rows, button('back', back, 'back', 'secondary'));
 }
