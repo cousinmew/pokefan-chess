@@ -96,3 +96,66 @@ test('missed: your move in red, a legal Stockfish refutation, the review stays, 
   await expect(page.locator('[data-testid="review-layer"] line[data-color="green"]').first()).toBeAttached({ timeout: 5000 });
   await expect(page.getByTestId('review-new')).toBeVisible();
 });
+
+/** Plays a legal move that is neither the answer nor a mate (a wrong move), choosing a queen on promotion. */
+async function wrongMove(page: Page): Promise<void> {
+  const want = (await kc<string>(page, 'puzzleAnswer'))!;
+  const before = await fen(page);
+  const mates = (from: string, to: string) => {
+    const c = new Chess(before);
+    try {
+      c.move({ from, to, promotion: 'q' });
+    } catch {
+      return false;
+    }
+    return c.isCheckmate();
+  };
+  for (const sq of await page.locator('.sq[data-piece]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!))) {
+    await page.click(`[data-square="${sq}"]`);
+    const targets = await page.locator('.sq.dot, .sq.capture').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
+    const to = targets.find((t) => sq + t !== want.slice(0, 4) && !mates(sq, t));
+    if (to) {
+      await page.click(`[data-square="${to}"]`);
+      break;
+    }
+  }
+  const promo = page.getByTestId('promotion');
+  if (await promo.isVisible().catch(() => false)) await promo.locator('button[data-role="q"]').click();
+}
+
+for (const [label, settings, lang] of [
+  ['Pokémon pieces', { anim: 'off', v: 2 }, 'en'],
+  ['Classic pieces, coordinates on', { anim: 'off', v: 2, pieceStyle: 'classic', coords: true }, 'en'],
+  ['Hebrew', { anim: 'off', v: 2 }, 'he'],
+] as const) {
+  test(`§B21: a miss shows your move faded, then the right move on the board in plain words (${label})`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.addInitScript(([s, l]) => {
+      localStorage.setItem('kc:v1:settings', JSON.stringify(s));
+      localStorage.setItem('kc:v1:lang', JSON.stringify(l));
+    }, [settings, lang] as const);
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.openPuzzles());
+    await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 10_000 }).toBe('player');
+    const answer = (await kc<string>(page, 'puzzleAnswer'))!;
+    await wrongMove(page);
+    await expect(page.getByTestId('review')).toBeVisible({ timeout: 10_000 });
+    // Your move first, faded.
+    await expect(page.locator('.sq.faded-move')).toHaveCount(1, { timeout: 10_000 });
+    // Then the right move: its two squares lit, the green arrow drawn, one line in words.
+    await expect(page.locator(`[data-testid="review-layer"] line[data-arrow="${answer.slice(0, 4)}"][data-color="green"]`)).toBeAttached({ timeout: 15_000 });
+    await expect(page.getByTestId('review-next')).toBeDisabled({ timeout: 10_000 });
+    for (const sq of [answer.slice(0, 2), answer.slice(2, 4)]) await expect(page.locator(`[data-square="${sq}"]`)).toHaveClass(/last/);
+    const text = (await page.getByTestId('review-text').textContent())!;
+    if (lang === 'en') expect(text).toMatch(/^Your /);
+    if ('coords' in settings) {
+      expect(text).toContain(`(${answer.slice(0, 2)}-${answer.slice(2, 4)})`);
+      expect(text).toMatch(/King|Queen|Rook|Bishop|Knight|Pawn/);
+    } else expect(text).not.toMatch(/\b[a-h][1-8]\b|[NBRQK][a-h]?[1-8]?x?[a-h][1-8]/);
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('board')!).direction)).toBe('ltr');
+    // REPLAY plays it again from your move.
+    await page.getByTestId('review-replay').click();
+    await expect(page.getByTestId('review-prev')).toBeDisabled();
+  });
+}

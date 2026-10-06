@@ -7,7 +7,7 @@ import type { StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 
 type Settings = typeof DEFAULT_SETTINGS;
-type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack' | 'animate';
+type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack' | 'animate' | 'coords';
 
 /** Language and cartridge (§B17). Switching cartridge needs a 2 second press and hold, so small children can't by accident. */
 export interface CartridgeSettings {
@@ -51,7 +51,7 @@ export function holdButton(label: string, ms: number, done: () => void, testid =
   return b;
 }
 
-export function settingsScreen(s: Settings, changed: () => void, back: () => void, cart?: CartridgeSettings, extra?: HTMLElement): HTMLElement {
+export function settingsScreen(s: Settings, changed: () => void, back: () => void, cart?: CartridgeSettings, extra: HTMLElement[] = []): HTMLElement {
   const rows = el('div', 'settings');
   const row = (label: StringKey, control: HTMLElement) => {
     const r = el('label', 'setting');
@@ -126,6 +126,7 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   choose('legend', ['auto', 'on', 'off'] as const, 'legend', 'settings.legend');
   toggle('captions', 'settings.captions');
   toggle('glyphs', 'settings.glyphs');
+  toggle('coords', 'settings.coords');
   toggle('autoFlip', 'settings.autoFlip');
   toggle('takeBack', 'settings.takeBack');
   if (cart) {
@@ -138,5 +139,5 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
     sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
     rows.prepend(sw);
   }
-  return screen('settings', el('h2', '', 'title.settings'), rows, ...(extra ? [extra] : []), button('back', back, 'back', 'secondary'));
+  return screen('settings', el('h2', '', 'title.settings'), rows, ...extra, button('back', back, 'back', 'secondary'));
 }

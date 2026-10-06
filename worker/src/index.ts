@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Relay routes: POST /room -> {code}; GET /room/:code/ws -> WebSocket into that room's Durable Object.
 // Save codes (§B18 item 2): POST /save -> {code}; PUT /save/:code updates; GET /save/:code restores.
+// Feedback (§B21 item 3): POST /feedback stores one note; GET /feedback/export (owner token) lists them.
 import { CODE_RE } from './protocol';
 import type { Env } from './Room';
 import { VAULT_CODE_RE, VAULT_MAX_BYTES } from './Vault';
 
 export { Room } from './Room';
 export { Vault } from './Vault';
+export { Feedback } from './Feedback';
+import { FEEDBACK_MAX_BYTES } from './Feedback';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they read as 1 and 0
 
@@ -48,6 +51,22 @@ export default {
         if (res.ok) return Response.json({ code }, { headers: cors });
       }
       return new Response('busy', { status: 503, headers: cors });
+    }
+    if (url.pathname === '/feedback' && req.method === 'POST') {
+      if (!allowed) return new Response('forbidden', { status: 403 });
+      const body = await req.text();
+      if (body.length > FEEDBACK_MAX_BYTES) return new Response('too big', { status: 413, headers: cors });
+      // The rate limit sees a hash of the address and the hour, never the address.
+      const ip = env.TEST_CLIENTS === '1' ? (req.headers.get('X-Test-Client') ?? crypto.randomUUID()) : (req.headers.get('CF-Connecting-IP') ?? 'local');
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${ip}:${Math.floor(Date.now() / 3_600_000)}`));
+      const who = [...new Uint8Array(digest)].slice(0, 8).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const box = env.FEEDBACK.get(env.FEEDBACK.idFromName('all'));
+      return withCors(await box.fetch(`https://feedback/add?who=${who}`, { method: 'POST', body }), cors);
+    }
+    if (url.pathname === '/feedback/export' && req.method === 'GET') {
+      const token = req.headers.get('Authorization')?.replace(/^Bearer /, '');
+      if (!env.FEEDBACK_TOKEN || token !== env.FEEDBACK_TOKEN) return new Response('forbidden', { status: 403 });
+      return env.FEEDBACK.get(env.FEEDBACK.idFromName('all')).fetch('https://feedback/export');
     }
     if (url.pathname === '/save' && req.method === 'POST') {
       if (!allowed) return new Response('forbidden', { status: 403 });

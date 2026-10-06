@@ -83,7 +83,7 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
     }
   }
   expect(played).toBe(true);
-  await expect(page.getByTestId('text-main')).toContainText('Not quite. The answer was');
+  await expect(page.getByTestId('text-main')).toContainText('Not quite. First your move, then the right one.');
   expect(await phase(page)).toBe('review');
   await expect(page.getByTestId('review-answer')).toBeVisible();
 });

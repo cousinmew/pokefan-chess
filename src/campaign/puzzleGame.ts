@@ -3,7 +3,7 @@
 // updates the Trainer Rating. Moves go through the normal board path, so captures still battle.
 import { OPPONENT_REPLY_MS, PUZZLE_REPLY_MS, REVIEW_MOVE_MS } from '../config';
 import { Chess } from 'chess.js';
-import { keyIdea, lineFrames, refutationText, type Frame } from './review';
+import { describeMove, keyIdea, lineFrames, refutationText, type Frame } from './review';
 import type { Color } from '../board/pieces';
 import { createRng } from '../game/rng';
 import { fmt, type StringKey, type Vars } from '../game/text';
@@ -166,12 +166,11 @@ export class PuzzleGame {
     const run = this.run;
     if (this.phase !== 'player' || !run || !this.row) return;
     const answer = run.expected();
-    const san = run.expectedSan();
     const res = run.answer(uci);
     if (!res.ok) {
       this.trainer = record(this.trainer, this.row, 'missed');
       this.host.app.board.locked = true;
-      this.host.say('puzzle.wrong', { move: san });
+      this.host.say('puzzle.wrong');
       this.label();
       void this.reviewMiss(run.currentFen(), uci, answer);
       return;
@@ -227,13 +226,20 @@ export class PuzzleGame {
     const you = chess.turn();
     chess.move({ from: wrong.slice(0, 2), to: wrong.slice(2, 4), promotion: wrong[4] });
     const after = chess.fen();
+    // Your move first, faded (§B21 item 1); the right one follows on the board, never as notation.
+    const w = { from: wrong.slice(0, 2), to: wrong.slice(2, 4) };
     const frames: Frame[] = [
-      { fen: pre, arrows: [{ from: wrong.slice(0, 2), to: wrong.slice(2, 4), color: 'red' }], marks: [] },
-      { fen: after, arrows: [{ from: wrong.slice(0, 2), to: wrong.slice(2, 4), color: 'red' }], marks: [] },
+      { fen: pre, arrows: [{ ...w, color: 'red' }], marks: [] },
+      { fen: after, arrows: [{ ...w, color: 'red' }], marks: [], slide: w, faded: [w.to] },
     ];
-    this.openReview('missed', frames, fmt('puzzle.wrong', { move: this.run?.expectedSan() ?? answer }), pre);
+    this.openReview('missed', frames, fmt('puzzle.wrong'), pre);
     this.show(0);
-    if (chess.isGameOver()) return this.setReviewText(fmt('review.wrong.over'));
+    const right = this.rightFrames(pre, answer);
+    if (chess.isGameOver()) {
+      this.review?.frames.push(...right);
+      this.setReviewText(fmt('review.wrong.over'));
+      return this.play(1, OPPONENT_REPLY_MS);
+    }
     let reply: string;
     let source: 'stockfish' | 'fallback' = 'stockfish';
     try {
@@ -249,11 +255,27 @@ export class PuzzleGame {
     this.lastRefutation = { fen: after, uci: reply, source };
     const end = new Chess(after);
     end.move({ from: reply.slice(0, 2), to: reply.slice(2, 4), promotion: reply[4] });
-    this.review.frames.push({ fen: end.fen(), arrows: [{ from: reply.slice(0, 2), to: reply.slice(2, 4), color: 'blue' }], marks: [] });
     const side = fmt(you === 'w' ? 'team.rocket' : 'team.red');
     const t = refutationText(after, reply, you, side);
+    const r = { from: reply.slice(0, 2), to: reply.slice(2, 4) };
+    this.review.frames.push({ fen: end.fen(), arrows: [{ ...r, color: 'blue' }], marks: [], slide: r, faded: [w.to], text: fmt(t.key, t.vars) }, ...right);
     this.setReviewText(fmt(t.key, t.vars));
     this.play(1, OPPONENT_REPLY_MS);
+  }
+
+  /** The right move (§B21 item 1): back to the position, then the piece slides in, both squares lit, the arrow stays,
+   * and one line in plain words. REPLAY (↺) plays it all again. */
+  private rightFrames(pre: string, answer: string): Frame[] {
+    const s = this.host.app.settings;
+    const t = describeMove(pre, answer, s.pieceStyle === 'classic' ? 'role' : 'species', !!s.coords, (k) => fmt(k));
+    const text = fmt(t.key, t.vars);
+    const m = { from: answer.slice(0, 2), to: answer.slice(2, 4) };
+    const end = new Chess(pre);
+    end.move({ from: m.from, to: m.to, promotion: answer[4] });
+    return [
+      { fen: pre, arrows: [{ ...m, color: 'green' }], marks: [], text },
+      { fen: end.fen(), arrows: [{ ...m, color: 'green' }], marks: [], slide: m, text },
+    ];
   }
 
   /** "Show answer": the correct line from before your move, in green. */
@@ -285,6 +307,8 @@ export class PuzzleGame {
     if (!r) return;
     r.idx = Math.max(0, Math.min(r.frames.length - 1, i));
     this.host.showFrame(r.frames[r.idx]!);
+    const text = r.frames[r.idx]!.text;
+    if (text) this.setReviewText(text);
     this.btn.prev.disabled = r.idx === 0;
     this.btn.next.disabled = r.idx === r.frames.length - 1;
   }

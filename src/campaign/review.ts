@@ -15,6 +15,12 @@ export interface Frame {
   arrows: Arrow[];
   /** Squares circled: covered escape squares, a hanging piece, a promotion square. */
   marks: string[];
+  /** The move into this frame slides on the board, its two squares lit (§B21 item 1). */
+  slide?: { from: string; to: string };
+  /** Squares whose piece shows faded (your wrong move). */
+  faded?: string[];
+  /** The line the review shows with this frame, if it changes. */
+  text?: string;
 }
 export interface Idea {
   lines: Arrow[];
@@ -32,7 +38,7 @@ export function lineFrames(startFen: string, moves: string[], color: Arrow['colo
   const frames: Frame[] = [{ fen: chess.fen(), arrows: [], marks: [] }];
   for (const m of moves) {
     chess.move(asMove(m));
-    frames.push({ fen: chess.fen(), arrows: [{ from: m.slice(0, 2), to: m.slice(2, 4), color }], marks: [] });
+    frames.push({ fen: chess.fen(), arrows: [{ from: m.slice(0, 2), to: m.slice(2, 4), color }], marks: [], slide: { from: m.slice(0, 2), to: m.slice(2, 4) } });
   }
   return frames;
 }
@@ -156,3 +162,24 @@ export function refutationText(afterWrong: string, reply: string, you: Color, si
   if (chess.inCheck()) return { key: 'review.wrong.check', vars: { side: sideName, san: mv.san } };
   return { key: 'review.wrong.move', vars: { side: sideName, san: mv.san } };
 }
+
+/** The right move in plain words (§B21 item 1): the piece, how it moves and what it does, never notation. Square names
+ * only when the coordinates setting is on. `names` picks Pokémon names, or chess role names in Classic style. */
+export function describeMove(fen: string, uci: string, names: 'species' | 'role', coords: boolean, t: (key: StringKey) => string): { key: StringKey; vars: Vars } {
+  const chess = new Chess(fen);
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  const mover = chess.get(from as Square)!;
+  const victim = chess.get(to as Square);
+  const label = (p: { color: Color; type: Role }, sq: string) => (names === 'role' ? t(`role.${p.type}` as StringKey) : speciesFor(p.color, p.type, sq).name);
+  const vars: Vars = { piece: label(mover, from), action: t(`review.act.${mover.type}` as StringKey), squares: coords ? ` (${from}-${to})` : '' };
+  chess.move(asMove(uci));
+  if (chess.isCheckmate()) return { key: 'review.right.mate', vars };
+  if (victim) return { key: 'review.right.capture', vars: { ...vars, victim: label(victim, to) } };
+  if (chess.inCheck()) return { key: 'review.right.check', vars };
+  // The biggest piece it now attacks, if any.
+  const target = chess.board().flat().filter((p) => p && p.color !== mover.color && p.type !== 'k' && chess.attackers(p.square, mover.color).includes(to as Square)).sort((a, b) => VALUE[b!.type] - VALUE[a!.type])[0];
+  if (target) return { key: 'review.right.attack', vars: { ...vars, victim: label(target, target.square) } };
+  return { key: 'review.right.quiet', vars };
+}
+

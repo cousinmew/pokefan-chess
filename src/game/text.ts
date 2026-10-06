@@ -35,7 +35,18 @@ export const currentLang = () => lang;
 // inserted value (a Pokémon, move or place name) keeps it on one line.
 const isolate = (v: string) => (RTL.includes(lang) ? `⁨${v}⁩` : CJK.includes(lang) ? [...v].join('⁠') : v);
 
+// Translation review mode (§B21 item 3): every string shown is remembered with its key, so a reviewer can tap it.
+const shown = new Map<string, StringKey>();
+let recording = false;
+export const recordStrings = () => (recording = true);
+/** The key behind a piece of text on screen, in review mode. */
+export const keyOfText = (text: string) => shown.get(text.trim());
+/** A string as written in a language file (English, or the current language), before any value is filled in. */
+export const rawString = (key: StringKey, inLang?: 'en') => (inLang === 'en' ? strings[key] : (dict[key] ?? strings[key]));
+
 export function fmt(key: StringKey, vars: Vars = {}): string {
   const text = dict[key] ?? strings[key];
-  return text.replace(/\{(\w+)\}/g, (_, k: string) => (vars[k] === undefined ? `{${k}}` : isolate(vars[k]!)));
+  const out = text.replace(/\{(\w+)\}/g, (_, k: string) => (vars[k] === undefined ? `{${k}}` : isolate(vars[k]!)));
+  if (recording) shown.set(out.trim(), key);
+  return out;
 }

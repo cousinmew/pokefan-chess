@@ -59,3 +59,60 @@ test.describe('@perf', () => {
     expect(cold && warm).toBeTruthy();
   });
 });
+
+/** Frame gaps (ms between animation frames) while something plays. */
+async function frames(page: Page, act: () => Promise<void>, settleMs: number): Promise<{ max: number; over50: number; frames: number }> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __gaps: number[]; __rec: boolean };
+    w.__gaps = [];
+    w.__rec = true;
+    let last = performance.now();
+    const tick = (t: number) => {
+      w.__gaps.push(t - last);
+      last = t;
+      if (w.__rec) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame((t) => {
+      last = t;
+      requestAnimationFrame(tick);
+    });
+  });
+  await act();
+  await page.waitForTimeout(settleMs);
+  const gaps = await page.evaluate(() => {
+    const w = window as unknown as { __gaps: number[]; __rec: boolean };
+    w.__rec = false;
+    return w.__gaps;
+  });
+  return { max: Math.round(Math.max(...gaps)), over50: gaps.filter((g) => g > 50).length, frames: gaps.length };
+}
+
+test.describe('@perf jank', () => {
+  test.use({ viewport: { width: 360, height: 640 } });
+  test('4x CPU and Slow 4G: frame gaps during a piece move and a capture battle', async ({ page }) => {
+    test.setTimeout(240_000);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', SLOW_4G);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'full', battleStyle: 'anime' })));
+    // Worst case: the first tap of the visit is a move (as when joining from an online link), so audio unlocks on it.
+    await page.goto('./?debug=1&start=two', { timeout: 120_000 });
+    await page.waitForSelector('[data-square="e2"][data-piece] img', { timeout: 120_000 });
+    await page.waitForTimeout(1500);
+    const move = await frames(page, async () => {
+      await page.click('[data-square="e2"]');
+      await page.click('[data-square="e4"]');
+    }, 1500);
+    await page.click('[data-square="d7"]');
+    await page.click('[data-square="d5"]');
+    await page.waitForTimeout(1500);
+    const battle = await frames(page, async () => {
+      await page.click('[data-square="e4"]');
+      await page.click('[data-square="d5"]');
+      await page.getByTestId('battle').waitFor({ state: 'visible', timeout: 30_000 });
+    }, 4000);
+    console.log(`jank: piece move max ${move.max} ms (${move.over50} frames over 50 ms of ${move.frames}); capture battle max ${battle.max} ms (${battle.over50} over 50 ms of ${battle.frames})`);
+    expect(move.frames).toBeGreaterThan(0);
+  });
+});

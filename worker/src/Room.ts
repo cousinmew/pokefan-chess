@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // One Durable Object per room: the server is the source of truth (V4). Hibernating WebSockets, state in storage.
 import { DurableObject } from 'cloudflare:workers';
+import { EXPIRE_MS, nextAlarm } from './alarm';
 import { Chess } from 'chess.js';
 import { enforce } from './team';
 import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type ServerMsg, type Skin, type Look } from './protocol';
@@ -8,6 +9,11 @@ import { REACTION_COUNT, SKIN_KEYS, type ClientMsg, type Result, type Seat, type
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
   VAULT: DurableObjectNamespace<import('./Vault').Vault>;
+  FEEDBACK: DurableObjectNamespace<import('./Feedback').Feedback>;
+  /** Owner token for GET /feedback/export (a wrangler secret; npm run feedback:pull). */
+  FEEDBACK_TOKEN?: string;
+  /** Local tests only (--var TEST_CLIENTS:1): X-Test-Client names the client for the rate limit. Never set in production. */
+  TEST_CLIENTS?: string;
   ALLOWED_ORIGINS: string;
   RECONNECT_MS: string;
 }
@@ -25,7 +31,6 @@ interface Data {
   looks?: Partial<Record<Seat, Look>>;
 }
 
-const EXPIRE_MS = 24 * 60 * 60 * 1000; // an untouched room is deleted after a day
 const OPEN = 1;
 const other = (s: Seat): Seat => (s === 'w' ? 'b' : 'w');
 
@@ -38,11 +43,12 @@ export class Room extends DurableObject<Env> {
     return this.ctx.storage.get<Data>('room');
   }
 
-  private async store(d: Data): Promise<void> {
-    d.touched = Date.now();
+  /** Saves the room and sets the next alarm (src/alarm.ts). `touch` marks player activity; the alarm itself never
+   * touches, or an abandoned room would never reach its expiry. */
+  private async store(d: Data, touch = true): Promise<void> {
+    if (touch) d.touched = Date.now();
     await this.ctx.storage.put('room', d);
-    const due = Object.values(d.away).map((t) => t + this.reconnectMs());
-    await this.ctx.storage.setAlarm(Math.min(d.touched + EXPIRE_MS, ...(d.result ? [] : due)));
+    await this.ctx.storage.setAlarm(nextAlarm(d, this.reconnectMs(), Date.now()));
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -219,7 +225,7 @@ export class Room extends DurableObject<Env> {
         d.result = { reason: 'timeout', winner: other(seat) };
       }
     }
-    await this.store(d);
+    await this.store(d, false);
     this.broadcast(d);
   }
 }

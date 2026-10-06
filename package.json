@@ -1,6 +1,6 @@
 {
   "name": "pokefan-chess",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "private": true,
   "description": "PokeFan Chess: Red vs Rocket. An unofficial, free, noncommercial fan chess game.",
   "license": "AGPL-3.0-only",
@@ -23,7 +23,8 @@
     "deploy:relay": "npm --prefix worker run deploy",
     "sheets": "SHEETS=1 playwright test --project spritesheet --project fxsheet --project hubsheet --project i18nsheet --project legibilitysheet",
     "kanto:check": "node scripts/build-kanto.mjs --check",
-    "trim": "node scripts/trim-sprites.mjs"
+    "trim": "node scripts/trim-sprites.mjs",
+    "feedback:pull": "node scripts/feedback-pull.mjs"
   },
   "dependencies": {
     "chess.js": "1.4.0",

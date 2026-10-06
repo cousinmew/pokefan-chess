@@ -94,9 +94,13 @@ export class OnlineClient {
       if (msg.type === 'error') this.stopped = true;
       this.onMsg(msg);
     };
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       if (this.ws !== ws || this.stopped) return;
       this.onLink(false);
+      // The relay closed us on purpose: this seat was taken by the same player in another tab (4000), or the room is
+      // full (4409). Reconnecting would take the seat back and start a loop between the two tabs, each round a
+      // Durable Object request, enough to use up the free daily allowance. Stop instead.
+      if (e.code === 4000 || e.code === 4409) return void (this.stopped = true);
       const delay = RECONNECT_BACKOFF_MS[Math.min(this.tries++, RECONNECT_BACKOFF_MS.length - 1)];
       window.setTimeout(() => !this.stopped && this.connect(), delay);
     };

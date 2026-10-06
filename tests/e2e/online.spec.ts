@@ -128,3 +128,22 @@ test('online: a win evolves trade Pokémon on your team (§B12)', async ({ brows
   const caught = await a.evaluate(() => (window as unknown as { __kc: { journey(): { caught: Record<string, number> } } }).__kc.journey().caught);
   expect(caught).toMatchObject({ kadabra: 1, alakazam: 1 });
 });
+
+test('the same player in two tabs does not reconnect in a loop (each loop round is a Durable Object request)', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const a = await ctx.newPage();
+  await a.goto(`./?debug=1${RELAY}`);
+  await a.getByTestId('screen-splash').click();
+  await a.getByTestId('play-online').click();
+  await a.getByTestId('create-room').click();
+  const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
+  // A second tab of the same browser shares the seat token, so it takes the seat over.
+  let opens = 0;
+  const b = await ctx.newPage();
+  a.on('websocket', () => opens++);
+  b.on('websocket', () => opens++);
+  await b.goto(`./?debug=1${RELAY}&room=${code}`);
+  await b.waitForTimeout(6000);
+  expect(opens).toBeLessThanOrEqual(3);
+  await ctx.close();
+});

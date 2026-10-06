@@ -22,7 +22,7 @@ function stampWorker(): Plugin {
 
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __WEBP__: JSON.stringify(webp) },
+  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __WEBP__: JSON.stringify(webp), __VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version) },
   plugins: [stampWorker()],
   build: { target: 'es2022', sourcemap: false },
   test: { include: ['tests/unit/**/*.test.ts'], environment: 'node' },

@@ -6,12 +6,12 @@ import { Board } from './board/board';
 import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
-import { sound } from './audio/audio';
+import { prewarmAudio, sound } from './audio/audio';
 import { music } from './audio/music';
 import { rng } from './game/rng';
 import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
-import { fmt, type Line, type StringKey } from './game/text';
+import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine, youngsterMove } from './ai/engine';
 import { TextBox } from './ui/textBox';
 import { button, el, toast } from './ui/dom';
@@ -32,13 +32,14 @@ import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
-import { currentLang } from './game/text';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
 import { slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
 import { registerShell } from './pwa';
+import { feedbackButton } from './ui/feedbackPanel';
+import { reviewFromUrl } from './ui/reviewMode';
 import { Fitter } from './ui/fit';
 import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
@@ -124,7 +125,7 @@ function boot(): App {
   preloadNow(STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)]), releaseIdle);
   // An animated WebP the browser cannot show falls back to its GIF.
   document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
-  applyLanguage(savedLang(), false);
+  applyLanguage(reviewFromUrl() ?? savedLang(), false); // ?review=<lang>: translation review mode (§B21 item 3)
   let cart = load<Cartridge>('cartridge');
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
@@ -140,6 +141,7 @@ function boot(): App {
   const overlay = new Overlay(rng);
   applySettings();
   overlay.calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  prewarmAudio(); // §B21 item 2: the first tap only resumes audio
   const unlock = () => sound.unlock();
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
@@ -258,7 +260,7 @@ function boot(): App {
     showFrame: (frame) => {
       game.loadFen(frame.fen);
       board.locked = true;
-      board.resetMarks();
+      board.showReview(frame.slide, frame.faded); // the move slides in, its squares lit (§B21 item 1)
       drawReview(frame);
     },
     clearFrames: () => reviewLayer.replaceChildren(),
@@ -349,7 +351,7 @@ function boot(): App {
           cartridge: cart ?? 'blue',
           onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()),
         },
-        saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }),
+        [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()],
       ),
     );
   }
@@ -372,6 +374,7 @@ function boot(): App {
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
+    document.body.dataset.screen = view.dataset.testid ?? ''; // attached to feedback
     if (view === gameView) fitter.start();
     else fitter.stop();
     window.scrollTo(0, 0);

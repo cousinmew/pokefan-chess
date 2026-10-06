@@ -12,7 +12,7 @@ const FILES = 'abcdefgh';
 export interface BoardHooks {
   /** Called with a legal from/to; the host decides promotion and plays it. */
   onMove(from: string, to: string): void;
-  settings(): { glyphs: boolean; pieceStyle: PieceStyle; animate: boolean };
+  settings(): { glyphs: boolean; pieceStyle: PieceStyle; animate: boolean; coords?: boolean };
   /** Press and hold a piece (§B19 item 5): show its card. */
   onHold?(square: string): void;
   announce(text: string): void;
@@ -33,6 +33,8 @@ export class Board {
   orientation: Color = 'w';
   /** Your side: its pieces get a team coloured ground shadow when the other side has the same species (change A). */
   mine: Color | null = null;
+  /** Squares whose piece shows faded: your wrong move in a puzzle review (§B21 item 1). */
+  faded: string[] = [];
   locked = false;
   private selected: string | null = null;
   private lastMove: [string, string] | null = null;
@@ -70,11 +72,22 @@ export class Board {
     this.hints = [];
   }
 
+  /** A review frame (§B21 item 1): the position, the move's two squares lit, the piece sliding from its square. */
+  showReview(slide?: { from: string; to: string }, faded: string[] = []): void {
+    this.selected = null;
+    this.hints = [];
+    this.stars = [];
+    this.faded = faded;
+    this.lastMove = slide ? [slide.from, slide.to] : null;
+    this.render(slide);
+  }
+
   /** Clears the selection and the last move tint (restart, take back). */
   resetMarks(): void {
     this.lastMove = null;
     this.hints = [];
     this.stars = [];
+    this.faded = [];
     this.clearSelection();
   }
 
@@ -104,7 +117,7 @@ export class Board {
     this.cells.clear();
     const legal = this.selected ? this.game.legalFrom(this.selected) : [];
     const checked = this.game.checkedKing();
-    const { glyphs, pieceStyle, animate } = this.hooks.settings();
+    const { glyphs, pieceStyle, animate, coords } = this.hooks.settings();
     const twins = this.twins();
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
@@ -116,6 +129,10 @@ export class Board {
         cell.dataset.square = sq;
         cell.setAttribute('role', 'gridcell');
         if (this.lastMove?.includes(sq)) cell.classList.add('last');
+        if (this.faded.includes(sq)) cell.classList.add('faded-move');
+        // Coordinates (§B21 item 1): off by default; the left file and the bottom rank carry them.
+        if (coords && f === 0) cell.append(Object.assign(document.createElement('span'), { className: 'coord coord-rank', textContent: String(rank) }));
+        if (coords && r === 7) cell.append(Object.assign(document.createElement('span'), { className: 'coord coord-file', textContent: FILES[file] }));
         if (sq === this.selected) cell.classList.add('selected');
         if (sq === checked) cell.classList.add('check');
         if (this.hints.includes(sq)) cell.classList.add('hint');
@@ -148,7 +165,7 @@ export class Board {
       }
     }
     if (slide && before) {
-      const img = this.cells.get(slide.to)?.querySelector('.piece') as HTMLElement | null;
+      const img = this.cells.get(slide.to)?.querySelector('.piece, .classic') as HTMLElement | null;
       const after = this.cells.get(slide.to)?.getBoundingClientRect();
       if (img && after && typeof img.animate === 'function') {
         const dx = before.left - after.left;

@@ -3,17 +3,33 @@
 import { ASSET_BASE, CRY_VOLUME, SFX_VOLUME } from '../config';
 
 let ctx: AudioContext | null = null;
+let unlocked = false;
 const unlockListeners: ((c: AudioContext) => void)[] = [];
 
 /** The shared AudioContext once a gesture has unlocked audio, else null. */
 export function audioContext(): AudioContext | null {
-  return ctx;
+  return unlocked ? ctx : null;
 }
 
 /** Runs `fn` as soon as audio is unlocked (now, if it already is). */
 export function onAudioUnlock(fn: (c: AudioContext) => void): void {
-  if (ctx) fn(ctx);
+  if (unlocked && ctx) fn(ctx);
   else unlockListeners.push(fn);
+}
+
+/** Smoothness (§B21 item 2): building an AudioContext costs over 100 ms on a slow phone. Build it, suspended, in idle
+ * time after boot, so the first tap (which may be a move) only resumes it. */
+export function prewarmAudio(): void {
+  if (ctx || typeof AudioContext === 'undefined') return;
+  const idle = (window as Window & { requestIdleCallback?: (f: () => void) => number }).requestIdleCallback ?? ((f: () => void) => window.setTimeout(f, 200));
+  idle(() => {
+    if (ctx) return;
+    try {
+      ctx = new AudioContext();
+    } catch (err) {
+      console.warn('audio context unavailable:', err instanceof Error ? err.message : err);
+    }
+  });
 }
 let blocked = false;
 const ext = (() => {
@@ -27,11 +43,14 @@ export const sound = {
   volume: 1,
   /** Called on the first user gesture: browsers only allow audio after one. */
   unlock(): void {
-    if (ctx || typeof AudioContext === 'undefined') return;
-    ctx = new AudioContext();
+    if (unlocked || typeof AudioContext === 'undefined') return;
+    ctx ??= new AudioContext();
+    if (ctx.state === 'suspended') void ctx.resume().catch((err: unknown) => console.warn('audio resume failed:', err instanceof Error ? err.message : err));
+    unlocked = true;
     blocked = false;
     const c = ctx;
-    unlockListeners.splice(0).forEach((fn) => fn(c));
+    // The music and the rest start after this frame, so the tap itself stays light.
+    window.setTimeout(() => unlockListeners.splice(0).forEach((fn) => fn(c)), 0);
   },
   cry(dex: number, volume = CRY_VOLUME, rate = 1): void {
     if (!this.enabled || blocked) return;
@@ -45,7 +64,7 @@ export const sound = {
     });
   },
   tone(freq: number, ms: number, type: OscillatorType = 'square', slideTo?: number): void {
-    if (!this.enabled || !ctx) return;
+    if (!this.enabled || !ctx || !unlocked) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const now = ctx.currentTime;

@@ -116,3 +116,9 @@
 ## 2.8.0 (Russian)
 
 - Русский: the whole game in Russian, with Pokémon names in English as PokéAPI has no Russian ones.
+
+## 2.9.0 (playtest fixes)
+
+- Puzzle reviews show the right move on the board, after your own move, in plain words, with a REPLAY button and an optional coordinates setting.
+- The first tap no longer stalls on slow phones.
+- Send feedback from OPTION, and translators can suggest better wordings with a review link.
