@@ -70,3 +70,8 @@
 
 - Two cartridges: YELLOW, a simple mode for ages 4 to 7 with Pikachu's Path (12 tiny lessons) and a sticker book, and BLUE, the full story. Pick on first launch; switch in Settings by holding the button for 2 seconds.
 - Play in English, Français, עברית or Español. Hebrew reads right to left; the board stays left to right.
+
+## 2.1.0 (C5b)
+
+- Clearer pieces on phones: sprites cropped to fill their square, a bold chip showing each chess piece, a full width board, and three piece styles (Pokémon + badge, Big badge, Classic).
+- A Who's who legend under the board (tap a role to find those pieces), press and hold a piece for its card, and an option for still sprites.

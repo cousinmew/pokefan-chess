@@ -21,6 +21,9 @@ const jobs = dexes.flatMap((d) => [
   [`${SPRITES}versions/generation-v/black-white/animated/${d}.gif`, `front/${d}.gif`],
   [`${SPRITES}${BACK_OVERRIDE[d] ?? `versions/generation-v/black-white/animated/back/${d}.gif`}`, `back/${d}.gif`],
   [`${SPRITES}versions/generation-i/red-blue/transparent/${d}.png`, `retro/${d}.png`],
+  // Still frames for "Animate pieces: Off" (§B19 item 6).
+  [`${SPRITES}versions/generation-v/black-white/${d}.png`, `static/front/${d}.png`],
+  [`${SPRITES}versions/generation-v/black-white/shiny/${d}.png`, `static/shiny/${d}.png`],
   // Shiny forms (§B12): every one of the 151 must exist, or the build fails.
   [`${SPRITES}versions/generation-v/black-white/animated/shiny/${d}.gif`, `shiny/front/${d}.gif`],
   [`${SPRITES}${SHINY_BACK_OVERRIDE[d] ?? `versions/generation-v/black-white/animated/back/shiny/${d}.gif`}`, `shiny/back/${d}.gif`],
@@ -77,7 +80,7 @@ if (missing.length) {
 
 const files = [];
 const walk = (dir) => {
-  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back', 'trainers', 'items']) {
+  for (const sub of ['front', 'back', 'retro', 'cries', 'shiny/front', 'shiny/back', 'static/front', 'static/shiny', 'trainers', 'items']) {
     const p = join(dir, sub);
     if (!existsSync(p)) continue;
     for (const f of execFileSync('ls', [p], { encoding: 'utf8' }).split('\n').filter(Boolean)) {

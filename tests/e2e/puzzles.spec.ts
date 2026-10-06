@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { Chess } from 'chess.js';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -58,12 +59,23 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
   // Play a legal move that is not the answer: try each piece until one has another target.
   const want = (await answer(page))!;
+  const before = (JSON.parse(await page.evaluate(() => (window as unknown as { __kc: { dumpState(): string } }).__kc.dumpState())) as { fen: string }).fen;
   const squares = await page.locator('.sq[data-piece]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
   let played = false;
   for (const sq of squares) {
     await page.click(`[data-square="${sq}"]`);
     const targets = await page.locator('.sq.dot, .sq.capture').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
-    const to = targets.find((t) => sq + t !== want.slice(0, 4));
+    // Any mating move counts as solved (as on Lichess), so the "wrong" move must not mate.
+    const to = targets.find((t) => {
+      if (sq + t === want.slice(0, 4)) return false;
+      const c = new Chess(before);
+      try {
+        c.move({ from: sq, to: t, promotion: 'q' });
+      } catch {
+        return false;
+      }
+      return !c.isCheckmate();
+    });
     if (to) {
       await page.click(`[data-square="${to}"]`);
       played = true;

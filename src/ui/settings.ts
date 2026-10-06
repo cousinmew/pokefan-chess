@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Settings screen (§4.8): animations, sound and volume, captions, glyphs, auto flip, take back.
-import { ANIM_MODES, CARTRIDGE_HOLD_MS, type DEFAULT_SETTINGS } from '../config';
+import { ANIM_MODES, CARTRIDGE_HOLD_MS, PIECE_STYLES, type DEFAULT_SETTINGS } from '../config';
 import { fmt, type Lang } from '../game/text';
 import { langPicker, type Cartridge } from './shelf';
 import type { StringKey } from '../game/text';
 import { button, el, screen } from './dom';
 
 type Settings = typeof DEFAULT_SETTINGS;
-type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack';
+type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack' | 'animate';
 
 /** Language and cartridge (§B17). Switching cartridge needs a 2 second press and hold, so small children can't by accident. */
 export interface CartridgeSettings {
@@ -103,6 +103,25 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   slider('volume', 'settings.volume');
   slider('music', 'settings.music');
 
+  // Board legibility (§B19): piece style, animated or still sprites, and the Who's who legend.
+  const choose = <K extends 'pieceStyle' | 'legend'>(key: K, values: readonly Settings[K][], prefix: string, label: StringKey) => {
+    const sel = el('select');
+    sel.dataset.testid = `set-${key}`;
+    for (const v of values) {
+      const o = el('option', '', `${prefix}.${v}` as StringKey);
+      o.value = v;
+      sel.append(o);
+    }
+    sel.value = s[key];
+    sel.onchange = () => {
+      s[key] = sel.value as Settings[K];
+      changed();
+    };
+    row(label, sel);
+  };
+  choose('pieceStyle', PIECE_STYLES, 'style', 'settings.pieceStyle');
+  toggle('animate', 'settings.animate');
+  choose('legend', ['auto', 'on', 'off'] as const, 'legend', 'settings.legend');
   toggle('captions', 'settings.captions');
   toggle('glyphs', 'settings.glyphs');
   toggle('autoFlip', 'settings.autoFlip');

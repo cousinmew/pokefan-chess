@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, YELLOW_DEFAULT_ANIM, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, BOARD_CHROME_PX, BOARD_SIDE_GUTTER_PX, CHECK_PULSE_MS, DEFAULT_SETTINGS, END_ANIM_MS, GLYPH_SIZE, LEGAL_DOT_SIZE, MIN_SQUARE_PX, PIECE_SCALE, SELECT_CRY_VOLUME, SELECT_HOP_PX, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
 import { GLYPHS, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -26,6 +26,8 @@ import { furthest, PLACES } from './campaign/journey';
 import { hubData } from './ui/hubData';
 import { placeName } from './ui/kanto';
 import type { Page } from './ui/manual';
+import { Modes } from './ui/modes';
+import { Legend, pieceCard } from './ui/legend';
 import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
@@ -37,8 +39,7 @@ import { dexScreen } from './ui/kanto';
 import { loadCampaign } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
-import { createRoom, normalizeCode } from './net/online';
-import { message, onlineMenu } from './ui/online';
+import { normalizeCode } from './net/online';
 
 export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge' | 'path';
 
@@ -126,6 +127,8 @@ function boot(): App {
   const announce = (t: string) => (live.textContent = t);
   const text = new TextBox(() => settings.captions);
   const yellow = () => cart === 'yellow';
+  // Reduced motion forces still sprites (§B19 item 6).
+  const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const stage = el('div', 'stage');
   const modal = el('div', 'overlay');
   modal.hidden = true;
@@ -162,7 +165,8 @@ function boot(): App {
       else submit(from, to);
     },
     // YELLOW: glyphs always on (§B17).
-    settings: () => ({ ...settings, glyphs: settings.glyphs || yellow() }),
+    settings: () => ({ ...settings, glyphs: settings.glyphs || yellow(), animate: settings.animate && !reducedMotion() }),
+    onHold: (sq) => pieceCard(modal, game, sq),
     announce,
     onSelect: (sq) => {
       const p = game.pieceAt(sq);
@@ -208,6 +212,7 @@ function boot(): App {
     applySkins: (skins) => {
       setSkins(skins);
       board.render();
+      legend.render(legendOn());
     },
   });
   app.online = online;
@@ -270,7 +275,10 @@ function boot(): App {
     stickers: (back) => show(dexScreen(loadCampaign(), () => undefined, back, true)),
     rng: journey.rng,
   });
-  main.append(boardWrap, text.el, online.bar, puzzle.bar, path.bar);
+  const legend = new Legend(game, board);
+  /** Who's who (§B19 item 4): on, off, or auto (YELLOW, and a save's first games). */
+  const legendOn = () => settings.legend === 'on' || (settings.legend === 'auto' && (yellow() || (load<number>('gamesPlayed') ?? 0) < LEGEND_FIRST_GAMES));
+  main.append(boardWrap, legend.el, text.el, online.bar, puzzle.bar, path.bar);
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
   function setCart(c: Cartridge): void {
@@ -282,6 +290,7 @@ function boot(): App {
     // YELLOW battles start on Quick the first time (toggle to Full in settings).
     if (c === 'yellow' && !load<boolean>('yellowAnim')) {
       settings.anim = YELLOW_DEFAULT_ANIM;
+      settings.pieceStyle = 'badge'; // YELLOW starts on Big badge (§B19 item 3)
       save('settings', settings);
       save('yellowAnim', true);
     }
@@ -330,37 +339,9 @@ function boot(): App {
     return g && typeof g.pgn === 'string' && typeof g.fen === 'string' ? g : null;
   }
 
-  function showOnline(): void {
-    show(
-      onlineMenu(
-        () => {
-          show(message('online.joining', goTitle, { code: '...' }));
-          createRoom().then(
-            (code) => online.join(code),
-            (err: unknown) => {
-              console.warn('relay unavailable:', err instanceof Error ? err.message : err);
-              show(message('online.offline', goTitle));
-            },
-          );
-        },
-        (code) => online.join(code),
-        goTitle,
-        normalizeCode(new URLSearchParams(location.search).get('room') ?? ''),
-      ),
-    );
-  }
-
-  /** The manual's "Try it" (§B16): straight into that page's mode. */
-  function tryMode(p: Page): void {
-    const quick = load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT;
-    if (p === 'journey' || p === 'catching') return journey.open();
-    if (p === 'training') return journey.openFromHub('training', goTitle);
-    if (p === 'battle') return startGame(quick);
-    if (p === 'computer') return show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle)), goTitle));
-    if (p === 'two') return startGame({ mode: 'two-players', human: 'w', level: 1 });
-    if (p === 'pieces') return journey.openFromHub('team', goTitle);
-    showOnline();
-  }
+  const modes = new Modes({ show, goTitle, online, journey, startGame: (setup) => startGame(setup), quick: () => load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT });
+  const showOnline = () => modes.online();
+  const tryMode = (p: Page) => modes.tryIt(p);
 
   function goTitle(): void {
     online.close();
@@ -422,7 +403,10 @@ function boot(): App {
 
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
     configure(setup);
-    if (setup.mode === 'two-players' || setup.mode === 'computer') save('last', 'game');
+    if (setup.mode === 'two-players' || setup.mode === 'computer') {
+      save('last', 'game');
+      save('gamesPlayed', (load<number>('gamesPlayed') ?? 0) + (resume ? 0 : 1));
+    }
     save('lastQuickPlay', { mode: app.mode, human: app.human, level: app.level });
     show(gameView);
     restart(undefined, resume?.pgn, withIntro);
@@ -470,6 +454,7 @@ function boot(): App {
     app.busy = false;
     board.locked = false;
     board.setLastMove(from, to);
+    legend.clear();
     if (settings.autoFlip && app.mode === 'two-players' && !out.end) board.orientation = game.turn();
     board.render({ from, to });
     const sp = speciesFor(out.move.color, out.move.promotion ?? out.move.piece, to);
@@ -695,6 +680,7 @@ function boot(): App {
     board.orientation = app.human;
     modal.hidden = true;
     board.resetMarks();
+    legend.render(legendOn());
     const opponent: Color = app.human === 'w' ? 'b' : 'w';
     const introKey = app.mode === 'two-players' || app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed';
     text.plain(fmt(introKey));

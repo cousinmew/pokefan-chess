@@ -16,11 +16,12 @@ export default defineConfig({
   },
   projects: [
     // @slow (the full gym walk, ~3 min) runs only in CI, before every deploy; the local gate skips it.
-    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
+    { name: 'chromium', grepInvert: process.env.CI ? /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet/ : /@webkit|@fxsheet|@spritesheet|@hubsheet|@i18nsheet|@legibilitysheet|@slow/, use: { browserName: 'chromium', launchOptions: existsSync(pinned) ? { executablePath: pinned } : {} } },
     // Review sheets for docs/, only with SHEETS=1 (npm run sheets), so the gate never rewrites them.
     ...(process.env.SHEETS
       ? [
           { name: 'spritesheet', grep: /@spritesheet/, use: { browserName: 'chromium' as const, viewport: { width: 1000, height: 800 } } },
+          { name: 'legibilitysheet', grep: /@legibilitysheet/, use: { browserName: 'chromium' as const } },
           { name: 'i18nsheet', grep: /@i18nsheet/, use: { browserName: 'chromium' as const } },
           { name: 'hubsheet', grep: /@hubsheet/, use: { browserName: 'chromium' as const } },
           { name: 'fxsheet', grep: /@fxsheet/, use: { browserName: 'chromium' as const, viewport: { width: 360, height: 640 } } },
