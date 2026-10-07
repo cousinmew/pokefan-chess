@@ -83,3 +83,26 @@ for (const [w, h] of [[1280, 900], [360, 640]] as const) {
     await page.screenshot({ path: `docs/layout/hub-start-${w}x${h}.png` });
   });
 }
+
+for (const [w, h] of [[360, 640], [544, 764], [1280, 800]] as const) {
+  test(`YELLOW level picker at ${w}x${h}: level, stars, trainer and team all inside each button`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.addInitScript(() => localStorage.setItem('kc:v1:cartridge', '"yellow"'));
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('yellow-play').click();
+    for (const n of [1, 2, 3, 4]) {
+      const btn = page.getByTestId(`yellow-level-${n}`);
+      const box = (await btn.boundingBox())!;
+      for (const sel of ['b', '.stars', '.opponent-sprite', '.opponent-text', '.loadout']) {
+        const b = (await btn.locator(`:scope > ${sel}, :scope > .opponent ${sel}, :scope > .opponent > ${sel}`).first().boundingBox())!;
+        expect(b.x, `${n} ${sel} left`).toBeGreaterThanOrEqual(box.x - 0.5);
+        expect(b.x + b.width, `${n} ${sel} right`).toBeLessThanOrEqual(box.x + box.width + 0.5);
+      }
+      const stars = (await btn.locator(':scope > .stars').boundingBox())!;
+      const label = (await btn.locator(':scope > b').boundingBox())!;
+      expect(Math.abs(stars.y + stars.height / 2 - (label.y + label.height / 2)), `${n}: stars beside the level`).toBeLessThanOrEqual(12);
+    }
+    await page.screenshot({ path: `docs/layout/yellow-levels-${w}x${h}.png` });
+  });
+}

@@ -693,3 +693,22 @@ html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
 .hub-controls .start-btn { min-width: 56px; padding: 0 6px; }
 .hub-controls > .lang-top { align-items: stretch; }
 .hub-controls .lang-code, .hub-controls .start-btn { width: 100%; }
+/* YELLOW level picker (owner screenshot, 7 Oct): the level and its stars on the first line, the trainer and team on
+   the second, at normal size, so nothing is pushed off the button. */
+.big-level { flex-wrap: wrap; align-content: center; row-gap: 4px; }
+.big-level > b { order: 1; }
+.big-level > .stars { order: 2; }
+.big-level > .opponent { order: 3; flex: 1 1 100%; min-width: 0; }
+.big-level .opponent b { font-size: 15px; }
+.big-level .opponent-text { min-width: 0; }
+.big-level .opponent-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.big-level .loadout { margin-inline-start: auto; }
+@media (max-width: 420px) {
+  .big-level { padding: 6px 12px; column-gap: 8px; }
+  .big-level > b { font-size: 22px; }
+  .big-level > .stars { font-size: 20px; white-space: nowrap; }
+  .big-level .opponent-sprite { width: 40px; height: 40px; }
+  .big-level .opponent b { font-size: 13px; }
+  .big-level .opponent-text small { white-space: nowrap; font-size: 11px; }
+  .big-level .loadout .loadout-mon { width: 24px; height: 24px; }
+}
