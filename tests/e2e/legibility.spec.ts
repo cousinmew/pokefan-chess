@@ -75,7 +75,8 @@ test('the Who\'s who legend toggles and highlights', async ({ page }) => {
   await expect(page.locator('[data-square="b1"]')).toHaveClass(/legend-hl/);
   await page.getByTestId('legend-wn').click();
   await expect(page.locator('#board .sq.legend-hl')).toHaveCount(0);
-  await page.getByTestId('menu').click();
+  await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+  await page.getByTestId('start-menu-quit').click();
   await settings(page, { legend: 'off' });
   await page.getByTestId('two-players').click();
   await page.getByTestId('intro').click();

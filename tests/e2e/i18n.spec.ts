@@ -136,5 +136,6 @@ test('Russian (§B20 item 4): Cyrillic interface, English Pokémon names in Lati
   await page.goto('./?debug=1&start=two');
   await expect(page.locator('[data-square="e1"]')).toHaveAttribute('aria-label', /PIKACHU/);
   expect(await page.evaluate(() => [document.documentElement.lang, document.documentElement.dir])).toEqual(['ru', 'ltr']);
-  await expect(page.getByTestId('menu')).toHaveText(/[А-Яа-яЁё]/);
+  await page.getByTestId('start-button').click();
+  await expect(page.getByTestId('start-menu-option')).toHaveText(/[А-Яа-яЁё]/);
 });

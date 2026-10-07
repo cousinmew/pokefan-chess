@@ -88,7 +88,8 @@ test('Continue resumes a game in progress', async ({ page }) => {
   await page.getByTestId('intro').click();
   await page.click('[data-square="e2"]');
   await page.click('[data-square="e4"]');
-  await page.getByTestId('menu').click();
+  await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+  await page.getByTestId('start-menu-quit').click();
   await expect(page.getByTestId('continue')).toContainText('Your game in progress');
   await page.getByTestId('continue').click();
   await expect(page.locator('[data-square="e4"]')).toHaveAttribute('data-piece', 'wp');

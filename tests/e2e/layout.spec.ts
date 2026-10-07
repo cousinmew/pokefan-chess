@@ -27,7 +27,7 @@ async function inView(page: Page, testid: string, what: string): Promise<void> {
 async function checkGame(page: Page, what: string): Promise<void> {
   await page.waitForTimeout(150);
   await noScroll(page, what);
-  for (const id of ['board', 'plate-top', 'plate-bottom', 'menu', 'takeback', 'text-main', 'start-button']) await inView(page, id, what);
+  for (const id of ['board', 'plate-top', 'plate-bottom', 'takeback', 'text-main', 'start-button']) await inView(page, id, what);
   // START sits in the top bar row and is at least 44 px tall (§B22 item 3).
   expect((await page.getByTestId('start-button').boundingBox())!.height, `${what}: START height`).toBeGreaterThanOrEqual(44);
   const board = (await page.getByTestId('board').boundingBox())!;
@@ -64,9 +64,10 @@ for (const [w, h] of SIZES) {
     await page.evaluate(() => (window as unknown as KC).__kc.openPuzzles());
     await page.waitForTimeout(300);
     await noScroll(page, `${w}x${h} puzzle`);
-    for (const id of ['board', 'plate-bottom', 'menu']) await inView(page, id, `${w}x${h} puzzle`);
+    for (const id of ['board', 'plate-bottom', 'start-button']) await inView(page, id, `${w}x${h} puzzle`);
     // The level picker and the shelf.
-    await page.getByTestId('menu').click();
+    await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+    await page.getByTestId('start-menu-quit').click();
     await page.getByTestId('vs-computer').click();
     await page.getByTestId('team-red').click();
     await noScroll(page, `${w}x${h} level picker`);

@@ -46,8 +46,8 @@ test('name plates carry titles and stay on screen at 360x640 @both', async ({ pa
   await page.getByTestId('team-red').click();
   await page.getByTestId('level-4').click();
   await page.getByTestId('intro').click();
-  await expect(page.getByTestId('plate-top')).toContainText('GIOVANNI · Boss');
-  await expect(page.getByTestId('plate-bottom')).toContainText('JADE · Trainer');
+  await expect(page.getByTestId('plate-top')).toContainText(/GIOVANNI\s*·\s*Boss/);
+  await expect(page.getByTestId('plate-bottom')).toContainText(/JADE\s*·\s*Trainer/);
   for (const id of ['plate-top', 'plate-bottom']) {
     const box = (await page.getByTestId(id).boundingBox())!;
     expect(box.y, id).toBeGreaterThanOrEqual(0);

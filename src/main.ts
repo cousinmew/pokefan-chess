@@ -198,7 +198,7 @@ function boot(): App {
   const turnEl = el('p', 'turn');
   turnEl.dataset.testid = 'turn';
   const backBtn = button('game.takeBack', () => takeBack(), 'takeback');
-  header.append(button('game.menu', () => goTitle(), 'menu'), turnEl, backBtn);
+  header.append(backBtn, turnEl); // START replaces Menu (§B24 item 1)
   // START (§B22 item 3), in the top bar on the game screen, in the corner or the top row elsewhere.
   const startBtn = new StartButton(() => startActions(), () => yellow() || !!journey.campaign.starter || isGuest());
   header.append(startBtn.inBar);
@@ -304,7 +304,7 @@ function boot(): App {
   const plates = new Plates();
   main.append(plates.top, boardWrap, plates.bottom, legend.el, online.bar, puzzle.bar, path.bar);
   plates.attachText(text.el); // your plate and the text box are one bar (change A)
-  const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar] });
+  const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar], start: startBtn.inBar });
   /** Story stage and trainers (§B18 items 5 and 8). Online, each side brings its own look from the relay. */
   const look = () => (isGuest() ? { stage: 2 as const, trainer: 'red' as const } : myLook(!yellow(), journey.campaign.badges.length));
   let looks: Partial<Record<Color, Look>> = {};
@@ -373,8 +373,7 @@ function boot(): App {
   /** CONTINUE (change C) and the hub's Continue: the journey spot or the game in progress, else the home screen. */
   function resume(): void {
     const g = savedGame();
-    const c = journey.campaign;
-    if (!yellow() && c.starter && (load<string>('last') === 'journey' || !g)) return journey.open();
+    if (!yellow() && journey.campaign.starter && (load<string>('last') === 'journey' || !g)) return journey.open();
     if (g) return startGame(g, g);
     goTitle();
   }
@@ -383,9 +382,8 @@ function boot(): App {
   const vsComputer = () => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)));
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
-    for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest]) stop();
-    journey.campaign = loadCampaign();
-    flow.menu();
+    for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest, () => (journey.campaign = loadCampaign())]) stop();
+    return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
   /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */
   const startActions = (): StartActions => ({
@@ -537,8 +535,10 @@ function boot(): App {
     const sp = speciesFor(out.move.color, out.move.promotion ?? out.move.piece, to);
     const lines = notice ? [notice, ...out.lines] : out.lines;
     notice = null;
-    if (lines.length) text.show(lines);
-    else text.plain(fmt('moved', { piece: sp.name, square: to }));
+    // Each side's move line goes to that side's plate; yours keeps your prompts (§B24 item 2).
+    const said = lines.length ? lines.map((l) => fmt(l.key, l.vars)).join(' ') : fmt('moved', { piece: sp.name, square: to });
+    if (!plates.message(out.move.color, said)) text.show(lines.length ? lines : [{ key: 'moved', vars: { piece: sp.name, square: to } }]);
+    else text.plain('');
     announce([fmt('moved', { piece: sp.name, square: to }), ...out.lines.map((l) => fmt(l.key, l.vars))].join(' '));
     if (out.move.isKingsideCastle() || out.move.isQueensideCastle()) sound.castle();
     else if (!out.battle) sound.place();

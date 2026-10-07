@@ -48,7 +48,9 @@ test.describe('360x640', () => {
     await expect(page.getByTestId('turn')).toHaveText('TEAM ROCKET to move', { timeout: 5000 });
     expect(await page.locator('.sq').first().getAttribute('data-square')).toBe('h1');
     await expect(page.getByTestId('takeback')).toBeVisible();
-    await page.getByTestId('menu').click();
+    await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+    await page.getByTestId('start-menu-quit').click();
+    await page.getByTestId('start-continue').click(); // the real start menu, then home
     await page.getByTestId('how-to').click();
     await expect(page.getByTestId('screen-howto')).toContainText('Bishop, light squares');
     expect(errors).toEqual([]);
@@ -73,8 +75,9 @@ test.describe('360x640', () => {
     // CONTINUE on the start menu resumes the game in progress (change C).
     await page.getByTestId('start-continue').click();
     await expect(page.locator('[data-square="e4"]')).toHaveAttribute('data-piece', 'wp');
-    await page.getByTestId('menu').click();
-    await page.getByTestId('settings').click();
+    await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+    await page.getByTestId('start-menu-quit').click();
+    await page.getByTestId('start-option').click(); // SAVE & QUIT lands on the start menu: its OPTION
     await expect(page.getByTestId('set-anim')).toHaveValue('off');
   });
 });

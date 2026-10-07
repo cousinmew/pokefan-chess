@@ -135,3 +135,8 @@
 - BACK in OPTION works from everywhere (it did nothing from the YELLOW gear), and B or Escape go back too.
 - When the server can't be reached the game says so; feedback waits on the device and sends later.
 - The server protects its free daily allowance: past 80%, new rooms and feedback wait for tomorrow while games in progress finish.
+
+## 2.12.0 (top bar and plates)
+
+- One START button instead of Menu and START; the status line stays centred over the board.
+- Each side's moves show in that side's own plate; names and titles fit on one line.

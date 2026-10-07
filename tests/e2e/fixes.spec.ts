@@ -148,7 +148,8 @@ test.describe('YELLOW My Team', () => {
     await expect(at('c1')).toHaveAttribute('aria-label', /ONIX/);
     await expect(at('f1')).toHaveAttribute('aria-label', /ONIX/);
     await expect(at('e1')).toHaveAttribute('aria-label', /PIKACHU/);
-    await page.getByTestId('menu').click();
+    await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
+    await page.getByTestId('start-menu-quit').click();
     await page.getByTestId('yellow-team').click();
     await page.getByTestId('yellow-classic').click();
     await expect(page.getByTestId('yslot-q')).toHaveAttribute('data-species', 'charizard');

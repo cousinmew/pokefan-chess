@@ -76,7 +76,7 @@ test('BACK out of NEW GAME: the shelf, the intro and the name step return to the
 
 test('START: in the top bar, opens with a tap, S or Enter, closes with B or Escape; SAVE & QUIT returns to the start menu', async ({ page }) => {
   await seed(page);
-  await page.goto('./?debug=1&start=two');
+  await page.goto('./?debug=1&menu=1&start=two');
   const btn = page.getByTestId('start-button');
   const box = (await btn.boundingBox())!;
   expect(box.height).toBeGreaterThanOrEqual(44);
@@ -146,7 +146,8 @@ test('PLAY CHESS: straight into a game as a guest; nothing is saved and the Jour
   await page.click('[data-square="e2"]');
   await page.click('[data-square="e4"]');
   await page.waitForTimeout(800);
-  await page.getByTestId('menu').click();
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-quit').click();
   await expect(page.getByTestId('screen-start')).toBeVisible();
   expect(await storage(page)).toBe(before);
   // VS FRIEND as guests too.

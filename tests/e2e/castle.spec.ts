@@ -21,7 +21,8 @@ for (const c of CASES) {
       await page.click(`[data-square="${via === 'dot' ? c.dot : c.rook}"]`);
       await expect(page.locator(`[data-square="${c.dot}"]`)).toHaveAttribute('data-piece', `${c.turn}k`);
       await expect(page.locator(`[data-square="${c.rookTo}"]`)).toHaveAttribute('data-piece', `${c.turn}r`);
-      await expect(page.getByTestId('text-main')).toHaveText(c.text);
+      // The mover's line goes to the mover's plate (§B24 item 2): Red's to the text box, Rocket's to the top plate.
+      await expect(page.getByTestId(c.turn === 'w' ? 'text-main' : 'plate-top-msg')).toHaveText(c.text);
     });
   }
 }

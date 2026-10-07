@@ -19,6 +19,8 @@ export interface FitParts {
   legend: HTMLElement;
   /** Plates and bars: everything stacked with the board. */
   others: HTMLElement[];
+  /** START (§B24 item 1): in the top bar when narrow, at the top of the side column when wide. */
+  start?: HTMLElement;
 }
 
 export class Fitter {
@@ -71,6 +73,7 @@ export class Fitter {
     const cls = this.root.classList;
     const wide = W > H && W - SIDE_COL_PX - 3 * PAD_PX >= MIN_BOARD_PX && H < W * 0.9;
     cls.toggle('fit-wide', wide);
+    this.arrange(wide);
     cls.remove('fit-drawer', 'fit-icons');
     const legendOn = !this.p.legend.hidden;
     let side = this.measure(W, H, wide);
@@ -87,6 +90,19 @@ export class Fitter {
     if (!cls.contains('fit-drawer')) cls.remove('legend-open');
     const sq = Math.max(16, Math.floor((side - 6) / 8)); // 6: the board's 3 px border on each side
     this.root.style.setProperty('--sq', `${sq}px`);
+  }
+
+  /** Wide: the status bar goes over the board (first grid cell) and START tops the side column. Narrow: both back
+   * in the top bar above everything (§B24 item 1). */
+  private arrange(wide: boolean): void {
+    const { header, main, start } = this.p;
+    if (wide) {
+      if (header.parentElement !== main) main.prepend(header);
+      if (start && start.parentElement !== main) header.after(start);
+    } else {
+      if (header.parentElement === main) main.before(header);
+      if (start && start.parentElement !== header) header.append(start);
+    }
   }
 
   /** The board side that fits, with the stacked parts at their current heights. */

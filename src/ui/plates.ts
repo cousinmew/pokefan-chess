@@ -97,9 +97,15 @@ export class Plates {
     const name = el('span', 'plate-name');
     const b = el('b');
     b.textContent = s.name;
-    const title = el('small', 'plate-title');
-    title.textContent = s.title;
-    name.append(b, ' · ', title);
+    name.append(b);
+    // One line: the name shortens with an ellipsis, the title never does, and no separator without a title (§B24 item 3).
+    if (s.title) {
+      const sep = el('span', 'plate-sep');
+      sep.textContent = '·';
+      const title = el('small', 'plate-title');
+      title.textContent = s.title;
+      name.append(sep, title);
+    }
     who.replaceChildren(sprite, name);
   }
 
