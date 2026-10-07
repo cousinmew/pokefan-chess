@@ -538,7 +538,7 @@ function boot(): App {
     // Each side's move line goes to that side's plate; yours keeps your prompts (§B24 item 2).
     const said = lines.length ? lines.map((l) => fmt(l.key, l.vars)).join(' ') : fmt('moved', { piece: sp.name, square: to });
     if (!plates.message(out.move.color, said)) text.show(lines.length ? lines : [{ key: 'moved', vars: { piece: sp.name, square: to } }]);
-    else text.plain('');
+    else text.plain(fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket')); // your bar keeps a prompt
     announce([fmt('moved', { piece: sp.name, square: to }), ...out.lines.map((l) => fmt(l.key, l.vars))].join(' '));
     if (out.move.isKingsideCastle() || out.move.isQueensideCastle()) sound.castle();
     else if (!out.battle) sound.place();
