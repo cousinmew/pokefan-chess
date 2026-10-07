@@ -59,9 +59,21 @@ export class StartButton {
     const show = this.allowed() && !NO_START.has(id) && id !== 'screen-game';
     this.roaming.hidden = !show;
     if (!show) return;
-    const row = view.querySelector('.hub-top, .yellow-top');
-    this.roaming.classList.toggle('corner', !row);
-    if (row) row.append(this.roaming);
+    // The hub: under the language button, in one small column at the start of the top row, so it never wraps onto a
+    // line of its own. The YELLOW home: in its short top row. Anywhere else: the corner.
+    const hub = view.querySelector('.hub-top');
+    const row = view.querySelector('.yellow-top');
+    this.roaming.classList.toggle('corner', !hub && !row);
+    if (hub) {
+      let box = hub.querySelector('.hub-controls');
+      if (!box) {
+        box = el('div', 'hub-controls');
+        const lang = hub.querySelector('.lang-top');
+        hub.prepend(box);
+        if (lang) box.append(lang);
+      }
+      box.append(this.roaming);
+    } else if (row) row.append(this.roaming);
     else document.body.append(this.roaming);
   }
 

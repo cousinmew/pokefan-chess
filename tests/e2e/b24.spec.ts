@@ -63,3 +63,23 @@ for (const [w, h] of [[1440, 900], [360, 640]] as const) {
     await page.screenshot({ path: `docs/layout/b24-${w}x${h}.png` });
   });
 }
+
+for (const [w, h] of [[1280, 900], [360, 640]] as const) {
+  test(`hub at ${w}x${h}: START sits under EN in the top row, never on a line of its own`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.addInitScript(() => localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'RED', starter: 'charmander', introSeen: true, caught: { charmander: 1 } })));
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    const start = (await page.getByTestId('start-button-corner').boundingBox())!;
+    const lang = (await page.getByTestId('lang-button').boundingBox())!;
+    const row = (await page.locator('.hub-top').boundingBox())!;
+    const card = (await page.getByTestId('hub-card-mini').boundingBox())!;
+    expect(start.height).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(start.x - lang.x)).toBeLessThanOrEqual(2); // under EN
+    expect(start.y).toBeGreaterThanOrEqual(lang.y + lang.height);
+    expect(start.y + start.height).toBeLessThanOrEqual(row.y + row.height + 1); // inside the top row, not a line of its own
+    const overlap = start.x < card.x + card.width - 1 && card.x < start.x + start.width - 1 && start.y < card.y + card.height - 1 && card.y < start.y + start.height - 1;
+    expect(overlap).toBe(false); // clear of the cards
+    await page.screenshot({ path: `docs/layout/hub-start-${w}x${h}.png` });
+  });
+}

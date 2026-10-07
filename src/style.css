@@ -688,3 +688,8 @@ html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
 .plate .textbox { display: block; max-height: 2.6em; }
 .plate .textbox .tb-main { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .plate .textbox .tb-caption { display: none; }
+/* The hub's controls column: the language button with START under it. */
+.hub-top > .hub-controls { flex: none; display: flex; flex-direction: column; gap: 6px; }
+.hub-controls .start-btn { min-width: 56px; padding: 0 6px; }
+.hub-controls > .lang-top { align-items: stretch; }
+.hub-controls .lang-code, .hub-controls .start-btn { width: 100%; }
