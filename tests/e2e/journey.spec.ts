@@ -19,15 +19,16 @@ async function solveOne(page: Page) {
   await page.getByTestId('review-continue').click();
 }
 
-/** A whole trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */
-async function beatTrainer(page: Page) {
+/** A Route 1 trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */
+async function beatTrainer(page: Page, who: string) {
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
   await expect(page.getByTestId('goal-card')).toBeVisible();
   await page.getByTestId('goal-card').click();
-  // W3: the banner keeps the trainer, the pips and what is still needed; the goal is in the header.
-  await expect(page.getByTestId('puzzle-banner')).toContainText(/○○ need \d/);
-  await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/);
+  // W3: the banner keeps the trainer, the pips and what is still needed (2 of 3); the goal is in the header, and
+  // Route 1's trainers are easy, mate in 1 only (W5).
+  await expect(page.getByTestId('puzzle-banner')).toHaveText(`${who} ○○○ need 2`);
+  await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
   for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
     await solveOne(page);
     // After a short pause either the next puzzle starts or the defeat story shows.
@@ -72,7 +73,7 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
       await page.getByTestId('lesson-ok').click();
     }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
-    await beatTrainer(page);
+    await beatTrainer(page, who);
     await readStory(page, 1);
     await expect(page.getByTestId('story-text')).toHaveText(who === 'LASS MINA' ? 'Next: Go to VIRIDIAN CITY' : 'Next: LASS MINA at ROUTE 1');
     await readStory(page, 1);
@@ -110,7 +111,8 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   expect(save).toMatchObject({ name: 'LEAF', starter: 'bulbasaur' });
   await page.getByTestId('open-card').click();
   await expect(page.getByTestId('trainer-card')).toContainText('NAME: LEAF');
-  await expect(page.getByTestId('trainer-card')).toContainText(/Trainer Level: new \(\d\/10\)|Trainer Level ~\d+/); // a number after 10 rated puzzles (playtest, 12 Oct)
+  // 7 rated puzzles (TOBY 2, MINA 2, BLUE 3; the warm-up was skipped): no number before 10 (playtest, 12 Oct).
+  await expect(page.getByTestId('trainer-card')).toContainText('Trainer Level: new (7/10)');
 });
 
 test('Pokédex: candy evolution adds the new species, shiny and stars show', async ({ page }) => {

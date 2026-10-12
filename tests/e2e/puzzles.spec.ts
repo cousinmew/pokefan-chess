@@ -38,15 +38,30 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   // W3: no rating line mid-puzzle (the Trainer Card has it); the goal is in the header.
   await expect(page.getByTestId('trainer-rating')).toBeHidden();
   await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/);
+  const goal = (await page.getByTestId('turn').textContent())!;
+  let moves = 0;
   for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     await playAnswer(page);
+    moves++;
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('checking');
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('reply');
   }
-  await expect(page.getByTestId('text-main')).toHaveText(/^(Solved|Checkmate)! Well done\.$/);
+  // The theme is picked at random, so the goal and the praise follow the line just played: a mate in N ends in mate.
+  const fen = await page.evaluate(() => (JSON.parse((window as unknown as { __kc: { dumpState(): string } }).__kc.dumpState()) as { fen: string }).fen);
+  const mate = new Chess(fen).isCheckmate();
+  if (goal.startsWith('Checkmate')) {
+    expect(goal).toBe(moves === 1 ? 'Checkmate in 1 move' : `Checkmate in ${moves} moves`);
+    expect(mate).toBe(true);
+  } else if (moves > 1) expect(goal).toMatch(new RegExp(`^Goal: .+ \\(${moves} moves\\)$`));
+  else expect(goal).not.toMatch(/\(\d+ moves\)$/);
+  await expect(page.getByTestId('text-main')).toHaveText(mate ? 'Checkmate! Well done.' : 'Solved! Well done.');
   await expect(page.getByTestId('review')).toBeVisible();
   // A first solve raises the rating, but no "+N" until the level settles after 10 rated puzzles (playtest, 12 Oct).
   await expect(page.getByTestId('trainer-rating')).toBeHidden();
+  // The solve still counts with storage blocked: back home, the Trainer Level reads new (1/10).
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-quit').click();
+  await expect(page.getByTestId('hub-card-mini')).toContainText('Trainer Level: new (1/10)');
   expect(errors).toEqual([]);
 });
 

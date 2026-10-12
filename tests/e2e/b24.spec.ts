@@ -45,11 +45,19 @@ for (const [w, h] of [[1440, 900], [360, 640]] as const) {
     // room for both; wide, the title sits whole under the name.
     for (const plate of ['plate-top', 'plate-bottom']) {
       const name = page.getByTestId(plate).locator('.plate-name');
-      expect(await name.locator('b').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), plate).toBe(true);
-      if (await page.getByTestId(plate).evaluate((e) => e.classList.contains('no-title'))) continue;
       const b = await name.locator('b').boundingBox();
-      const t = await name.locator('.plate-title').boundingBox();
       const who = await page.getByTestId(plate).locator('.plate-who').boundingBox();
+      // Every name whole and inside its plate, titled or not.
+      expect(await name.locator('b').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), plate).toBe(true);
+      expect(b!.x, plate).toBeGreaterThanOrEqual(who!.x - 1);
+      expect(b!.x + b!.width, plate).toBeLessThanOrEqual(who!.x + who!.width + 1);
+      if (await page.getByTestId(plate).evaluate((e) => e.classList.contains('no-title'))) {
+        // The title went so the name fits (fit.ts): the name alone, centred beside the sprite as name and title are.
+        await expect(name.locator('.plate-title')).toBeHidden();
+        expect(Math.abs(b!.y + b!.height / 2 - (who!.y + who!.height / 2)), plate).toBeLessThanOrEqual(3);
+        continue;
+      }
+      const t = await name.locator('.plate-title').boundingBox();
       if (w > h) expect(t!.y).toBeGreaterThanOrEqual(b!.y + b!.height - 1);
       else expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
       expect(t!.x + t!.width).toBeLessThanOrEqual(who!.x + who!.width + 1);

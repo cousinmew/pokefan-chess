@@ -85,6 +85,21 @@ test.describe('360x640', () => {
     await page.getByTestId('start-option').click(); // SAVE & QUIT lands on the start menu: its OPTION
     await expect(page.getByTestId('set-anim')).toHaveValue('off');
   });
+
+  test('a returning player opens How to Play from the hub', async ({ page }) => {
+    // A named save, so CONTINUE goes home (a cartridge alone opens the new game flow, playtest 12 Oct).
+    await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ name: 'ASH' })));
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('start-continue').click();
+    await page.getByTestId('how-to').click();
+    await expect(page.getByTestId('screen-howto')).toContainText('Bishop, light squares');
+    await page.getByTestId('manual-tab-pieces').click();
+    await expect(page.getByTestId('manual-page-pieces')).toBeVisible();
+    await expect(page.getByTestId('manual-page-pieces')).toContainText('Bishop, light squares');
+    expect(errors).toEqual([]);
+  });
 });
 
 test('music: title loop on the title screen, board loop in a game, music slider defaults to 30%', async ({ page }) => {
