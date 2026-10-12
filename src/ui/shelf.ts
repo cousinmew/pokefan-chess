@@ -144,7 +144,8 @@ export function yellowHome(a: YellowActions): HTMLElement {
   top.append(a.lang, gear);
   const dots = codeDots();
   top.prepend(dots.el);
-  const view = screen('yellow', top, tile('play', 'pikachu', a.play), tile('learn', 'eevee', a.learn), tile('friend', 'snorlax', a.friend), tile('team', 'book', a.team));
+  // Learn comes first: a 4 to 7 year old meets the pieces before the computer (ux #16).
+  const view = screen('yellow', top, tile('learn', 'eevee', a.learn), tile('play', 'pikachu', a.play), tile('friend', 'snorlax', a.friend), tile('team', 'book', a.team));
   listenForCode(view, a.unlock, undefined, dots);
   return view;
 }

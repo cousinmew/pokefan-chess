@@ -3,7 +3,7 @@
 import { fmt } from '../game/text';
 import { downloadSave, normalizeSaveCode, SAVE_CODE_RE, uploadSave } from '../net/saveCode';
 import { exportSave, importSave, packSave, protectSave, unpackSave } from '../store/backup';
-import { load, save } from '../store/persist';
+import { isGuest, load, save } from '../store/persist';
 import { button, el, toast } from './dom';
 
 export interface SaveActions {
@@ -13,6 +13,12 @@ export interface SaveActions {
 }
 
 export function saveSection(a: SaveActions): HTMLElement {
+  // A guest's game is never saved (§B22 item 4): no save tools then, only a line that says so (ux #14).
+  if (isGuest()) {
+    const note = el('p', 'save-note guest-note', 'save.guestNote');
+    note.dataset.testid = 'guest-note';
+    return note;
+  }
   const box = el('section', 'save-box');
   box.dataset.testid = 'save-box';
   const prot = el('p', 'save-protected');

@@ -23,8 +23,7 @@ test('BLUE level picker: Team Rocket when you play Red, Youngster to RED when yo
   await expect(page.getByTestId('level-4')).toContainText('GIOVANNI');
   await expect(page.getByTestId('level-4')).toContainText('★★★★');
   await expect(page.getByTestId('picker-me').locator('.faceoff-sprite')).toHaveAttribute('data-trainer', 'red-gen1');
-  await page.getByTestId('back').click();
-  await page.getByTestId('vs-computer').click();
+  await page.getByTestId('back').click(); // back one step, to the team picker (ux #14)
   await page.getByTestId('team-rocket').click();
   expect(await ladder(page, 'level-')).toEqual(['youngster-gen1', 'brock-gen1', 'blue-gen1', 'red-gen1']);
   await expect(page.getByTestId('level-4')).toContainText('Champion');
@@ -103,6 +102,7 @@ test('all 8 levels show their trainer and team preview (King, Queen, Pawn)', asy
       const shown = await page.getByTestId(`level-${n}`).getByTestId('loadout').locator('img').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.species));
       expect(shown, `${side} ${n} ${sprite}`).toEqual([sprite === 'blue-gen1' ? 'blastoise' : t.k, t.q, t.p]);
     }
+    await page.getByTestId('back').click(); // the team picker (ux #14), then the hub
     await page.getByTestId('back').click();
   }
 });
