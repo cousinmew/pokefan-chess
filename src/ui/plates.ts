@@ -6,6 +6,7 @@
 // ("TEAM ROCKET wants to battle!", reactions). With no trainers (Pikachu's Path) your bar keeps the text box.
 import type { Color } from '../board/pieces';
 import { el } from './dom';
+import { fmt } from '../game/text';
 import { trainerSprite } from './kanto';
 
 import type { Side } from '../look';
@@ -67,6 +68,11 @@ export class Plates {
     this.fill(this.top, bottom === 'w' ? 'b' : 'w');
   }
 
+  /** The name on a side's plate ("YOUNGSTER TOBY"), for lines that name the opponent (W3). */
+  nameOf(c: Color): string | undefined {
+    return this.sides[c]?.name;
+  }
+
   /** The sprite standing on a side, for the battle screen (§B20 item 2). */
   spriteOf(c: Color): string | undefined {
     return this.sides[c]?.sprite;
@@ -107,6 +113,13 @@ export class Plates {
       name.append(sep, title);
     }
     who.replaceChildren(sprite, name);
+    // Puzzles (W3): a YOU tag on your plate, so there is no doubt which side is yours.
+    if (s.you) {
+      const you = el('span', 'plate-you');
+      you.dataset.testid = 'plate-you';
+      you.textContent = fmt('plate.you');
+      who.append(you);
+    }
   }
 
   /** A capture: that side hops, the other shakes. */

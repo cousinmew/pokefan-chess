@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Puzzle player: sets up a Lichess puzzle, checks each answer, auto plays the replies, gives hints and
 // updates the Trainer Rating. Moves go through the normal board path, so captures still battle.
-import { OPPONENT_REPLY_MS, PUZZLE_REPLY_MS, REVIEW_MOVE_MS } from '../config';
+import { OPPONENT_REPLY_MS, PUZZLE_SETUP_MS, REVIEW_MOVE_MS } from '../config';
 import { Chess } from 'chess.js';
 import { describeMove, keyIdea, lineFrames, refutationText, type Frame } from './review';
 import type { Color } from '../board/pieces';
@@ -9,12 +9,25 @@ import { createRng } from '../game/rng';
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el } from '../ui/dom';
 import type { App } from '../main';
-import { PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
-import { loadTrainer, pick, pool, record, stepKey, THEMES } from './trainer';
+import type { Side } from '../look';
+import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
+import { loadTrainer, pick, pool, record, THEMES } from './trainer';
+
+/** The first puzzles of a save say how to move (W3). */
+const TAP_HELP_PUZZLES = 3;
 
 export interface PuzzleHost {
   app: App;
+  /** Sets up the board with you at the bottom; `human` is the colour you play (you are always TEAM RED, W3). */
   startBoard(fen: string, human: Color): void;
+  /** The opponent's name for lines like "{them} moves first. Watch!" (the plate's name). */
+  them(): string;
+  /** Counts a new puzzle on the save: how many were started before it, and whether the coach marks show (once). */
+  firstSteps(): { n: number; coach: boolean };
+  /** Coach marks (W3, design F): start them, add the "they moved" step, or close them when you move. */
+  coach(event: 'start' | 'setup' | 'stop'): void;
+  /** The solve moment (W3, design J): stamp, sound, the opponent's "Oh no!". */
+  solvedMoment(): void;
   /** Review (§B15): shows a position with arrows and marks, frozen; clears them again. */
   showFrame(frame: Frame): void;
   clearFrames(): void;
@@ -39,8 +52,12 @@ export interface PuzzleContext {
   ownsNext?: boolean;
   /** Puzzles this much above the Trainer Level (gyms, Elite Four, legendaries). */
   boost?: number;
-  /** The banner above the board for each puzzle, given the side you play (§B14). */
-  banner?: (side: 'w' | 'b') => string;
+  /** The banner for each puzzle: a trainer battle's trainer, pips and what is still needed (W3: the goal is in the header). */
+  banner?: () => string;
+  /** Who set the puzzle (W3): the route trainer, gym leader or rival on the top plate; default the story stage's trainer. */
+  opponent?: Side;
+  /** Called the moment a puzzle is decided, before the review (pips update at once, design J). */
+  onAttempt?(result: 'solved' | 'assisted' | 'missed'): void;
 }
 
 export class PuzzleGame {
@@ -69,15 +86,19 @@ export class PuzzleGame {
   private gen = 0;
   // Seeded per visit from the clock (the seeded RNG is the only randomness, G3), so visits differ.
   private readonly rng = createRng(Date.now() >>> 0);
+  /** W3: the rating and step lines left the puzzle bar (the Trainer Card has them); a small "+12" shows after a solve. */
   private readonly ratingEl: HTMLElement;
-  private readonly stepEl: HTMLElement;
+  /** A puzzle to play next instead of a random one (the harness, for tests). */
+  forced: { row: PuzzleRow; theme: string } | null = null;
+  /** The first puzzles of a save: "Tap your Pokémon, then a square." */
+  private tapHelp = false;
 
   constructor(private readonly host: PuzzleHost) {
     this.bar = el('div', 'puzzle-bar');
     this.bar.hidden = true;
-    this.ratingEl = el('p', 'rating');
+    this.ratingEl = el('p', 'rating-up');
     this.ratingEl.dataset.testid = 'trainer-rating';
-    this.stepEl = el('p', 'step');
+    this.ratingEl.hidden = true;
     const sel = el('select');
     this.themeSel = sel;
     sel.dataset.testid = 'puzzle-theme';
@@ -121,8 +142,17 @@ export class PuzzleGame {
     const acts = el('div', 'review-acts');
     acts.append(this.btn.answer, this.btn.new, this.btn.continue);
     this.reviewEl.append(this.reviewText, nav, acts);
-    this.bar.append(this.reviewEl, this.banner, this.ratingEl, this.stepEl, row);
-    this.label();
+    this.bar.append(this.reviewEl, this.banner, this.ratingEl, row);
+  }
+
+  /** Who set the puzzle, for the top plate (W3); undefined: the story stage's trainer. */
+  opponent(): Side | undefined {
+    return this.context?.opponent;
+  }
+
+  /** What to do in this puzzle, for the header (W3): "Checkmate in 1 move", "Goal: win material with a fork". */
+  objective(): string {
+    return this.row ? objective(this.puzzleTheme, this.row[2], (k, v) => fmt(k, v)) : '';
   }
 
   /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one. */
@@ -139,19 +169,27 @@ export class PuzzleGame {
     this.host.say('puzzle.loading');
     const wanted = this.context ? this.context.themes : [this.theme];
     const choices = wanted.includes('mixed') ? THEMES : wanted.filter((t) => THEMES.includes(t));
-    const theme = choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
+    const forced = this.forced;
+    this.forced = null;
+    const theme = forced?.theme ?? choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
     this.puzzleTheme = theme;
     this.endReview();
-    const rows = await pool(theme);
+    this.ratingEl.hidden = true;
+    const rows = forced ? [forced.row] : await pool(theme);
     if (g !== this.gen) return;
     this.row = pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
     const setup = this.run.first();
+    const first = this.host.firstSteps();
+    this.tapHelp = first.n < TAP_HELP_PUZZLES;
     this.refreshBanner();
     this.host.startBoard(this.row[1], this.run.side);
     this.host.app.board.locked = true;
     this.phase = 'setup';
-    window.setTimeout(() => g === this.gen && this.host.applyMove(setup), PUZZLE_REPLY_MS);
+    // The position first, then the opponent's set up move (W3, ux #6): the player sees what is about to happen.
+    this.host.say('puzzle.watch', { them: this.host.them() });
+    if (first.coach) this.host.coach('start');
+    window.setTimeout(() => g === this.gen && this.host.applyMove(setup), PUZZLE_SETUP_MS);
   }
 
   stop(): void {
@@ -159,6 +197,7 @@ export class PuzzleGame {
     this.gen++;
     this.phase = 'idle';
     this.bar.hidden = true;
+    this.host.coach('stop');
   }
 
   /** A player's move from the board. Wrong ends the attempt without playing it. */
@@ -167,11 +206,12 @@ export class PuzzleGame {
     if (this.phase !== 'player' || !run || !this.row) return;
     const answer = run.expected();
     const res = run.answer(uci);
+    this.host.coach('stop');
     if (!res.ok) {
       this.trainer = record(this.trainer, this.row, 'missed');
       this.host.app.board.locked = true;
       this.host.say('puzzle.wrong');
-      this.label();
+      this.context?.onAttempt?.('missed');
       void this.reviewMiss(run.currentFen(), uci, answer);
       return;
     }
@@ -189,15 +229,25 @@ export class PuzzleGame {
       this.phase = 'player';
       this.pending = null;
       board.locked = false;
-      this.host.say(first ? 'puzzle.yourMove' : 'puzzle.correct', { team: fmt(this.run?.side === 'w' ? 'team.red' : 'team.rocket') });
+      // You are always TEAM RED (W3): no side names here, just whose turn it is.
+      this.host.say(!first ? 'puzzle.correct' : this.tapHelp ? 'puzzle.yourTurnTap' : 'puzzle.yourTurn');
+      if (first) this.host.coach('setup');
     } else if (this.phase === 'checking' && this.pending && this.row) {
       const res = this.pending;
       if (res.done) {
-        this.trainer = record(this.trainer, this.row, this.hints > 0 ? 'assisted' : 'solved');
+        const before = this.trainer.rating.r;
+        const result = this.hints > 0 ? 'assisted' : 'solved';
+        this.trainer = record(this.trainer, this.row, result);
         board.locked = true;
-        this.label();
-        this.host.say(this.hints > 0 ? 'puzzle.assisted' : 'puzzle.solved', { rating: String(Math.round(this.trainer.rating.r)) });
-        this.reviewSolved(this.hints > 0 ? 'assisted' : 'solved');
+        // A small "+12" only when the rating went up (W3, design J); no numbers mid-puzzle otherwise.
+        const up = Math.round(this.trainer.rating.r) - Math.round(before);
+        this.ratingEl.hidden = up <= 0;
+        this.ratingEl.textContent = fmt('puzzle.ratingUp', { n: String(up) });
+        const mate = !!this.run && new Chess(this.run.currentFen()).isCheckmate();
+        this.host.say(result === 'assisted' ? 'puzzle.assisted' : mate ? 'puzzle.solvedMate' : 'puzzle.solved');
+        this.context?.onAttempt?.(result);
+        this.host.solvedMoment();
+        this.reviewSolved(result);
       } else {
         this.phase = 'reply';
         board.locked = true;
@@ -255,8 +305,8 @@ export class PuzzleGame {
     this.lastRefutation = { fen: after, uci: reply, source };
     const end = new Chess(after);
     end.move({ from: reply.slice(0, 2), to: reply.slice(2, 4), promotion: reply[4] });
-    const side = fmt(you === 'w' ? 'team.rocket' : 'team.red');
-    const t = refutationText(after, reply, you, side);
+    // The opponent by name (W3): "That lets YOUNGSTER TOBY take your BULBASAUR", never your own team's name.
+    const t = refutationText(after, reply, you, this.host.them());
     const r = { from: reply.slice(0, 2), to: reply.slice(2, 4) };
     this.review.frames.push({ fen: end.fen(), arrows: [{ ...r, color: 'blue' }], marks: [], slide: r, faded: [w.to], text: fmt(t.key, t.vars) }, ...right);
     this.setReviewText(fmt(t.key, t.vars));
@@ -351,14 +401,19 @@ export class PuzzleGame {
   }
 
   /** Recomputes the context's banner for the current puzzle. */
-  refreshBanner(): void {
-    if (this.context?.banner && this.run) this.setBanner(this.context.banner(this.run.side));
+  refreshBanner(pop = false): void {
+    if (this.context?.banner) this.setBanner(this.context.banner(), pop);
   }
 
-  /** A line above the rating, e.g. a trainer battle's progress. */
-  setBanner(text: string | null): void {
+  /** A line in the puzzle bar, e.g. a trainer battle's pips; `pop` bounces it when a pip changes (design J). */
+  setBanner(text: string | null, pop = false): void {
     this.banner.hidden = text === null;
     this.banner.textContent = text ?? '';
+    this.banner.classList.remove('pop');
+    if (pop) {
+      void this.banner.offsetWidth; // restart the animation
+      this.banner.classList.add('pop');
+    }
   }
 
   hint(): void {
@@ -366,11 +421,5 @@ export class PuzzleGame {
     this.hints++;
     const uci = this.run.expected();
     this.host.hint(this.hints === 1 ? [uci.slice(0, 2)] : [uci.slice(0, 2), uci.slice(2, 4)]);
-  }
-
-  private label(): void {
-    const r = Math.round(this.trainer.rating.r);
-    this.ratingEl.textContent = fmt('puzzle.rating', { rating: String(r) });
-    this.stepEl.textContent = fmt(stepKey(r));
   }
 }

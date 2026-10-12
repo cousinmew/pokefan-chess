@@ -239,14 +239,19 @@ export class JourneyGame {
     const need = this.needOf(p, t);
     let played = 0;
     let won = 0;
+    let missed = false;
     const who = `${fmt(t.class)} ${fmt(t.name)}`;
     const pips: string[] = [];
-    // The banner stays above the board (§B14): your side and goal, then the trainer and the pips.
-    const text = (side: 'w' | 'b') =>
-      `${fmt('lesson.play', { side: fmt(`side.${side}` as StringKey), goal: fmt(`lesson.${theme}.banner` as StringKey) })}\n${who}: ${pips.join('')}${'○'.repeat(t.puzzles - pips.length)} ${fmt('trainer.progress', { n: String(Math.min(played + 1, t.puzzles)), total: String(t.puzzles), won: String(won), need: String(need) })}`;
-    const banner = () => this.host.puzzle.refreshBanner();
+    // The banner (§B14, W3): the trainer, the pips and what is still needed; the goal is in the header now.
+    const text = () => {
+      const pipLine = `${who} ${pips.join('')}${'○'.repeat(t.puzzles - pips.length)}`;
+      const left = t.puzzles - played;
+      const still = need - won;
+      if (still <= 0 || still > left) return pipLine; // decided either way
+      return `${pipLine} ${missed ? fmt('trainer.left', { need: String(still), left: String(left) }) : fmt('trainer.need', { n: String(still) })}`;
+    };
     const next = () => {
-      banner();
+      this.host.puzzle.refreshBanner();
       void this.host.puzzle.start();
     };
     void this.host.puzzle.start({
@@ -254,19 +259,24 @@ export class JourneyGame {
       battle: true,
       boost: t.boost ?? 0,
       banner: text,
+      // The trainer you are battling stands on the top plate (W3, ux #5), not the story stage's Rocket trainer.
+      opponent: { sprite: this.spriteOf(t) ?? '', name: who, title: '' },
       onLeave: () => p.kind === 'route' ? this.showRoute(p) : this.showMap(),
-      onResult: (r) => {
+      // The pip changes the moment a puzzle is decided (design J), before the review.
+      onAttempt: (r) => {
         played++;
         if (r !== 'missed') won++;
+        missed = r === 'missed';
         pips.push(r === 'missed' ? '✕' : '●');
-        banner();
+        this.host.puzzle.refreshBanner(true);
+      },
+      onResult: () => {
         // Called on Continue after the review (§B15): no timer, the player decides when to move on.
         if (won >= need) return this.win(p, t);
         if (played - won > t.puzzles - need) return this.lose(p, t);
         next();
       },
     });
-    banner();
   }
 
   private win(p: Place, t: Trainer): void {
@@ -504,6 +514,14 @@ export class JourneyGame {
       }),
     );
     modal.hidden = false;
+  }
+
+  /** A puzzle starts (W3): counts it on the save and says whether this is the save's first, for the coach marks. */
+  firstSteps(): { n: number; coach: boolean } {
+    const c = this.campaign;
+    const coach = !c.tips.includes('puzzle');
+    this.set({ ...c, puzzlesStarted: c.puzzlesStarted + 1, tips: coach ? [...c.tips, 'puzzle'] : c.tips });
+    return { n: c.puzzlesStarted, coach };
   }
 
   /** Harness: adds catches directly (tests only). */

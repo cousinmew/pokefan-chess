@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Thin wrapper over chess.js. chess.js decides every legal move and every end (prime directive 2).
 import { Chess, type Move, type Square } from 'chess.js';
-import { speciesFor, speciesIdFor, teamOf, type Color, type Role, type SpeciesId } from '../board/pieces';
+import { lookOf, speciesFor, speciesIdFor, teamOf, type Color, type Role, type SpeciesId } from '../board/pieces';
 import roster from '../data/roster.gen1.json';
 import type { Line, StringKey } from './text';
 
@@ -110,7 +110,7 @@ export class Game {
     const c = this.chess;
     if (c.isCheckmate()) {
       const loser = this.turn();
-      const key = roster.teams[teamOf(loser)].mateKey as StringKey;
+      const key = roster.teams[teamOf(lookOf(loser))].mateKey as StringKey;
       return { reason: 'checkmate', winner: loser === 'w' ? 'b' : 'w', line: { key, caption: 'caption.checkmate' } };
     }
     let reason: Exclude<EndReason, 'checkmate'> | null = null;
