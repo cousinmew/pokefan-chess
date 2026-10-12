@@ -21,8 +21,10 @@ function cartridge(kind: Cartridge, pick: () => void, secret?: () => void, dots?
   b.type = 'button';
   b.dataset.testid = `cart-${kind}`;
   const label = el('span', 'cart-label');
-  label.append(el('b', '', `shelf.${kind}.name` as StringKey), el('small', '', `shelf.${kind}.sub` as StringKey), ...(dots ? [dots] : []));
+  label.append(el('b', '', `shelf.${kind}.name` as StringKey), el('small', '', `shelf.${kind}.sub` as StringKey), ...(kind === 'blue' ? [el('small', 'cart-for', 'shelf.blue.for')] : []), ...(dots ? [dots] : []));
   b.append(el('span', 'cart-notch'), label, el('span', 'cart-pins'));
+  // YELLOW is where to start when the pieces are new (design A, playtest 12 Oct). A ribbon, not a preselection.
+  if (kind === 'yellow') b.append(el('span', 'cart-ribbon', 'shelf.recommend'));
   let taps = 0;
   let timer = 0;
   b.onclick = (e) => {
@@ -53,9 +55,8 @@ export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement 
   return row;
 }
 
-/** The always visible language button (§B18 item 3): the current code, one tap from the four languages.
- * With `picker` (the shelf already shows one) the tap moves to that picker instead of opening a second. */
-export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTMLElement): HTMLElement {
+/** The always visible language button (§B18 item 3): the current code, one tap from the four languages. */
+export function langButton(current: Lang, pick: (l: Lang) => void): HTMLElement {
   const wrap = el('div', 'lang-top');
   const b = el('button', 'lang-code');
   b.type = 'button';
@@ -63,11 +64,6 @@ export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTML
   b.textContent = current.split('-')[0]!.toUpperCase(); // zh-Hans shows ZH
   b.setAttribute('aria-label', `${fmt('shelf.lang')}: ${fmt(`lang.${current}` as StringKey)}`);
   b.setAttribute('aria-expanded', 'false');
-  if (picker) {
-    b.onclick = () => (picker.querySelector<HTMLElement>('.on') ?? picker).focus();
-    wrap.append(b);
-    return wrap;
-  }
   const pop = langPicker(current, pick);
   pop.classList.add('lang-pop');
   pop.hidden = true;
@@ -79,6 +75,9 @@ export function langButton(current: Lang, pick: (l: Lang) => void, picker?: HTML
   return wrap;
 }
 
+/** The cartridge shelf as a question (design A, playtest 12 Oct): YELLOW first for players new to the pieces, BLUE
+ * for those who know them. Still one tap. The language list is the only language control here (ux #17: the EN
+ * button above it only repeated the list). */
 export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void, unlock: () => void): HTMLElement {
   const row = el('div', 'shelf');
   const read = codeReader();
@@ -87,7 +86,7 @@ export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (
   const openPad = () => view.querySelector('.dpad') ?? row.after(dpad(read, unlock, dots));
   row.append(cartridge('yellow', () => pick('yellow'), openPad, dots.el), cartridge('blue', () => pick('blue')));
   const picker = langPicker(current, lang);
-  view.append(langButton(current, lang, picker), el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
+  view.append(el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
   listenForCode(view, unlock, read, dots);
   return view;
 }

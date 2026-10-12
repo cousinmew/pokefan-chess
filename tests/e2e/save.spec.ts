@@ -14,6 +14,8 @@ const settings = async (page: Page) => {
 };
 
 test('an old save moves into slot 1; a second player gets the picker, own cartridge and own language', async ({ page }) => {
+  // The old save has a name: a cartridge alone is no progress, and NEW GAME would reuse that slot (playtest 12 Oct).
+  await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ name: 'ASH' })));
   await enter(page);
   await expect(page.getByTestId('screen-title')).toBeVisible();
   const keys = await page.evaluate(() => Object.keys(localStorage).sort());
@@ -28,6 +30,8 @@ test('an old save moves into slot 1; a second player gets the picker, own cartri
   await page.getByTestId('lang-fr').click();
   await page.getByTestId('cart-yellow').click();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
+  // A YELLOW save is kept once a lesson is done (an untouched one is dropped at the next launch).
+  await page.evaluate(() => localStorage.setItem('kc:v1:p2:campaign', JSON.stringify({ path: 1 })));
   // A new visit asks who's playing.
   await page.evaluate(() => sessionStorage.clear());
   await page.reload();

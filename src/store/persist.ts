@@ -72,8 +72,10 @@ export function useProfile(n: number): void {
 }
 
 /** Boot: the slot list (slot 1 on a new device), and old style kc:v1:<key> data moved into the current slot.
- * That migrates a save from before profiles into slot 1 once, without losing anything. */
-export function bootProfiles(): ProfileMeta {
+ * That migrates a save from before profiles into slot 1 once, without losing anything. `abandoned(n)` says a save
+ * is an empty one left behind (no progress, not a NEW GAME being made): it is dropped while another save remains,
+ * and when it was the current one the first remaining save loads instead (playtest, 12 Oct). */
+export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
   const m = readMeta() ?? { slots: [1], current: 1 };
   if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;
   useProfile(m.current);
@@ -83,6 +85,13 @@ export function bootProfiles(): ProfileMeta {
     if (v !== null) set(prefix + k.slice(STORAGE_NS.length), v);
     drop(k);
   }
+  for (const n of abandoned ? [...m.slots] : []) {
+    if (m.slots.length < 2 || !abandoned!(n)) continue;
+    clearProfile(n);
+    m.slots = m.slots.filter((x) => x !== n);
+    if (m.current === n) m.current = m.slots[0]!;
+  }
+  useProfile(m.current);
   writeMeta(m);
   return m;
 }
@@ -99,6 +108,7 @@ export const save = (key: string, value: unknown) => (guest ? void guest.set(key
 export const remove = (key: string) => (guest ? void guest.delete(key) : drop(prefix + key));
 export const loadFrom = <T>(n: number, key: string): T | null => parse<T>(get(profilePrefix(n) + key));
 export const saveTo = (n: number, key: string, value: unknown) => set(profilePrefix(n) + key, JSON.stringify(value));
+export const removeFrom = (n: number, key: string) => drop(profilePrefix(n) + key);
 
 /** Every key of a slot, for export, save codes and delete. */
 export function profileData(n: number): Record<string, unknown> {

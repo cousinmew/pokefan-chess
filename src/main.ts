@@ -33,7 +33,7 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { endCreating, slotCount, switchTo } from './profiles';
+import { endCreating, hasProgress, isCreating, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
@@ -109,7 +109,7 @@ function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
   // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
-  bootProfiles();
+  bootProfiles((n) => !hasProgress(n) && !isCreating(n)); // an empty save left behind is dropped (playtest, 12 Oct)
   registerShell();
   // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
   warmHubSheet();
@@ -329,11 +329,10 @@ function boot(): App {
   function showSettings(backTo?: unknown): void {
     const from = stage.firstElementChild as HTMLElement | null, id = from?.dataset.testid ?? '';
     const back = typeof backTo === 'function' ? (backTo as () => void) : !from || ['screen-title', 'screen-yellow', 'screen-settings'].includes(id) ? goTitle : () => show(from);
-    const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) };
+    const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', ...(isGuest() ? {} : { onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) }) }; // a guest can't switch cartridge (bugs #9)
     const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()];
     show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
   }
-
 
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
   const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()) });
@@ -383,6 +382,7 @@ function boot(): App {
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
     for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest, () => (journey.campaign = loadCampaign())]) stop();
+    if ((load<Cartridge>('cartridge') ?? cart) !== cart) setCart(load<Cartridge>('cartridge')!); // the save's own cartridge after a guest game (bugs #9)
     return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
   /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */

@@ -5,7 +5,7 @@ import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TIC
 import { defaultSpecies, SPECIES } from '../board/pieces';
 import { stageEvolutions, stageFor } from '../board/stages';
 import { myTrainer, trainerSpriteId } from '../look';
-import { endCreating } from '../profiles';
+import { abandonNewGame, endCreating, isCreating } from '../profiles';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
@@ -72,6 +72,8 @@ export class JourneyGame {
     if (this.campaign.starter) return this.showMap();
     // Oak's intro (§B14): Oak, three lines, Nidorino; your name beside RED; the starter, with its cry; then BLUE.
     const lines = PLACES[0]!.story!.map((k) => fmt(k));
+    // While the NEW GAME is unnamed, Back drops it like ◀ BACK; afterwards it is the save's own way home (bugs #2).
+    const back = () => (isCreating() ? abandonNewGame() : this.host.goTitle());
     const afterIntro = () => {
       this.set({ ...this.campaign, introSeen: true });
       // Typing MEIR at the name step unlocks MEIR as your trainer too (fix 1).
@@ -92,9 +94,9 @@ export class JourneyGame {
               this.story([fmt('story.oak.starter', { starter: SPECIES[id]!.name })], () =>
                 this.story([fmt('story.blue.meet')], () => this.showMap(), personSprite('blue')),
               personSprite('oak'));
-            }, () => this.host.goTitle()),
+            }, back),
           );
-        }, () => this.host.goTitle(), personSprite('red'), true),
+        }, back, personSprite('red'), true),
       );
     };
     this.host.show(oakIntro(lines, personSprite('oak'), this.campaign.introSeen, afterIntro));
