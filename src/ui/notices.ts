@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Gentle hub notes (§B18 item 2): "Back up your save" after each badge, and a one time Add to Home Screen tip.
 import type { StringKey } from '../game/text';
+import { isStandalone } from '../pwa';
 import { exportSave } from '../store/backup';
 import { load, save } from '../store/persist';
 import { button, el } from './dom';
 
-const standalone = () =>
-  (window.matchMedia?.('(display-mode: standalone)').matches ?? false) || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 function note(key: StringKey, testid: string, ...buttons: HTMLButtonElement[]): HTMLElement {
   const n = el('div', 'hub-note');
@@ -29,7 +28,7 @@ export function hubNote(): HTMLElement | null {
     );
     return n;
   }
-  if (load<boolean>('homeTip') || standalone()) return null;
+  if (load<boolean>('homeTip') || isStandalone()) return null;
   save('homeTip', true);
   const n: HTMLElement = note('tip.home', 'home-tip', button('tip.ok', () => n.remove(), 'home-tip-ok', 'secondary'));
   return n;

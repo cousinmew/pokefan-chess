@@ -862,5 +862,15 @@
   "startmenu.quit": "SAUVER ET QUITTER",
   "quick.note": "Joue sans sauvegarde : rien n'est gardé, et ton voyage ne change pas.",
   "relay.queued": "Impossible de joindre le serveur pour l'instant. Ton message est gardé et partira plus tard.",
-  "relay.down": "Impossible de joindre le serveur pour l'instant. Réessaie plus tard."
+  "relay.down": "Impossible de joindre le serveur pour l'instant. Réessaie plus tard.",
+  "install.option": "INSTALLER POUR JOUER HORS LIGNE",
+  "install.installed": "Installé ✓ — fonctionne hors ligne",
+  "install.accepted": "Installation en cours. Tu le trouveras parmi tes applis.",
+  "install.dismissed": "Pas installé. Tu peux réessayer quand tu veux.",
+  "install.unsupported": "Ouvre le jeu dans Chrome ou Edge pour l'installer",
+  "install.ios1": "1. Touche Partager (le carré avec une flèche)",
+  "install.ios2": "2. Touche « Sur l'écran d'accueil »",
+  "install.ios3": "3. Ouvre le jeu depuis l'écran d'accueil",
+  "install.warming": "Préparation pour jouer hors ligne… {n} %",
+  "install.ready": "Prêt à jouer hors ligne"
 }

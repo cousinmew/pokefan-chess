@@ -862,5 +862,15 @@
   "startmenu.quit": "保存并退出",
   "quick.note": "不存档游玩：什么都不会保存，你的旅程保持不变。",
   "relay.queued": "现在连不上服务器。你的消息已保存，稍后会发送。",
-  "relay.down": "现在连不上服务器。请稍后再试。"
+  "relay.down": "现在连不上服务器。请稍后再试。",
+  "install.option": "安装以离线游玩",
+  "install.installed": "已安装 ✓ — 可离线游玩",
+  "install.accepted": "正在安装，稍后可在应用中找到。",
+  "install.dismissed": "未安装。随时可以再试。",
+  "install.unsupported": "请在 Chrome 或 Edge 中打开以安装",
+  "install.ios1": "1. 点按“共享”（带箭头的方框）",
+  "install.ios2": "2. 点按“添加到主屏幕”",
+  "install.ios3": "3. 从主屏幕打开游戏",
+  "install.warming": "正在准备离线游玩… {n}%",
+  "install.ready": "已可离线游玩"
 }

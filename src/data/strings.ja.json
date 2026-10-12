@@ -862,5 +862,15 @@
   "startmenu.quit": "セーブして おわる",
   "quick.note": "セーブなしで あそぶよ。たびの きろくは かわらないよ。",
   "relay.queued": "いま サーバーに つながらないよ。メッセージは ほぞんして あとで おくるね。",
-  "relay.down": "いま サーバーに つながらないよ。あとで もういちど ためしてね。"
+  "relay.down": "いま サーバーに つながらないよ。あとで もういちど ためしてね。",
+  "install.option": "オフラインであそぶためにインストール",
+  "install.installed": "インストールずみ ✓ — オフラインであそべるよ",
+  "install.accepted": "インストールちゅう。アプリのなかにでてくるよ",
+  "install.dismissed": "インストールしなかったよ。いつでもまたためせるよ",
+  "install.unsupported": "インストールするにはChromeかEdgeでひらいてね",
+  "install.ios1": "1. きょうゆう（やじるしのしかく）をタップ",
+  "install.ios2": "2. 「ホームがめんについか」をタップ",
+  "install.ios3": "3. ホームがめんからゲームをひらいてね",
+  "install.warming": "オフラインのじゅんびちゅう… {n}%",
+  "install.ready": "オフラインであそべるよ"
 }

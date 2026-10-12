@@ -862,5 +862,15 @@
   "startmenu.quit": "SALVAR E SAIR",
   "quick.note": "Jogue sem salvar: nada fica guardado e sua jornada continua igual.",
   "relay.queued": "Não dá para falar com o servidor agora. Sua mensagem está guardada e será enviada depois.",
-  "relay.down": "Não dá para falar com o servidor agora. Tente de novo mais tarde."
+  "relay.down": "Não dá para falar com o servidor agora. Tente de novo mais tarde.",
+  "install.option": "INSTALAR PARA JOGAR OFFLINE",
+  "install.installed": "Instalado ✓ — funciona offline",
+  "install.accepted": "Instalando. Você vai encontrá-lo entre seus apps.",
+  "install.dismissed": "Não instalado. Você pode tentar de novo quando quiser.",
+  "install.unsupported": "Abra no Chrome ou no Edge para instalar",
+  "install.ios1": "1. Toque em Compartilhar (o quadrado com a seta)",
+  "install.ios2": "2. Toque em \"Adicionar à Tela de Início\"",
+  "install.ios3": "3. Abra o jogo pela tela de início",
+  "install.warming": "Preparando para jogar offline… {n}%",
+  "install.ready": "Pronto para jogar offline"
 }

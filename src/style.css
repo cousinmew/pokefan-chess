@@ -386,6 +386,13 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .save-code { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
 .save-code[hidden] { display: none; }
 .save-note { font-size: 13px; }
+.install-box { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.install-box > button { width: 100%; min-height: 48px; }
+.install-box p { margin: 0; text-align: center; }
+.install-status { font-weight: 700; }
+.install-hint, .install-result, .install-progress { font-size: 14px; }
+.install-steps { margin: 0; padding: 0; list-style: none; flex: 1 1 100%; }
+.install-steps li { margin: 4px 0; }
 .save-code-input { min-height: 44px; padding: 0 8px; font: inherit; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; border: 2px solid var(--ink); border-radius: 6px; }
 .hub-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; box-sizing: border-box; border: 3px dashed var(--ink); border-radius: 12px; background: #fffbe0; }
 .hub-note p { flex: 1 1 200px; margin: 0; }

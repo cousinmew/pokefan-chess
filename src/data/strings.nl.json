@@ -862,5 +862,15 @@
   "startmenu.quit": "OPSLAAN & STOPPEN",
   "quick.note": "Spelen zonder opslag: er wordt niets bewaard en je reis blijft zoals hij is.",
   "relay.queued": "De server is nu niet bereikbaar. Je bericht is bewaard en wordt later verstuurd.",
-  "relay.down": "De server is nu niet bereikbaar. Probeer het later nog eens."
+  "relay.down": "De server is nu niet bereikbaar. Probeer het later nog eens.",
+  "install.option": "INSTALLEREN VOOR OFFLINE SPELEN",
+  "install.installed": "Geïnstalleerd ✓ — werkt offline",
+  "install.accepted": "Wordt geïnstalleerd. Je vindt het bij je apps.",
+  "install.dismissed": "Niet geïnstalleerd. Je kunt het altijd opnieuw proberen.",
+  "install.unsupported": "Open in Chrome of Edge om te installeren",
+  "install.ios1": "1. Tik op Deel (het vierkant met een pijl)",
+  "install.ios2": "2. Tik op 'Zet op beginscherm'",
+  "install.ios3": "3. Open het spel vanaf je beginscherm",
+  "install.warming": "Klaarmaken voor offline spelen… {n}%",
+  "install.ready": "Klaar om offline te spelen"
 }

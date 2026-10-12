@@ -862,5 +862,15 @@
   "startmenu.quit": "SALVA ED ESCI",
   "quick.note": "Gioca senza salvataggio: non si salva nulla e il tuo viaggio resta com'è.",
   "relay.queued": "Il server non è raggiungibile ora. Il tuo messaggio è salvato e partirà più tardi.",
-  "relay.down": "Il server non è raggiungibile ora. Riprova più tardi."
+  "relay.down": "Il server non è raggiungibile ora. Riprova più tardi.",
+  "install.option": "INSTALLA PER GIOCARE OFFLINE",
+  "install.installed": "Installato ✓ — funziona offline",
+  "install.accepted": "Installazione in corso. Lo troverai tra le tue app.",
+  "install.dismissed": "Non installato. Puoi riprovare quando vuoi.",
+  "install.unsupported": "Apri in Chrome o Edge per installare",
+  "install.ios1": "1. Tocca Condividi (il quadrato con la freccia)",
+  "install.ios2": "2. Tocca «Aggiungi alla schermata Home»",
+  "install.ios3": "3. Apri il gioco dalla schermata Home",
+  "install.warming": "Preparazione per il gioco offline… {n}%",
+  "install.ready": "Pronto per giocare offline"
 }

@@ -862,5 +862,15 @@
   "startmenu.quit": "SPEICHERN & BEENDEN",
   "quick.note": "Spielen ohne Spielstand: Nichts wird gespeichert, deine Reise bleibt, wie sie ist.",
   "relay.queued": "Der Server ist gerade nicht erreichbar. Deine Nachricht ist gespeichert und wird später gesendet.",
-  "relay.down": "Der Server ist gerade nicht erreichbar. Versuch es später noch einmal."
+  "relay.down": "Der Server ist gerade nicht erreichbar. Versuch es später noch einmal.",
+  "install.option": "FÜR OFFLINE-SPIEL INSTALLIEREN",
+  "install.installed": "Installiert ✓ — läuft offline",
+  "install.accepted": "Wird installiert. Du findest das Spiel bei deinen Apps.",
+  "install.dismissed": "Nicht installiert. Du kannst es jederzeit erneut versuchen.",
+  "install.unsupported": "Zum Installieren in Chrome oder Edge öffnen",
+  "install.ios1": "1. Tippe auf Teilen (Quadrat mit Pfeil)",
+  "install.ios2": "2. Tippe auf „Zum Home-Bildschirm“",
+  "install.ios3": "3. Öffne das Spiel vom Home-Bildschirm",
+  "install.warming": "Wird für offline vorbereitet… {n}%",
+  "install.ready": "Bereit zum Offline-Spielen"
 }
