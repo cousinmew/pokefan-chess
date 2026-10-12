@@ -140,3 +140,15 @@
 
 - One START button instead of Menu and START; the status line stays centred over the board.
 - Each side's moves show in that side's own plate; names and titles fit on one line.
+
+## 2.13.0 (playtest polish)
+
+- A new device sees NEW GAME, not someone else's CONTINUE; CONTINUE shows whose save it is, and NEW GAME never leaves an empty "Player 1" behind.
+- The shelf asks "Do you know how chess pieces move?" and YELLOW, the gentle start, comes first.
+- In every puzzle you are TEAM RED at the bottom with your own team, the goal ("Checkmate in 1 move") is always in the header, and the plate names the trainer you face.
+- Route 1 starts with Oak's three-move warm-up and a first catch that can't fail; the first trainers set the easiest puzzles.
+- The map marks cleared places, points to what's next, and says what opens the next place; win and unlock cards after each battle.
+- Every screen fits any window, from a 320 px phone to a desktop or a small embed, in portrait and landscape, with no page scroll.
+- INSTALL FOR OFFLINE PLAY in OPTION (Android, Windows and other Chrome or Edge browsers; steps for iPhone).
+- vs Computer levels are named Easy to Super hard; the trainer shown is the one you face.
+- Fixed: the computer stalling after OPTION, old popups acting in a later game, renames being undone, a wrong move in a lesson hiding its goal.
