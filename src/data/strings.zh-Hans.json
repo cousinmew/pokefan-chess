@@ -930,5 +930,7 @@
   "install.ios2": "2. 点按“添加到主屏幕”",
   "install.ios3": "3. 从主屏幕打开游戏",
   "install.warming": "正在准备离线游玩… {n}%",
-  "install.ready": "已可离线游玩"
+  "install.ready": "已可离线游玩",
+  "install.held": "省流量模式或网速较慢，离线文件暂未下载。",
+  "install.warmNow": "立即准备离线游玩"
 }

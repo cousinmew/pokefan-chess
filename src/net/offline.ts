@@ -8,6 +8,18 @@ const CONTROL_WAIT_MS = 10000;
 /** No word from the worker for this long: give up (it was stopped, or a newer one replaced it). */
 const QUIET_MS = 60000;
 
+/** The parts of the Network Information API read here (Chromium only; Safari and Firefox have none). */
+export interface Connection {
+  saveData?: boolean;
+  effectiveType?: string;
+}
+
+/** Data saver on, or a 2G connection: no automatic warm up of about 8 MB (considerate warm up). Unknown: false. */
+export const sparing = (c: Connection | null | undefined): boolean => c?.saveData === true || c?.effectiveType === 'slow-2g' || c?.effectiveType === '2g';
+
+/** A service worker and Cache Storage, outside ?debug: getting ready for offline can work here. */
+export const warmable = (): boolean => 'serviceWorker' in navigator && 'caches' in window && !new URLSearchParams(location.search).has('debug');
+
 /** Resolves once nothing is installing or waiting, so `reg.active` is the newest worker (or after a timeout). */
 function settled(reg: ServiceWorkerRegistration): Promise<void> {
   return new Promise((done) => {
@@ -23,7 +35,7 @@ function settled(reg: ServiceWorkerRegistration): Promise<void> {
 
 /** The newest active service worker of this page's registration, once it controls the page; null when there is none. */
 async function newest(): Promise<ServiceWorker | null> {
-  if (!('serviceWorker' in navigator) || !('caches' in window) || new URLSearchParams(location.search).has('debug')) return null;
+  if (!warmable()) return null;
   const sw = navigator.serviceWorker;
   const reg = await sw.getRegistration();
   if (!reg) return null;
@@ -38,27 +50,29 @@ async function newest(): Promise<ServiceWorker | null> {
   return reg.active && sw.controller === reg.active ? reg.active : null;
 }
 
-/** Asks the service worker to cache every listed file; `progress` gets 0 to 100. True when all of them are cached. */
-export async function warmUp(progress: (pct: number) => void): Promise<boolean> {
+/** Asks the service worker to cache every listed file; `progress` gets 0 to 100. Resolves to the worker's build when
+ * all of them are cached (the page remembers it, src/pwa.ts), else null. */
+export async function warmUp(progress: (pct: number) => void): Promise<string | null> {
   try {
     const worker = await newest();
-    if (!worker) return false;
+    if (!worker) return null;
     progress(0);
-    return await new Promise<boolean>((done) => {
+    return await new Promise<string | null>((done) => {
       const sw = navigator.serviceWorker;
       let quiet = 0;
-      const finish = (ok: boolean) => {
+      const finish = (build: string | null) => {
         window.clearTimeout(quiet);
         sw.removeEventListener('message', heard);
         sw.removeEventListener('controllerchange', replaced);
-        done(ok);
+        done(build);
       };
-      const wait = () => (window.clearTimeout(quiet), (quiet = window.setTimeout(() => finish(false), QUIET_MS)));
+      const wait = () => (window.clearTimeout(quiet), (quiet = window.setTimeout(() => finish(null), QUIET_MS)));
       // Another worker took over: its caches are new, so this run's copies may be gone. Report not ready.
-      const replaced = () => finish(false);
+      const replaced = () => finish(null);
       const heard = (e: MessageEvent) => {
-        const m = e.data as { warm?: number | 'done'; ok?: boolean } | null;
-        if (m?.warm === 'done') finish(!!m.ok);
+        const m = e.data as { warm?: number | 'done'; ok?: boolean; build?: string } | null;
+        // An older sw.js sends no build: nothing to remember, the next launch asks again.
+        if (m?.warm === 'done') finish(m.ok && typeof m.build === 'string' ? m.build : null);
         else if (typeof m?.warm === 'number') {
           progress(m.warm);
           wait();
@@ -72,6 +86,6 @@ export async function warmUp(progress: (pct: number) => void): Promise<boolean> 
     });
   } catch (err) {
     console.warn('offline warm up failed:', err instanceof Error ? err.message : err);
-    return false;
+    return null;
   }
 }

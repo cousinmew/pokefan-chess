@@ -3,7 +3,7 @@
 // Chromium: the caught install prompt. iOS: the Share → Add to Home Screen steps. Installed: a plain status line.
 // Anything else: a hint, never a dead button. Works the same under ?debug, where there is no service worker.
 import { fmt } from '../game/text';
-import { getReadyOffline, installState, onInstallChange, promptInstall, warmState } from '../pwa';
+import { autoWarm, getReadyOffline, installState, offlineHeld, onInstallChange, promptInstall, warmState } from '../pwa';
 import { button, el } from './dom';
 
 let outcome: 'accepted' | 'dismissed' | null = null;
@@ -59,9 +59,17 @@ export function installRow(): HTMLElement {
       p.setAttribute('role', 'status');
       p.textContent = w === 'ready' ? fmt('install.ready') : fmt('install.warming', { n: String(w) });
       parts.push(p);
+    } else if (offlineHeld()) {
+      // Data saver or 2G held the automatic warm up back (considerate warm up): the player may still ask for it.
+      const p = el('p', 'install-hint', 'install.held');
+      p.dataset.testid = 'install-held';
+      parts.push(p, button('install.warmNow', () => (getReadyOffline(), render()), 'install-warm'));
     }
     box.replaceChildren(...parts);
   };
+  // Opened as an app whose files are not cached for this build yet: the automatic warm up starts from here too (once
+  // per build per device, not on data saver or 2G; no-op without a worker).
+  autoWarm();
   render();
   // Re-render on prompt, install and progress events while this screen is open; drop the listener once it is gone.
   let shown = false;
@@ -70,7 +78,5 @@ export function installRow(): HTMLElement {
     if (shown) stop();
   });
   window.requestAnimationFrame(() => (shown = box.isConnected));
-  // Opened as an app whose files are not cached yet: the warm up starts from here too (no-op without a worker).
-  if (installState() === 'installed' && warmState() === null) getReadyOffline();
   return box;
 }

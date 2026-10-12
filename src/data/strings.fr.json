@@ -930,5 +930,7 @@
   "install.ios2": "2. Touche « Sur l'écran d'accueil »",
   "install.ios3": "3. Ouvre le jeu depuis l'écran d'accueil",
   "install.warming": "Préparation pour jouer hors ligne… {n} %",
-  "install.ready": "Prêt à jouer hors ligne"
+  "install.ready": "Prêt à jouer hors ligne",
+  "install.held": "Fichiers hors ligne en attente : économie de données ou réseau lent.",
+  "install.warmNow": "PRÉPARER LE HORS LIGNE MAINTENANT"
 }

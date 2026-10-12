@@ -930,5 +930,7 @@
   "install.ios2": "2. Tocca «Aggiungi alla schermata Home»",
   "install.ios3": "3. Apri il gioco dalla schermata Home",
   "install.warming": "Preparazione per il gioco offline… {n}%",
-  "install.ready": "Pronto per giocare offline"
+  "install.ready": "Pronto per giocare offline",
+  "install.held": "File offline in attesa: risparmio dati o rete lenta.",
+  "install.warmNow": "PREPARA ORA PER GIOCARE OFFLINE"
 }

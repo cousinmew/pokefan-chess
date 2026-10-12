@@ -5,3 +5,5 @@ declare const __MUSIC_FILES__: string[];
 declare const __WEBP__: string[];
 /** The game version from package.json (vite.config.ts), attached to feedback. */
 declare const __VERSION__: string;
+/** This build's id, the same one stamped into sw.js (vite.config.ts): the offline warm up remembers it per device. */
+declare const __BUILD__: string;

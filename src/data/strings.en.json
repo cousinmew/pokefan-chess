@@ -929,5 +929,7 @@
   "install.ios2": "2. Tap Add to Home Screen",
   "install.ios3": "3. Open the game from your Home Screen",
   "install.warming": "Getting ready for offline… {n}%",
-  "install.ready": "Ready to play offline"
+  "install.ready": "Ready to play offline",
+  "install.held": "Offline files wait: data saver or slow network.",
+  "install.warmNow": "GET READY FOR OFFLINE NOW"
 }

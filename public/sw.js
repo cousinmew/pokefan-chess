@@ -34,9 +34,11 @@ const keep = (e, cache, req, res) => {
 };
 
 // Getting ready for offline (review fix): the worker itself fetches offline.json's list into this build's caches, so
-// a newer worker taking over halfway can never delete what an older page warmed up. Files under assets/ that this
-// build has already are skipped; the shell is fetched again (network first, as above). The page that asked gets
-// { warm: 0..100 } as files land and { warm: 'done', ok } at the end; one run at a time, later askers join it.
+// a newer worker taking over halfway can never delete what an older page warmed up. A file already cached is not
+// downloaded again (considerate warm up): under assets/ when this build's cache has it, any other file when the shell
+// cache has it (normal loads still go to the network first and refresh that copy). The page that asked gets
+// { warm: 0..100 } as files land and { warm: 'done', ok, build } at the end, so it can remember which build is
+// ready on this device; one run at a time, later askers join it.
 const PARALLEL = 4;
 let warming = null;
 const asked = new Set();
@@ -51,10 +53,10 @@ async function warmUp() {
   let done = 0, failed = 0, next = 0;
   const one = async (file) => {
     const url = new URL(file, self.registration.scope).href;
-    const assets = new URL(url).pathname.includes('/assets/');
-    if (!(assets && (await sprites.match(url, ANY)))) {
+    const cache = new URL(url).pathname.includes('/assets/') ? sprites : shell;
+    if (!(await cache.match(url, ANY))) {
       const r = await fetch(url).catch(() => null);
-      if (r?.ok) await (assets ? sprites : shell).put(url, r);
+      if (r?.ok) await cache.put(url, r);
       else failed++;
     }
     tell({ warm: Math.floor((++done * 100) / files.length) });
@@ -71,7 +73,7 @@ self.addEventListener('message', (e) => {
   asked.add(e.source);
   warming ??= warmUp()
     .catch(() => false)
-    .then((ok) => (tell({ warm: 'done', ok }), asked.clear(), (warming = null), ok));
+    .then((ok) => (tell({ warm: 'done', ok, build: BUILD }), asked.clear(), (warming = null), ok));
   e.waitUntil(warming);
 });
 

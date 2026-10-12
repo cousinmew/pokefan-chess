@@ -930,5 +930,7 @@
   "install.ios2": "2. Tippe auf „Zum Home-Bildschirm“",
   "install.ios3": "3. Öffne das Spiel vom Home-Bildschirm",
   "install.warming": "Wird für offline vorbereitet… {n}%",
-  "install.ready": "Bereit zum Offline-Spielen"
+  "install.ready": "Bereit zum Offline-Spielen",
+  "install.held": "Offline-Dateien warten: Datensparmodus oder langsames Netz.",
+  "install.warmNow": "JETZT FÜR OFFLINE VORBEREITEN"
 }
