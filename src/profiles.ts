@@ -4,7 +4,7 @@
 import type { Campaign } from './campaign/kanto';
 import { DEX } from './campaign/kanto';
 import { fmt } from './game/text';
-import { clearProfile, loadFrom, MAX_SLOTS, readMeta, saveTo, writeMeta, type ProfileMeta } from './store/persist';
+import { clearProfile, loadFrom, MAX_SLOTS, readMeta, removeFrom, saveTo, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
 
 const PICKED = 'kc:v1:picked';
@@ -50,23 +50,52 @@ export const playTime = (ms = 0) => `${Math.floor(ms / 3_600_000)}:${String(Math
 /** The picker shows after the splash only when the device has more than one player, once per visit. */
 export const needsPicker = () => meta().slots.length > 1 && !session();
 
-export function summaries(): SlotSummary[] {
-  return meta().slots.map((n) => {
+/** A save worth CONTINUE, a summary box and a place in SWITCH TRAINER (playtest, 12 Oct): a game in progress, a
+ * starter, a name, a YELLOW lesson or win, a game played, a Two Players win or anything caught. Picking a cartridge
+ * alone is not progress, so a brand-new device shows only NEW GAME, PLAY CHESS and OPTION. */
+export function hasProgress(n: number): boolean {
+  const c = loadFrom<Partial<Campaign>>(n, 'campaign');
+  const g = loadFrom<{ pgn?: unknown; fen?: unknown }>(n, 'game');
+  return (
+    (!!g && typeof g.pgn === 'string' && typeof g.fen === 'string') ||
+    !!c?.starter ||
+    !!c?.name ||
+    (c?.path ?? 0) > 0 ||
+    (c?.yellowWins ?? 0) > 0 ||
+    (loadFrom<number>(n, 'gamesPlayed') ?? 0) > 0 ||
+    (loadFrom<number>(n, 'duoWins') ?? 0) > 0 ||
+    Object.values(c?.caught ?? {}).some((x) => x > 0)
+  );
+}
+
+/** One summary per save; empty saves are left out unless `all` (the "replace which save?" list needs every slot). */
+export function summaries(all = false): SlotSummary[] {
+  return meta().slots.filter((n) => all || hasProgress(n)).map((n) => {
     const c = loadFrom<Partial<Campaign>>(n, 'campaign');
     return {
       n,
       name: c?.name || fmt('profiles.slot', { n: String(n) }),
+      named: !!c?.name,
       cart: loadFrom<'yellow' | 'blue'>(n, 'cartridge'),
       trainer: loadFrom<string>(n, 'trainer') === 'meir' ? 'meir' : 'red-gen1',
       lang: loadFrom<string>(n, 'lang') ?? 'en',
       badges: c?.badges?.length ?? 0,
       dex: DEX.filter((s) => c?.caught?.[s]).length,
       time: playTime(c?.playMs),
+      lessons: c?.path ?? 0,
     };
   });
 }
 
+// Set once a switch has started its reload (playtest, 12 Oct): a second tap on NEW GAME or a save while the page
+// reloads does nothing, so a double tap can't make two saves.
+let leaving = false;
+
+/** Loads save n by reloading the page. Any unfinished NEW GAME ends here, unless this reload starts it. */
 export function switchTo(n: number, intent: Intent | null = null): void {
+  if (leaving) return;
+  leaving = true;
+  if (intent !== 'newgame') endCreating();
   const m = meta();
   if (m.slots.includes(n)) writeMeta({ ...m, current: n });
   session(true);
@@ -74,7 +103,10 @@ export function switchTo(n: number, intent: Intent | null = null): void {
   location.reload();
 }
 
-// A NEW GAME is "being created" until the name is confirmed (§B22 item 2): this remembers which save to go back to.
+// A NEW GAME is "being created" until the name is confirmed (§B22 item 2). The session flag names both saves,
+// "<from>:<new>": the one to go back to and the one being made, so BACK can only ever drop that new one, and only
+// while it is the current save (a stale flag once deleted a real save, playtest 12 Oct). From and new are the same
+// when NEW GAME reuses an empty save (first launch).
 const CREATING = 'kc:v1:creating';
 function session2(set?: string | null): string | null {
   try {
@@ -86,41 +118,65 @@ function session2(set?: string | null): string | null {
     return null;
   }
 }
-/** The save to return to while a NEW GAME is still unnamed, or null. */
-export const creatingFrom = (): number | null => {
-  const v = session2();
-  return v === null ? null : Number(v);
-};
+function creating(): { from: number; slot: number } | null {
+  const [from, slot] = (session2() ?? '').split(':').map(Number);
+  return from && slot ? { from, slot } : null;
+}
+const beginCreating = (from: number, slot: number) => void session2(`${from}:${slot}`);
+/** A NEW GAME is unnamed and it is save n (the current one by default): BACK, Escape and B drop it. */
+export const isCreating = (n = meta().current): boolean => creating()?.slot === n;
 /** The name is confirmed: the new save is real now. */
 export const endCreating = () => void session2(null);
-/** BACK during NEW GAME: the unnamed save is dropped and the start menu of the previous save comes back. */
+/** BACK during NEW GAME: the unnamed save is dropped and the start menu of the previous save comes back. Does
+ * nothing (but forget the flag) unless the save being created is the current one. */
 export function abandonNewGame(): void {
-  const from = creatingFrom();
+  const c = creating();
   const m = meta();
-  const n = m.current;
+  if (leaving) return;
+  if (!c || c.slot !== m.current) return endCreating();
   endCreating();
-  clearProfile(n);
-  const slots = m.slots.filter((x) => x !== n);
-  const back = from !== null && slots.includes(from) ? from : (slots[0] ?? 1);
+  if (c.from === c.slot) {
+    // A reused empty save: forget the cartridge and the intro; boot drops the save if others exist.
+    for (const key of ['cartridge', 'campaign']) removeFrom(c.slot, key);
+    return switchTo(c.slot, 'menu');
+  }
+  clearProfile(c.slot);
+  const slots = m.slots.filter((x) => x !== c.slot);
+  const back = slots.includes(c.from) ? c.from : (slots[0] ?? 1);
   writeMeta({ slots: slots.length ? slots : [1], current: back });
   switchTo(back, 'menu');
 }
 
 /** NEW GAME with all 4 slots in use: this save is wiped and a new game starts in its place (after a 2 s hold). */
 export function replaceProfile(n: number): void {
-  session2(String(meta().current));
+  if (leaving) return;
+  beginCreating(meta().current, n);
   clearProfile(n);
   switchTo(n, 'newgame');
 }
 
-/** A fresh player in the first free slot; it opens on the cartridge shelf. */
+/** NEW GAME on a save with no progress (first launch, or after BACK): that save is reused in place, with no reload
+ * and no new slot. Returns false when the current save has progress (then addProfile makes a new one). */
+export function reuseEmpty(): boolean {
+  const n = meta().current;
+  if (leaving || hasProgress(n)) return false;
+  beginCreating(n, n);
+  return true;
+}
+
+/** A fresh player in the first free slot; it opens on the cartridge shelf. An empty current save is reused instead. */
 export function addProfile(): void {
+  if (leaving) return;
   const m = meta();
+  if (!hasProgress(m.current)) {
+    beginCreating(m.current, m.current);
+    return switchTo(m.current, 'newgame');
+  }
   const n = [1, 2, 3, 4].find((x) => !m.slots.includes(x));
   if (!n || m.slots.length >= MAX_SLOTS) return;
   clearProfile(n);
   writeMeta({ slots: [...m.slots, n].sort(), current: m.current });
-  session2(String(m.current));
+  beginCreating(m.current, n);
   switchTo(n, 'newgame');
 }
 
@@ -130,6 +186,7 @@ export function renameProfile(n: number, name: string): void {
 
 /** Deletes a player; deleting the last one leaves an empty slot 1. Reloads when the current player went. */
 export function deleteProfile(n: number): boolean {
+  if (leaving) return true;
   const m = meta();
   clearProfile(n);
   const slots = m.slots.filter((x) => x !== n);

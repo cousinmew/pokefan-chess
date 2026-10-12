@@ -37,11 +37,15 @@ test.describe('360x640', () => {
     const errors = watchErrors(page);
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
-    // With storage blocked nothing is remembered, so the cartridge shelf shows: pick BLUE.
+    // With storage blocked nothing is remembered, so every launch is a first launch: the shelf, then Oak's intro.
     await page.getByTestId('cart-blue').click();
-    // The Gen 1 style start menu follows (change C): CONTINUE goes home.
-    await page.getByTestId('start-continue').click();
-    await page.getByTestId('vs-computer').click();
+    await expect(page.getByTestId('screen-intro')).toBeVisible();
+    // ◀ BACK leads to the start menu (playtest 12 Oct), with nothing to CONTINUE; PLAY CHESS plays as a guest.
+    await page.getByTestId('newgame-back').click();
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('start-continue')).toHaveCount(0);
+    await page.getByTestId('start-play').click();
+    await page.getByTestId('quick-computer').click();
     await page.getByTestId('team-rocket').click();
     await page.getByTestId('level-1').click();
     await page.getByTestId('intro').click();
@@ -50,13 +54,13 @@ test.describe('360x640', () => {
     await expect(page.getByTestId('takeback')).toBeVisible();
     await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
     await page.getByTestId('start-menu-quit').click();
-    await page.getByTestId('start-continue').click(); // the real start menu, then home
-    await page.getByTestId('how-to').click();
-    await expect(page.getByTestId('screen-howto')).toContainText('Bishop, light squares');
+    await expect(page.getByTestId('screen-start')).toBeVisible(); // the real start menu
     expect(errors).toEqual([]);
   });
 
   test('settings persist and Continue resumes a game', async ({ page }) => {
+    // A returning player: a cartridge alone is no progress and would open the new game flow (playtest 12 Oct).
+    await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ name: 'ASH' })));
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
     await page.getByTestId('start-continue').click();

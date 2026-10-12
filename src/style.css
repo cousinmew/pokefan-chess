@@ -342,6 +342,17 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .cart-label small { font-size: 11px; }
 .cart-pins { position: absolute; bottom: 6px; left: 18px; right: 18px; height: 10px; background: repeating-linear-gradient(90deg, #d0a020 0 6px, transparent 6px 10px); }
 .cartridge.blue .cart-pins { background: repeating-linear-gradient(90deg, #d0a020 0 6px, transparent 6px 10px); }
+/* Playtest 12 Oct (W1): YELLOW's "Start here" ribbon (a hint, not a preselection), BLUE's "for" line, and NEW GAME's
+   subtitle on the start menu. */
+.cart-ribbon { position: absolute; top: 8px; right: -12px; transform: rotate(10deg); padding: 3px 8px; background: #e04040; color: #fff; border: 2px solid var(--ink); border-radius: 3px; font-size: 12px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; pointer-events: none; }
+[dir='rtl'] .cart-ribbon { right: auto; left: -12px; transform: rotate(-10deg); }
+.cart-label small.cart-for { font-style: italic; }
+/* The longer labels never spill: each cartridge grows to its label, both as tall as the taller (one grid row). */
+.screen-shelf .shelf { display: grid; grid-template-columns: auto auto; align-content: center; justify-content: center; }
+.screen-shelf .shelf .cartridge { height: auto; min-height: min(170px, 26dvh); padding-bottom: 22px; align-self: stretch; }
+@media (max-height: 560px) { .cart-label small.cart-for { display: none; } }
+.start-text { display: flex; flex-direction: column; }
+.start-sub { font-size: 12px; font-weight: 400; letter-spacing: 0; }
 .lang-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .menu button.lang-btn { min-width: 96px; }
 .menu button.lang-btn.on { background: #f8d030; }
@@ -351,7 +362,6 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .hold-text { position: relative; }
 /* Language button (§B18 item 3): the current code, a tap opens the four languages. */
 .lang-top { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.screen-shelf .lang-top { align-self: flex-end; }
 .hub-top > .lang-top { flex: 0 0 auto; }
 .menu button.lang-code { min-width: 56px; min-height: 52px; font-weight: 700; font-size: 18px; letter-spacing: 1px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
 .lang-pop { position: absolute; top: 58px; inset-inline-end: 0; z-index: 5; width: max-content; max-width: 90vw; padding: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink); }

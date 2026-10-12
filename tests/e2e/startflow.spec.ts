@@ -54,6 +54,8 @@ test('BACK out of NEW GAME: the shelf, the intro and the name step return to the
     await page.getByTestId('cart-blue').click();
     for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
     await expect(page.getByTestId('screen-name')).toBeVisible();
+    // One back control on the name step (ux #14): ◀ BACK, not also the screen's own Back.
+    await expect(page.getByTestId('back')).toHaveCount(0);
     if (exit === 'button') {
       if (!(await page.getByTestId('newgame-back').isVisible())) throw new Error('no BACK on the name step');
       await page.screenshot({ path: `${SHOTS}/newgame-back.png` });
@@ -159,4 +161,139 @@ test('PLAY CHESS: straight into a game as a guest; nothing is saved and the Jour
   await page.getByTestId('start-button').click();
   await page.getByTestId('start-menu-quit').click();
   expect(await storage(page)).toBe(before);
+});
+
+// Playtest 12 Oct (W1): CONTINUE only with progress, first launch straight into the new game, NEW GAME reusing an
+// empty save, BACK that can only drop the save being made, empty saves dropped at boot, and the double tap latch.
+const profiles = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:profiles') ?? 'null'));
+const menuItems = (page: Page) => page.locator('[data-testid^="start-"].start-item').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+/** Seeds exactly these keys once per test (no old style keys, which would move into the current save). */
+const seedRaw = (page: Page, kv: Record<string, unknown>) =>
+  page.addInitScript((items) => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.clear();
+    for (const [k, v] of Object.entries(items)) localStorage.setItem(k, JSON.stringify(v));
+  }, kv);
+
+test.describe('a brand-new device', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('first launch: splash, shelf, then straight into Oak; BACK shows a menu with no CONTINUE', async ({ page }) => {
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('screen-shelf')).toBeVisible();
+    await expect(page.locator('.screen-shelf h2')).toHaveText('Do you know how chess pieces move?');
+    await expect(page.getByTestId('cart-yellow')).toContainText('Start here');
+    await expect(page.getByTestId('cart-blue')).toContainText('Puzzles, gyms, catching.');
+    await expect(page.getByTestId('lang-button')).toHaveCount(0); // the language list is the only language control
+    const carts = await page.locator('.cartridge').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+    expect(carts).toEqual(['cart-yellow', 'cart-blue']);
+    await page.getByTestId('cart-blue').click();
+    await expect(page.getByTestId('screen-intro')).toBeVisible();
+    await expect(page.getByTestId('screen-start')).toHaveCount(0);
+    expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
+    await page.getByTestId('newgame-back').click();
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('screen-start')).toBeVisible();
+    expect(await menuItems(page)).toEqual(['start-new', 'start-play', 'start-option']);
+    await expect(page.getByTestId('start-summary')).toHaveCount(0);
+    await expect(page.getByTestId('start-new')).toContainText('Start your own save. Others are kept.');
+    // NEW GAME from here reuses the empty save: the shelf at once (no second splash), one slot.
+    await page.getByTestId('start-new').click();
+    await expect(page.getByTestId('screen-shelf')).toBeVisible();
+    await page.getByTestId('cart-blue').click();
+    for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
+    await page.getByTestId('name-2').click();
+    await expect(page.getByTestId('screen-oak')).toBeVisible();
+    expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name)).toBeTruthy();
+  });
+
+  test('first launch on YELLOW opens its home; its start menu shows lessons and stickers, not badges', async ({ page }) => {
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('cart-yellow').click();
+    await expect(page.getByTestId('screen-yellow')).toBeVisible();
+    await page.evaluate(() => localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ path: 3, caught: { pikachu: 1, eevee: 1 } })));
+    await page.reload();
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('start-continue')).toHaveText(/^▶\s*CONTINUE$/); // no name chosen: plain CONTINUE
+    await expect(page.getByTestId('start-summary-lessons')).toHaveText('3/12');
+    await expect(page.getByTestId('start-summary-stickers')).toHaveText('2');
+    await expect(page.getByTestId('start-summary-badges')).toHaveCount(0);
+    await expect(page.getByTestId('start-summary-dex')).toHaveCount(0);
+  });
+});
+
+test('a cartridge alone is no progress: no CONTINUE, and NEW GAME keeps a single slot', async ({ page }) => {
+  await page.goto('./?debug=1&menu=1');
+  await page.getByTestId('screen-splash').click();
+  expect(await menuItems(page)).toEqual(['start-new', 'start-play', 'start-option']);
+  await page.getByTestId('start-new').click();
+  await page.getByTestId('cart-blue').click();
+  await expect(page.getByTestId('screen-intro')).toBeVisible();
+  expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
+});
+
+test('CONTINUE names the save', async ({ page }) => {
+  await seed(page);
+  await startMenu(page);
+  await expect(page.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
+});
+
+test('an empty save left behind is dropped at boot; SWITCH TRAINER never lists one', async ({ page }) => {
+  await seedRaw(page, { 'kc:v1:profiles': { slots: [1, 2, 3], current: 2 }, 'kc:v1:p1:cartridge': 'blue', 'kc:v1:p1:campaign': camp, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p3:campaign': { introSeen: true } });
+  await startMenu(page);
+  await expect(page.getByTestId('start-summary-name')).toHaveText('JADE');
+  await expect(page.getByTestId('start-switch')).toHaveCount(0);
+  expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
+  expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => /^kc:v1:p[23]:/.test(k)))).toEqual([]);
+});
+
+test('bugs #2: a NEW GAME left unnamed can no longer delete another save', async ({ page }) => {
+  const sky = { v: 2, name: 'SKY', introSeen: true, teamRules: 2 };
+  await seed(page, { 'kc:v1:profiles': { slots: [1, 2], current: 1 }, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p2:campaign': sky });
+  await startMenu(page);
+  await page.getByTestId('start-new').click();
+  await page.getByTestId('screen-splash').click();
+  await page.getByTestId('cart-blue').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
+  await expect(page.getByTestId('screen-name')).toBeVisible();
+  // Leave the unnamed save another way: the menu again in the same tab, then SWITCH TRAINER to SKY.
+  await startMenu(page);
+  await page.getByTestId('start-switch').click();
+  await expect(page.getByTestId('slot-3')).toHaveCount(0); // the unnamed save is not listed
+  await page.getByTestId('slot-pick-2').click();
+  await page.getByTestId('screen-splash').click();
+  await page.getByTestId('kanto').click();
+  await expect(page.getByTestId('screen-intro')).toBeVisible();
+  await expect(page.getByTestId('newgame-back')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
+  await page.getByTestId('back').click(); // the name step's own Back: home, nothing deleted
+  await expect(page.getByTestId('screen-title')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p2:campaign')!).name)).toBe('SKY');
+  expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+});
+
+test('a double tap on NEW GAME makes one save', async ({ page }) => {
+  await seed(page);
+  await startMenu(page);
+  await page.getByTestId('start-new').dblclick();
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('screen-shelf')).toBeVisible();
+  expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+});
+
+test('PLAY CHESS: a guest has no cartridge switch', async ({ page }) => {
+  await seed(page);
+  await startMenu(page);
+  await page.getByTestId('start-play').click();
+  await page.getByTestId('quick-friend').click();
+  await page.getByTestId('intro').click();
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-option').click();
+  await expect(page.getByTestId('screen-settings')).toBeVisible();
+  await expect(page.getByTestId('switch-cartridge')).toHaveCount(0);
 });
