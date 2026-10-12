@@ -7,8 +7,9 @@ import { Chess } from 'chess.js';
 import { hintMove, meets, WARMUP } from '../../src/campaign/path';
 import { addPlayTime, chooseStarter, loadCampaign, saveCampaign, throwBall, type Campaign } from '../../src/campaign/kanto';
 import { beatTrainer, clearPlace, goalLine, journeyState, nextGoal, PLACES, progress, unlockText } from '../../src/campaign/journey';
-import { pickEasy, pieceCount } from '../../src/campaign/trainer';
+import { pickEasy, pieceCount, shownLevel, type Trainer } from '../../src/campaign/trainer';
 import { createRng } from '../../src/game/rng';
+import { rivalStarter, withoutRival } from '../../src/campaign/rivalTeam';
 import type { PuzzleRow } from '../../src/campaign/puzzle';
 
 const store = new Map<string, string>();
@@ -86,6 +87,32 @@ describe('easy first trainers (W5)', () => {
     const big: PuzzleRow = ['big', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'e2e4 e7e5', 600];
     expect(pickEasy([big], [])).toBeNull();
   });
+
+  it('never opens with a promotion: no promoting set up move or answer (playtest, 12 Oct)', () => {
+    const rows: PuzzleRow[] = [
+      ['promo-setup', '7k/1P6/8/8/8/8/6K1/r7 b - - 0 1', 'a1a8 b7a8q', 400],
+      ['promo-answer', '6k1/1P3ppp/8/8/8/8/8/6K1 b - - 0 1', 'g8h8 b7b8q', 400],
+      ['plain', '6k1/5ppp/8/8/8/8/1R6/1r4K1 b - - 0 1', 'b1a1 b2b8', 500],
+    ];
+    expect(pickEasy(rows, [])?.[0]).toBe('plain');
+    const pool = JSON.parse(readFileSync('src/data/puzzles/mateIn1.json', 'utf8')) as PuzzleRow[];
+    const seen: string[] = [];
+    for (let i = 0; i < 30; i++) {
+      const row = pickEasy(pool, seen)!;
+      expect(row[2].split(' ').every((m) => m.length === 4), row[0]).toBe(true);
+      seen.push(row[0]);
+    }
+  });
+});
+
+describe('Trainer Level for kids (playtest, 12 Oct)', () => {
+  const t = (solved: number, missed: number, assisted = 0): Trainer => ({ rating: { r: 1111, rd: 80, vol: 0.06 }, solved, missed, assisted, seen: [] });
+  it('no number until 10 rated puzzles; hints do not count', () => {
+    expect(shownLevel(t(0, 0))).toEqual({ r: null, n: 0 });
+    expect(shownLevel(t(3, 2, 4))).toEqual({ r: null, n: 5 });
+    expect(shownLevel(t(7, 2, 9))).toEqual({ r: null, n: 9 });
+    expect(shownLevel(t(8, 2))).toEqual({ r: 1111, n: 10 });
+  });
 });
 
 describe('nextGoal (W5, design H)', () => {
@@ -130,5 +157,20 @@ describe('play time (bugs #6)', () => {
     expect(after).toMatchObject({ name: 'SKY', playMs: 15_000 });
     expect(loadCampaign()).toMatchObject({ name: 'SKY', playMs: 15_000 });
     expect(memory.name).toBe('JADE'); // the old copy in memory is not what gets saved
+  });
+});
+
+describe("the rival's starter never stands on your side (playtest, 12 Oct)", () => {
+  it('swaps the default slots of the rival line for a stand in outside every starter line; your own picks stay', () => {
+    expect(rivalStarter('bulbasaur')).toBe('charmander');
+    expect(rivalStarter(null)).toBeNull();
+    // BULBASAUR: BLUE takes CHARMANDER, so the default queen (CHARMANDER, CHARMELEON, CHARIZARD by stage) is replaced.
+    expect(withoutRival({ k: 'bulbasaur' }, 'bulbasaur', 0)).toEqual({ k: 'bulbasaur', q: 'growlithe' });
+    expect(withoutRival({ k: 'bulbasaur' }, 'bulbasaur', 2)).toEqual({ k: 'bulbasaur', q: 'arcanine' });
+    // SQUIRTLE: BLUE takes BULBASAUR, the dark bishop line.
+    expect(withoutRival({ k: 'squirtle' }, 'squirtle', 1)).toEqual({ k: 'squirtle', bDark: 'gloom' });
+    // A slot My Team filled is the player's choice.
+    expect(withoutRival({ q: 'charmeleon' }, 'bulbasaur', 1)).toEqual({ q: 'charmeleon' });
+    expect(withoutRival({}, null, 0)).toEqual({});
   });
 });

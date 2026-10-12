@@ -61,3 +61,14 @@ export function endPanel(line: Line, a: EndActions): HTMLElement {
   } else panel.append(p, cap, row);
   return panel;
 }
+
+/** QUIT in a guest game in progress (playtest, 12 Oct): nothing is saved, so ask first. */
+export function quitPanel(quit: () => void, stay: () => void): HTMLElement {
+  const panel = el('div', 'panel end');
+  panel.setAttribute('role', 'dialog');
+  panel.dataset.testid = 'quit-confirm';
+  const row = el('div', 'end-buttons');
+  row.append(button('quit.yes', quit, 'quit-yes'), button('quit.no', stay, 'quit-no', 'secondary'));
+  panel.append(el('p', '', 'quit.ask'), row);
+  return panel;
+}

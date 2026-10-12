@@ -189,7 +189,7 @@ test('a brand-new save: no "the way you played last", Trainer Level reads new, o
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('quick-battle')).not.toContainText('the way you played last');
-  await expect(page.getByTestId('quick-battle')).toContainText('A quick game against the computer.');
+  await expect(page.getByTestId('quick-battle')).toContainText('One tap: an easy game right now.'); // differs from vs Computer's line (playtest, 12 Oct)
   await expect(page.getByTestId('hub-card-mini')).toContainText('Trainer Level: new');
   await expect(page.getByTestId('hub-card')).toContainText('Level: new');
   await expect(page.getByTestId('training')).not.toContainText('1 lessons');

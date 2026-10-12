@@ -54,6 +54,7 @@ export class Fitter {
   private readonly side = el('div', 'side-col');
   private order: Element[] = [];
   private queued = 0;
+  private barsFirst = false;
 
   constructor(private readonly p: FitParts) {
     watchWindow();
@@ -102,7 +103,7 @@ export class Fitter {
     const wide = W > H && W - SIDE_COL_PX - COL_GAP_PX >= MIN_BOARD_PX && H < W * 0.9;
     cls.remove(...MODES);
     cls.toggle('fit-wide', wide);
-    this.arrange(wide);
+    this.arrange(wide, this.barsFirst); // as last time: heights don't depend on the order, so nothing moves twice
     const legendOn = !this.p.legend.hidden;
     const barsOn = (this.p.bars ?? []).some((b) => !b.hidden);
     let side: number;
@@ -113,6 +114,11 @@ export class Fitter {
       const need = () => [...this.side.children].reduce((sum, e) => sum + (e === this.p.legend ? 0 : this.h(e as HTMLElement)), 0);
       if (legendOn && H - need() < LEGEND_MIN_PX) cls.add('fit-drawer');
       if (need() > H) cls.add('fit-icons');
+      // Still too tall (a review at 844x390, playtest 12 Oct): the bars drop their extras, then go first, right
+      // under START, so a review's Continue and Show answer are always on screen; the plates scroll instead.
+      if (need() > H && barsOn) cls.add('fit-bar-compact');
+      const first = need() > H && barsOn;
+      if (first !== this.barsFirst) this.arrange(true, (this.barsFirst = first));
     } else {
       // A larger minimum (YELLOW) never asks for more than the window has across.
       const min = Math.min(Math.max(MIN_BOARD_PX, this.p.minBoard?.() ?? 0), W);
@@ -131,6 +137,10 @@ export class Fitter {
     this.toggle.hidden = !(legendOn && cls.contains('fit-drawer'));
     if (!cls.contains('fit-drawer')) cls.remove('legend-open');
     let sq = Math.max(16, Math.floor((side - 6) / 8)); // 6: the board's 3 px border on each side
+    // Whole squares can round a side of 280 to 285 px down to a 278 px board: narrow, round up instead while the width
+    // allows it, and let the steps below find the room (playtest, 12 Oct; it showed in a 360x640 review).
+    const leastSq = Math.ceil((MIN_BOARD_PX - 6) / 8);
+    if (!wide && sq < leastSq && leastSq * 8 + 6 <= W) sq = leastSq;
     this.root.style.setProperty('--sq', `${sq}px`);
     this.texts();
     // Narrow, checked in the real layout: a bar that got taller at the new width, or a status line that took a row of
@@ -177,7 +187,7 @@ export class Fitter {
 
   /** Wide: the status bar goes over the board and everything else into the side column, START on top. Narrow: all
    * back in their places, the status bar and START in the top bar above everything (§B24 item 1). */
-  private arrange(wide: boolean): void {
+  private arrange(wide: boolean, barsFirst = false): void {
     const { header, main, start, board } = this.p;
     if (!this.order.length) this.order = [...main.children];
     // Nodes move only when they are not in place already: moving one drops its focus and restarts its animations.
@@ -188,7 +198,8 @@ export class Fitter {
     if (wide) {
       if (header.parentElement !== main) main.prepend(header);
       const items = this.order.filter((e) => e !== board && e !== this.p.legend);
-      place(this.side, [...(start ? [start] : []), ...items, this.p.legend]);
+      const bars = barsFirst ? items.filter((e) => this.p.bars?.includes(e as HTMLElement)) : [];
+      place(this.side, [...(start ? [start] : []), ...bars, ...items.filter((e) => !bars.includes(e)), this.p.legend]);
       place(main, [header, board, this.side]);
     } else {
       if (header.parentElement === main) main.before(header);

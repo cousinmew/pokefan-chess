@@ -107,7 +107,7 @@ export function switchTo(n: number, intent: Intent | null = null): void {
   location.reload();
 }
 
-// A NEW GAME is "being created" until the name is confirmed (§B22 item 2). The session flag names both saves,
+// A NEW GAME is "being created" until the starter is chosen (§B22 item 2; the name step until playtest 12 Oct). The session flag names both saves,
 // "<from>:<new>": the one to go back to and the one being made, so BACK can only ever drop that new one, and only
 // while it is the current save (a stale flag once deleted a real save, playtest 12 Oct). From and new are the same
 // when NEW GAME reuses an empty save (first launch).
@@ -144,7 +144,12 @@ export const beingMade = (n: number, now = Date.now()): boolean => now - (newGam
 const beginCreating = (from: number, slot: number) => (session2(`${from}:${slot}`), noteNewGame(slot, true));
 /** A NEW GAME is unnamed and it is save n (the current one by default): BACK, Escape and B drop it. */
 export const isCreating = (n = meta().current): boolean => creating()?.slot === n;
-/** The name is confirmed: the new save is real now. */
+/** The NEW GAME reuses the current empty save in place (a fresh device, §B22 item 2): nothing to drop on BACK. */
+export const creatingInPlace = (): boolean => {
+  const c = creating();
+  return !!c && c.from === c.slot && c.slot === meta().current;
+};
+/** The starter is chosen: the new save is real now (and other tabs may drop it again if it is ever left empty). */
 export function endCreating(): void {
   const c = creating();
   if (c) noteNewGame(c.slot, false);

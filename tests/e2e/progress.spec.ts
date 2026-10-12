@@ -70,13 +70,24 @@ test('new BLUE save: warm-up, first catch, Pidgey pawns, then an easy first trai
   // Your own team: the starter is your king.
   await expect(page.locator('[data-square="h1"] img')).toHaveAttribute('alt', 'BULBASAUR');
   await shot(page, 'warmup-step1-390');
+  await expect(page.getByTestId('text-main')).toHaveText('Capture: move onto an enemy piece to take it off the board.');
   await move(page, 'c1', 'c2');
   await expect(page.locator('[data-square="c1"]')).toHaveAttribute('data-piece', 'wr');
+  // A wrong move: "Try again!", the goal stays in the header, no "wants to battle" anywhere (playtest, 12 Oct).
+  await expect(page.getByTestId('text-main')).toHaveText('Try again!');
+  await expect(page.getByTestId('turn')).toHaveText(/^Take the .+!$/);
+  await expect(page.getByTestId('screen-game')).not.toContainText('wants to battle');
   await page.getByTestId('path-hint').click();
   await move(page, 'c1', 'c4');
+  await expect(page.getByTestId('path-hint')).toBeHidden(); // nothing left to hint after a solve
   await page.getByTestId('path-next').click();
-  // 2: check.
+  // 2: check, with the idea in plain words.
   await expect(page.getByTestId('turn')).toHaveText('Put the king in check!');
+  await expect(page.getByTestId('text-main')).toHaveText('Check means you attack the king.');
+  await move(page, 'a1', 'a2');
+  await expect(page.getByTestId('text-main')).toHaveText('Try again!');
+  await expect(page.getByTestId('turn')).toHaveText('Put the king in check!');
+  await expect(page.getByTestId('screen-game')).not.toContainText('wants to battle');
   await move(page, 'a1', 'a8');
   await page.getByTestId('path-next').click();
   // 3: mate in 1.

@@ -87,7 +87,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
   await expect(page.getByTestId('trainer-intro')).toContainText('CHAMPION BLUE wants to battle!');
   await page.getByTestId('trainer-intro').click();
-  await expect(page.getByTestId('goal-card')).toContainText('He plays at level 1: Youngster.');
+  await expect(page.getByTestId('goal-card')).toContainText('He plays at level 1: Easy.');
   await page.getByTestId('goal-card').click();
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7Q w - - 0 1');
   await page.click('[data-square="h1"]');

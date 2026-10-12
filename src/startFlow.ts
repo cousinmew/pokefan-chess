@@ -7,7 +7,7 @@ import type { Color, TeamSkin } from './board/pieces';
 import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
-import { abandonNewGame, addProfile, deleteProfile, hasProgress, isCreating, isFull, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
+import { abandonNewGame, addProfile, creatingInPlace, endCreating, deleteProfile, hasProgress, isCreating, isFull, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
 import { currentSlot, loadFrom } from './store/persist';
 import { button, el, screen } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
@@ -85,14 +85,17 @@ export class StartFlow {
     const id = view.dataset.testid ?? '';
     if (!['screen-shelf', 'screen-intro', 'screen-name'].includes(id) || !isCreating()) return;
     view.querySelector('[data-testid="back"]')?.remove(); // one back control on the name step (ux #14)
-    view.prepend(button('newgame.back', abandonNewGame, 'newgame-back', 'newgame-back'));
+    // The shelf of a fresh device's empty save: nothing chosen yet, so BACK shows the menu in place, with no reload
+    // through the splash (playtest, 12 Oct).
+    const back = () => (id === 'screen-shelf' && !this.host.hasCart() && creatingInPlace() ? (endCreating(), this.menu()) : abandonNewGame());
+    view.prepend(button('newgame.back', back, 'newgame-back', 'newgame-back'));
     view.classList.add('has-newgame-back');
     const onKey = (e: KeyboardEvent) => {
       if (!view.isConnected) return window.removeEventListener('keydown', onKey, true);
       if (!isCreating()) return;
       if (e.key === 'Escape' || (id !== 'screen-shelf' && (e.code === 'KeyB' || e.key.toLowerCase() === 'b'))) {
         e.preventDefault();
-        abandonNewGame();
+        back();
       }
     };
     window.addEventListener('keydown', onKey, true);

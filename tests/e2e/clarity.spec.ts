@@ -101,7 +101,7 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
     await page.click('[data-square="a4"]');
     await page.click('[data-square="a1"]');
     await expect(page.getByTestId('text-main')).toHaveText('Not quite. Watch what happens, then the right move.');
-    await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●✕○ Win 1 more of the next 1.');
+    await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●✕○ Win the next one!'); // not "1 more of the next 1" (playtest, 12 Oct)
     await expect.poll(async () => (await save(page)).tips).toEqual(['puzzle']);
     expect(errors).toEqual([]);
   });
@@ -114,6 +114,21 @@ test('the coach marks show once per save, and Escape skips them', async ({ page 
   await expect(page.getByTestId('coach')).toBeVisible();
   // Non-blocking: the board under it stays visible.
   await expect(page.locator('#board')).toBeVisible();
+  // The first mark lights your own pieces (not the bottom rows, which can hold theirs) and never covers your king.
+  const geo = await page.evaluate(() => {
+    const me = document.querySelector('.board [data-square]')!.getAttribute('data-square') === 'a8' ? 'w' : 'b';
+    const box = (e: Element) => e.getBoundingClientRect();
+    const spot = box(document.querySelector('.coach-spot')!);
+    const bubble = box(document.querySelector('.coach-bubble')!);
+    const king = box(document.querySelector(`.board [data-piece="${me}k"]`)!);
+    const inside = [...document.querySelectorAll(`.board [data-piece^="${me}"]`)].every((e) => {
+      const r = box(e);
+      return r.left >= spot.left - 1 && r.right <= spot.right + 1 && r.top >= spot.top - 1 && r.bottom <= spot.bottom + 1;
+    });
+    const overlap = bubble.left < king.right && bubble.right > king.left && bubble.top < king.bottom && bubble.bottom > king.top;
+    return { inside, overlap };
+  });
+  expect(geo).toEqual({ inside: true, overlap: false });
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('coach')).toBeHidden();
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
@@ -206,4 +221,27 @@ test('YELLOW lesson: the Who\'s who lists only the Pokémon on the board, and a 
   await expect(page.getByTestId('path-next')).toBeVisible();
   await expect(page.getByTestId('turn')).not.toContainText('ROCKET');
   await legendMatchesBoard(page);
+});
+
+test('YELLOW lesson 1: a wrong move says "Try again!" and the goal stays in the header (playtest, 12 Oct)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem('kc:v1:cartridge', JSON.stringify('yellow'));
+    localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off' }));
+  });
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  await page.getByTestId('yellow-learn').click();
+  await page.getByTestId('lesson-1').click();
+  await expect(page.getByTestId('turn')).toHaveText('Move it to the star!');
+  await page.click('[data-square="e2"]');
+  await page.click('[data-square="e3"]');
+  await expect(page.locator('[data-square="e2"]')).toHaveAttribute('data-piece', 'wp');
+  await expect(page.getByTestId('text-main')).toHaveText('Try again!');
+  await expect(page.getByTestId('turn')).toHaveText('Move it to the star!');
+  await expect(page.getByTestId('screen-game')).not.toContainText('wants to battle');
+  await page.click('[data-square="e2"]');
+  await page.click('[data-square="e4"]');
+  await expect(page.getByTestId('text-main')).toHaveText('Great job!');
+  await expect(page.getByTestId('path-hint')).toBeHidden();
 });

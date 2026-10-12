@@ -74,6 +74,14 @@ test('BACK out of NEW GAME: the shelf, the intro and the name step return to the
   await expect(page.getByTestId('screen-oak')).toBeVisible();
   await expect(page.getByTestId('newgame-back')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:profiles')!).slots.length)).toBe(2);
+  // The starter's Back returns to the name step, still with ◀ BACK, never to a hub with no starter (playtest, 12 Oct).
+  await page.getByTestId('back').click();
+  await expect(page.getByTestId('screen-name')).toBeVisible();
+  await expect(page.getByTestId('newgame-back')).toBeVisible();
+  await page.getByTestId('name-2').click();
+  await page.getByTestId('starter-squirtle').click();
+  await expect(page.getByTestId('story')).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('kc:v1:creating'))).toBeNull(); // the save is real now
 });
 
 test('START: in the top bar, opens with a tap, S or Enter, closes with B or Escape; SAVE & QUIT returns to the start menu', async ({ page }) => {
@@ -150,6 +158,12 @@ test('PLAY CHESS: straight into a game as a guest; nothing is saved and the Jour
   await page.waitForTimeout(800);
   await page.getByTestId('start-button').click();
   await page.getByTestId('start-menu-quit').click();
+  // A guest's game in progress is not saved, so QUIT asks first (playtest, 12 Oct); Keep playing stays.
+  await page.getByTestId('quit-no').click();
+  await expect(page.getByTestId('quit-confirm')).toHaveCount(0);
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-quit').click();
+  await page.getByTestId('quit-yes').click();
   await expect(page.getByTestId('screen-start')).toBeVisible();
   expect(await storage(page)).toBe(before);
   // VS FRIEND as guests too.

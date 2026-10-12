@@ -110,7 +110,7 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   expect(save).toMatchObject({ name: 'LEAF', starter: 'bulbasaur' });
   await page.getByTestId('open-card').click();
   await expect(page.getByTestId('trainer-card')).toContainText('NAME: LEAF');
-  await expect(page.getByTestId('trainer-card')).toContainText(/Trainer Level ~\d+/);
+  await expect(page.getByTestId('trainer-card')).toContainText(/Trainer Level: new \(\d\/10\)|Trainer Level ~\d+/); // a number after 10 rated puzzles (playtest, 12 Oct)
 });
 
 test('Pokédex: candy evolution adds the new species, shiny and stars show', async ({ page }) => {
