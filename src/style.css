@@ -755,8 +755,8 @@ header.game-header .turn.objective { max-width: calc(100% - 2 * 80px); font-weig
 @keyframes pip-pop { 40% { transform: scale(1.06); } }
 .rating-up { align-self: center; margin: 0; padding: 0 8px; font-weight: 700; color: #186018; background: #d8f0c0; border: 2px solid var(--ink); border-radius: 10px; }
 .rating-up[hidden] { display: none; }
-.solved-stamp { position: absolute; left: 50%; top: 50%; z-index: 5; padding: 4px 16px; font-size: clamp(22px, 8vw, 40px); font-weight: 900; color: #fff; background: #30a030; border: 4px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink); transform: translate(-50%, -50%) rotate(-8deg); animation: stamp-in 600ms ease-out forwards; pointer-events: none; }
-@keyframes stamp-in { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); } 25% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.solved-stamp { position: absolute; left: 50%; top: 50%; z-index: 5; padding: 4px 16px; font-size: clamp(22px, 8vw, 40px); font-weight: 900; color: #fff; background: #30a030; border: 4px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink); max-width: calc(100% - 16px); box-sizing: border-box; white-space: nowrap; transform: translate(-50%, -50%) rotate(-8deg); animation: solved-stamp-in 600ms ease-out forwards; pointer-events: none; }
+@keyframes solved-stamp-in { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); } 25% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } 80% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
 .coach { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
 .coach[hidden] { display: none; }
 .coach-spot { position: fixed; border: 3px solid #f8d030; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); }
@@ -904,8 +904,8 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .kanto-map .node-row b { flex: 1; }
 .kanto-map .node-row .badge { width: 18px; height: 18px; }
 .stamp { display: inline-block; border: 2px solid #307030; color: #307030; border-radius: 4px; padding: 0 5px; font-size: 11px; font-weight: 700; letter-spacing: 1px; transform: rotate(-6deg); background: #fff; }
-.stamp-now .stamp { animation: stamp-in 400ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
-@keyframes stamp-in { from { transform: rotate(-6deg) scale(2.4); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+.stamp-now .stamp { animation: cleared-stamp-in 400ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes cleared-stamp-in { from { transform: rotate(-6deg) scale(2.4); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
 .kanto-map .node.current { min-height: 0; padding: 8px 10px; gap: 6px; border-width: 4px; outline: 3px solid #f0a020; box-shadow: 0 0 0 6px rgba(240, 160, 32, 0.2); }
 .kanto-map .node.current .node-name { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; border: 0; background: transparent; font: inherit; font-size: 18px; text-align: start; padding: 0; cursor: pointer; color: inherit; }
 .kanto-map .node.current .pointer { color: #d07010; animation: pointer-nudge 1s ease-in-out infinite; }
