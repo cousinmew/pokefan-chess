@@ -40,6 +40,9 @@ export function loadTrainer(): Trainer {
   return { rating: t?.rating ?? startRating(), solved: t?.solved ?? 0, missed: t?.missed ?? 0, assisted: t?.assisted ?? 0, seen: t?.seen ?? [] };
 }
 
+/** The Trainer Level to show: null before the first puzzle, when it is only the starting guess (ux #15). */
+export const shownLevel = (t: Trainer): number | null => (t.solved + t.missed + t.assisted ? t.rating.r : null);
+
 /** Records a result. A puzzle solved with a hint leaves the rating unchanged. */
 export function record(t: Trainer, row: PuzzleRow, result: 'solved' | 'missed' | 'assisted'): Trainer {
   const rating = result === 'assisted' ? t.rating : update(t.rating, row[3], PUZZLE_RD, result === 'solved' ? 1 : 0);

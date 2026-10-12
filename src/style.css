@@ -712,3 +712,20 @@ html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
   .big-level .opponent-text small { white-space: nowrap; font-size: 11px; }
   .big-level .loadout .loadout-mon { width: 24px; height: 24px; }
 }
+
+/* Polish, 12 Oct (W4): robustness, navigation and YELLOW polish. */
+/* START's CLOSE item (ux #14): a visible way out, set apart from the menu items above it. */
+.start-pop .start-item.start-close { margin-top: 4px; border-top: 2px solid var(--ink); }
+.start-pop .start-item.start-close .start-cursor { visibility: visible; }
+/* MEIR code dots (ux #16): invisible at rest so kids see no unexplained row; they show from the first right key and
+   fade out after a slip. */
+.code-dots { opacity: 0; transition: opacity 600ms; }
+.code-dots.active { opacity: 1; transition: none; }
+/* The YELLOW hint star (ux #17) pulses in size and brightness and never disappears; still under reduced motion. */
+@keyframes star-pulse { 50% { transform: scale(1.18); filter: brightness(1.25); } }
+.sq.star::after { animation: star-pulse 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sq.star::after { animation: none; } .code-dots { transition: none; } }
+/* Big badges (ux #17): on large desktop boards a smaller badge in the top left corner, off the Pokémon. */
+@media (min-width: 900px) and (min-height: 640px) {
+  .chip.big { top: 2px; left: 2px; transform: none; width: calc(var(--sq) * 0.36); height: calc(var(--sq) * 0.36); font-size: calc(var(--sq) * 0.25); }
+}

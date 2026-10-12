@@ -12,7 +12,7 @@ import { createRng } from '../game/rng';
 import { fmt } from '../game/text';
 import { cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, goalCard, hofScreen, mapScreen, textGoalCard, nameScreen, oakScreen, placeName, routeScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
 import { exampleOf, lessonScreen, oakIntro } from '../ui/lesson';
-import { pool } from './trainer';
+import { pool, shownLevel } from './trainer';
 import trainers from '../data/trainers.json';
 import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
@@ -118,7 +118,7 @@ export class JourneyGame {
   }
 
   private showCard(): void {
-    this.host.show(cardScreen(this.campaign, this.host.puzzle.trainer.rating.r, () => this.exit()));
+    this.host.show(cardScreen(this.campaign, shownLevel(this.host.puzzle.trainer), () => this.exit()));
   }
 
   showMap(): void {
@@ -210,7 +210,9 @@ export class JourneyGame {
       const leads = t.themes === 'learned' ? fmt('goal.rivalLeads', { starter: SPECIES[team[0]!]!.name }) : undefined;
       modal.replaceChildren(goalCard(theme, t.puzzles, this.needOf(p, t), leads));
     };
-    const timer = window.setTimeout(goal, INTRO_CARD_MS);
+    // Only while this screen shows: leaving it (START) must not let the card act in a later game (bugs #8).
+    const g = this.host.gen();
+    const timer = window.setTimeout(() => g === this.host.gen() && goal(), INTRO_CARD_MS);
     modal.onclick = () => {
       window.clearTimeout(timer);
       if (stage === 0) return goal();

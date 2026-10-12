@@ -59,6 +59,8 @@ import { loadCampaign, STARTERS } from './campaign/kanto';
 import type { Rng } from './game/rng';
 import { setSkins } from './board/pieces';
 import { normalizeCode } from './net/online';
+import { shownLevel } from './campaign/trainer';
+import { Away } from './game/away';
 
 export type Mode = 'two-players' | 'computer' | 'online' | 'puzzle' | 'challenge' | 'path';
 
@@ -174,6 +176,7 @@ function boot(): App {
   let gen = 0;
   let notice: Line | null = null;
   let introOpen = false;
+  const away = new Away(() => stage.firstElementChild === gameView); // leaving bumps `gen`, not the game (bugs #7)
 
   const board = new Board(game, {
     onMove: (from, to) => {
@@ -325,15 +328,16 @@ function boot(): App {
   }
   if (cart) setCart(cart);
 
+  /** Back to the screen shown now (OPTION, POKéDEX): the hub and the YELLOW home are rebuilt fresh, the rest comes back as it was. */
+  const returnHere = (from = stage.firstElementChild as HTMLElement | null): (() => void) => (!from || ['screen-title', 'screen-yellow', 'screen-settings'].includes(from.dataset.testid ?? '') ? goTitle : () => show(from));
+
   /** OPTION returns to where it was opened (§B23 item 1); a click handler passes its event as `backTo`, hence the check. */
   function showSettings(backTo?: unknown): void {
-    const from = stage.firstElementChild as HTMLElement | null, id = from?.dataset.testid ?? '';
-    const back = typeof backTo === 'function' ? (backTo as () => void) : !from || ['screen-title', 'screen-yellow', 'screen-settings'].includes(id) ? goTitle : () => show(from);
+    const back = typeof backTo === 'function' ? (backTo as () => void) : returnHere();
     const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) };
     const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()];
     show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
   }
-
 
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
   const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()) });
@@ -346,10 +350,14 @@ function boot(): App {
   gameView.append(header, main);
 
   function show(view: HTMLElement): void {
-    if (view !== gameView) {
+    const staying = view === gameView && stage.firstElementChild === gameView;
+    if (!staying) {
       gen++;
       overlay.skip();
+      // Nothing from the screen before may act later (bugs #8): a popup's click handler and children go with it.
       modal.hidden = true;
+      modal.onclick = null;
+      modal.replaceChildren();
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
@@ -359,6 +367,7 @@ function boot(): App {
     if (view === gameView) fitter.start();
     else fitter.stop();
     window.scrollTo(0, 0);
+    if (view === gameView && !staying) away.back(); // finish what leaving cut off, put the end screen back
   }
 
   function savedGame(): SavedGame | null {
@@ -379,7 +388,8 @@ function boot(): App {
   }
 
   /** VS COMPUTER from the hub, START or PLAY CHESS: YELLOW's big levels, or BLUE's team then level. */
-  const vsComputer = () => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), goTitle, faces(human))), goTitle)));
+  // The level picker's Back goes back one step, to the team picker (ux #14).
+  const vsComputer = (): void => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), vsComputer, faces(human))), goTitle)));
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
     for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest, () => (journey.campaign = loadCampaign())]) stop();
@@ -391,9 +401,11 @@ function boot(): App {
     computer: vsComputer,
     friend: twoPlayers,
     ...(!yellow() ? { online: () => showOnline() } : {}),
-    ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, goTitle, true)) : journey.openFromHub('dex', goTitle)) } : {}),
+    // POKéDEX's Back returns to where START was opened, like OPTION (ux #14).
+    ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, returnHere(), true)) : journey.openFromHub('dex', returnHere())) } : {}),
     option: () => showSettings(),
     quit,
+    guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)
   });
 
   function goTitle(): void {
@@ -406,17 +418,8 @@ function boot(): App {
     setSkins({});
     music.play('title');
     if (yellow()) {
-      // YELLOW home (§B17): Play (vs Youngster with Pikachu), Learn (Pikachu's Path), Friend (Two Players).
-      const home = yellowHome({
-        lang: langBtn(),
-        unlock: unlockMeir,
-        // Play opens the level picker (§B18 item 4), Youngster first.
-        play: vsComputer,
-        learn: () => path.open(),
-        friend: twoPlayers,
-        team: () => yellowMode.team(),
-        settings: showSettings,
-      });
+      // YELLOW home (§B17): Learn (Pikachu's Path), Play (the level picker, §B18 item 4, Youngster first), Friend, My Team.
+      const home = yellowHome({ lang: langBtn(), unlock: unlockMeir, play: vsComputer, learn: () => path.open(), friend: twoPlayers, team: () => yellowMode.team(), settings: showSettings });
       return show(decorateHome(home, el('span')));
     }
     // Continue resumes the last thing (§B16): the journey spot or a game in progress.
@@ -425,23 +428,17 @@ function boot(): App {
     const last = load<string>('last');
     const journeyFirst = !!c.starter && (last === 'journey' || !g);
     const here = PLACES[furthest(c)];
-    const quick = load<Setup>('lastQuickPlay') ?? QUICK_DEFAULT;
-    const rating = puzzle.trainer.rating.r;
+    const played = load<Setup>('lastQuickPlay');
+    const quick = played ?? QUICK_DEFAULT;
     const hub = title({
       canContinue: !!g || !!c.starter,
-      hub: hubData(c, rating, quick, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
+      hub: hubData(c, shownLevel(puzzle.trainer), played, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
       battle: () => startGame(quick),
       resume,
-      training: () => journey.openFromHub('training', goTitle),
-      dex: () => journey.openFromHub('dex', goTitle),
-      team: () => journey.openFromHub('team', goTitle),
-      card: () => journey.openFromHub('card', goTitle),
-      computer: vsComputer,
-      twoPlayers,
-      kanto: () => journey.open(),
+      training: () => journey.openFromHub('training', goTitle), dex: () => journey.openFromHub('dex', goTitle),
+      team: () => journey.openFromHub('team', goTitle), card: () => journey.openFromHub('card', goTitle),
+      computer: vsComputer, twoPlayers, kanto: () => journey.open(), online: () => showOnline(), settings: showSettings,
       howTo: (page) => show(howTo(goTitle, page, (p) => tryMode(p))),
-      online: () => showOnline(),
-      settings: showSettings,
     });
     show(decorateHome(hub, langBtn()));
   }
@@ -491,14 +488,15 @@ function boot(): App {
     if (!out) return null;
     app.busy = true;
     board.locked = true;
-    const g = gen;
-    void present(out, from, to).then(() => g === gen && settle(out, from, to));
+    const r = away.round;
+    void present(out, from, to).then(() => away.run(r, () => settle(out, from, to)));
     return out;
   }
 
   /** Capture battle and evolution, before the board shows the result. */
   async function present(out: Outcome, from: string, to: string): Promise<void> {
-    const mode = settings.anim;
+    // A move made while another screen shows (a puzzle's reply under OPTION) plays no battle over that screen.
+    const mode = stage.firstElementChild === gameView ? settings.anim : 'off';
     if (out.battle && mode !== 'off') music.play('battle');
     if (out.battle && mode === 'full') {
       // The player's Pokémon is always the near one. Two Players: the side that just moved.
@@ -583,8 +581,8 @@ function boot(): App {
     app.ended = true;
     board.locked = true;
     music.play(result === 'mate' ? 'victory' : 'defeat');
-    const g = gen;
-    window.setTimeout(() => g === gen && ch.onEnd(result), CHALLENGE_END_MS);
+    const r = away.round;
+    window.setTimeout(() => away.run(r, () => ch.onEnd(result)), CHALLENGE_END_MS); // after OPTION, on the way back
   }
 
   function submit(from: string, to: string, promotion?: Role): void {
@@ -604,7 +602,7 @@ function boot(): App {
   /** Computer turn: Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
   async function maybeAi(): Promise<void> {
     if ((app.mode !== 'computer' && app.mode !== 'challenge') || app.ended || introOpen || app.busy || game.turn() === app.human) return;
-    const g = gen;
+    const r = away.round;
     app.busy = true;
     board.locked = true;
     text.show([{ key: 'ai.loading', vars: { trainer: roster.teams[teamOf(game.turn())].label } }]);
@@ -613,7 +611,7 @@ function boot(): App {
     try {
       uci = app.level === 1 ? youngsterMove(game.chess, rng) : await app.engine.bestMove(game.fen(), app.level);
     } catch (err) {
-      if (g !== gen) return;
+      if (r !== away.round) return;
       console.warn('computer trainer fell back to Youngster:', err instanceof Error ? err.message : err);
       app.level = 1;
       app.aiFailed = true;
@@ -623,9 +621,8 @@ function boot(): App {
     }
     const wait = AI_MIN_THINK_MS - (performance.now() - t0);
     if (wait > 0) await sleep(wait);
-    if (g !== gen) return;
-    app.busy = false;
-    playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined);
+    // Thought while OPTION was open: the reply waits for the board (bugs #7), and never lands in a game started since.
+    away.run(r, () => ((app.busy = false), playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined)));
   }
 
   function setMode(mode: Mode, level: AiLevel = 1, human: Color = 'w'): void {
@@ -641,6 +638,7 @@ function boot(): App {
     app.ended = false;
     board.locked = false;
     modal.hidden = true;
+    away.panel = null;
     board.resetMarks();
     text.plain(fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket'));
     persistGame();
@@ -677,20 +675,28 @@ function boot(): App {
   }
 
   function showEnd(line: Line): void {
-    const rematch = (swap: boolean) => (app.mode === 'online' ? ((modal.hidden = true), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
+    const rematch = (swap: boolean) => (app.mode === 'online' ? ((modal.hidden = true), (away.panel = null), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
+    modal.onclick = null;
     modal.replaceChildren(endPanel(line, { captions: settings.captions, online: app.mode === 'online', rematch, menu: goTitle }));
     modal.hidden = false;
+    away.panel = () => showEnd(line); // back from OPTION, the end screen is still there (bugs #7)
   }
 
   function pickPromotion(from: string, to: string): void {
-    const close = () => (modal.hidden = true);
+    const close = () => ((modal.hidden = true), (away.panel = null));
+    modal.onclick = null;
     modal.replaceChildren(promotionPanel(game.turn(), to, (role) => (close(), submit(from, to, role)), () => (close(), board.clearSelection())));
     modal.hidden = false;
+    away.panel = () => pickPromotion(from, to);
   }
 
   /** New game in the current mode (or a FEN / PGN to restore), optionally with the intro card. */
   function restart(fen?: string, pgn?: string, withIntro = false, moves?: string[]): void {
     gen++;
+    away.newRound();
+    introOpen = false;
+    gameView.querySelectorAll('[data-testid="intro"]').forEach((n) => n.remove()); // a card from the game before
+    reviewLayer.replaceChildren();
     notice = null;
     overlay.skip();
     if (pgn) game.loadPgn(pgn);
@@ -714,15 +720,9 @@ function boot(): App {
     if (withIntro) {
       introOpen = true;
       board.locked = true;
-      const g = gen;
-      gameView.append(
-        intro(introKey, app.mode === 'two-players' ? 'b' : opponent, () => {
-          introOpen = false;
-          if (g !== gen) return;
-          board.locked = false;
-          void maybeAi();
-        }),
-      );
+      const r = away.round;
+      // The card can end while OPTION is open (bugs #7): then the board unlocks and the computer moves on the way back.
+      gameView.append(intro(introKey, app.mode === 'two-players' ? 'b' : opponent, () => away.run(r, () => ((introOpen = false), lockForTurn(), void maybeAi()))));
     } else {
       void maybeAi();
     }

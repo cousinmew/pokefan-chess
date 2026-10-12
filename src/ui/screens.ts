@@ -44,8 +44,11 @@ export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | '
 /** What the hub shows about you: the Continue target, the mini Trainer Card and each tile's progress chip. */
 export interface HubData {
   continueText: string | null;
-  card: { name: string; level: number; badges: string[] };
+  /** `level` is null before the first puzzle (shown as "new"). */
+  card: { name: string; level: number | null; badges: string[] };
   chips: Partial<Record<HubTile, string>>;
+  /** A tile subtitle in place of its usual one (the Battle tile on a brand-new save). */
+  subs?: Partial<Record<HubTile, StringKey>>;
 }
 
 // Tile icons (§B16 addendum): item sprites where PokeAPI has one, original pixel art otherwise. No mascots.
@@ -95,7 +98,7 @@ export function title(a: TitleActions): HTMLElement {
     pic.append('item' in icon ? itemIcon(icon.item) : pixelIcon(icon.pixel));
     const txt = el('span', 'tile-text');
     const h = el('span', 'tile-title', `hub.${id}.title` as StringKey);
-    const sub = el('span', 'tile-sub', `hub.${id}.sub` as StringKey);
+    const sub = el('span', 'tile-sub', data?.subs?.[id] ?? (`hub.${id}.sub` as StringKey));
     txt.append(h, sub);
     const chip = data?.chips[id];
     if (chip) {
@@ -149,7 +152,7 @@ export function title(a: TitleActions): HTMLElement {
     const name = el('b');
     name.textContent = data.card.name;
     const lvl = el('span');
-    lvl.textContent = fmt('hub.card.miniLevel', { level: String(Math.round(data.card.level)) });
+    lvl.textContent = data.card.level === null ? fmt('hub.card.miniLevelNew') : fmt('hub.card.miniLevel', { level: String(Math.round(data.card.level)) });
     const dots = el('span', 'badges');
     for (const b of ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']) dots.append(el('span', `badge ${data.card.badges.includes(b) ? `won ${b}` : 'empty'}`));
     mini.append(name, lvl, dots);

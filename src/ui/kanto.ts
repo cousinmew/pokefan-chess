@@ -305,7 +305,8 @@ export function goalCard(theme: string, puzzles: number, need: number, extra?: s
   return p;
 }
 
-export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLElement {
+/** `rating` is null before the first puzzle: the level then reads "new" (ux #15). */
+export function cardScreen(c: Campaign, rating: number | null, back: () => void): HTMLElement {
   const caught = DEX.filter((s) => c.caught[s]).length;
   const seen = DEX.filter((s) => c.seen.includes(s) || c.caught[s]).length;
   const mins = Math.floor(c.playMs / 60000);
@@ -323,7 +324,7 @@ export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLE
   card.append(
     playerSprite(),
     line('card.name', { name: c.name || fmt('name.1') }),
-    line('card.level', { level: String(Math.round(rating)) }, 'level'),
+    rating === null ? line('card.levelNew', undefined, 'level') : line('card.level', { level: String(Math.round(rating)) }, 'level'),
     line('card.levelNote', undefined, 'small'),
     el('p', 'small', 'card.badges'),
     badges,
