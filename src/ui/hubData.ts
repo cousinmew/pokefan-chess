@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // What the BLUE hub shows about you (§B16): the mini Trainer Card and each tile's progress chip.
-import { trainingThemes } from '../campaign/journey';
+import { furthest, goalLine, PLACES, placeName, trainingThemes } from '../campaign/journey';
 import { DEX, type Campaign } from '../campaign/kanto';
 import { fmt, type StringKey } from '../game/text';
 import type { HubData } from './screens';
@@ -26,4 +26,11 @@ export function hubData(c: Campaign, rating: number | null, quick: { mode: strin
       card: rating === null ? fmt('hub.chip.levelNew') : fmt('hub.chip.level', { n: String(Math.round(rating)) }),
     },
   };
+}
+
+/** The hub's Continue subtitle: the next goal ("Next: YOUNGSTER TOBY at ROUTE 1", W5), the journey's last place once
+ * it is done, or the game in progress. */
+export function continueLine(c: Campaign, journeyFirst: boolean, game: boolean): string | null {
+  if (journeyFirst) return goalLine(c) ?? fmt('hub.continue.journey', { place: placeName(PLACES[furthest(c)]!) });
+  return game ? fmt('hub.continue.game') : null;
 }

@@ -5,20 +5,22 @@ import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TIC
 import { defaultSpecies, SPECIES } from '../board/pieces';
 import { stageEvolutions, stageFor } from '../board/stages';
 import { myTrainer, trainerSpriteId } from '../look';
-import { abandonNewGame, endCreating, isCreating } from '../profiles';
+import { abandonNewGame, endCreating, hasProgress, isCreating } from '../profiles';
 import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
 import { fmt } from '../game/text';
-import { cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, goalCard, hofScreen, mapScreen, textGoalCard, nameScreen, oakScreen, placeName, routeScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
+import { cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, goalCard, hofScreen, textGoalCard, nameScreen, oakScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
+import { mapScreen, placeCard, routeScreen, tapCard, winCard } from '../ui/journeyMap';
 import { exampleOf, lessonScreen, oakIntro } from '../ui/lesson';
 import { pool, shownLevel } from './trainer';
 import trainers from '../data/trainers.json';
 import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
-import { save } from '../store/persist';
-import { addCatch, awardMew, championLevel, chooseStarter, EVOLUTIONS, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
-import { beatTrainer, clearPlace, nextTrainer, PLACES, placeCleared, RIVAL, routeOf, teamOf, themesFor, trainingThemes, visit, type Drill, type Place, type Trainer } from './journey';
+import { currentSlot, isGuest, save } from '../store/persist';
+import { addCatch, addPlayTime, awardMew, championLevel, chooseStarter, EVOLUTIONS, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
+import { beatTrainer, clearPlace, goalLine, nextGoal, nextTrainer, PLACES, placeCleared, RIVAL, routeOf, teamOf, themesFor, trainerName, trainingThemes, visit, WARMUP_PLACE, type Drill, type Place, type Trainer } from './journey';
+import { warmup, type WarmupHost } from './warmup';
 import { THEMES } from './trainer';
 import type { PuzzleGame } from './puzzleGame';
 import type { Challenge } from '../main';
@@ -36,6 +38,8 @@ export interface JourneyHost {
   evolveAnim(from: string, to: string): Promise<void>;
   /** A full game vs the computer on the board (Victory Road drills, Champion BLUE). */
   startChallenge(ch: Challenge): void;
+  /** The YELLOW engine on the main board, for Oak's Route 1 warm-up (W5). */
+  path: WarmupHost['path'];
 }
 
 const PEOPLE = trainers.people as Record<string, string>;
@@ -50,10 +54,11 @@ export class JourneyGame {
   readonly rng = createRng(Date.now() >>> 0);
 
   constructor(private readonly host: JourneyHost) {
+    // Play time goes into the save as stored, so a rename or a YELLOW lesson written elsewhere is kept (bugs #6), and
+    // every save with progress counts it (the start menu's TIME, ux #8); a guest's game is not saved.
     window.setInterval(() => {
-      if (document.hidden || !this.campaign.starter) return;
-      this.campaign = { ...this.campaign, playMs: this.campaign.playMs + PLAYTIME_TICK_MS };
-      saveCampaign(this.campaign);
+      if (document.hidden || isGuest() || !hasProgress(currentSlot())) return;
+      this.campaign = addPlayTime(PLAYTIME_TICK_MS);
     }, PLAYTIME_TICK_MS);
   }
 
@@ -123,33 +128,41 @@ export class JourneyGame {
     this.host.show(cardScreen(this.campaign, shownLevel(this.host.puzzle.trainer), () => this.exit()));
   }
 
-  showMap(): void {
+  /** `justCleared`: a place cleared a moment ago, stamped on the map with the victory sting (W5). */
+  showMap(justCleared?: string): void {
     this.exit = () => this.showMap();
     save('last', 'journey');
     this.host.puzzle.stop();
+    this.host.path.stop();
     this.host.modal.hidden = true;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (justCleared) music.play('victory');
     this.host.show(
       mapScreen(this.campaign, {
         place: (i) => this.enterPlace(PLACES[i]!),
+        next: () => this.go(),
         dex: () => this.showDex(),
         team: () => this.showTeam(),
         card: () => this.showCard(),
         training: () => this.showTraining(),
         back: () => this.host.goTitle(),
         hof: () => this.showHof(() => this.showMap()),
-      }),
+      }, justCleared, calm),
     );
     // Mew joins once 150 others are caught (§B12), whatever path got there.
     this.checkMew(() => undefined);
   }
 
   enterPlace(p: Place): void {
-    if (p.kind === 'route') return this.showRoute(p);
+    if (p.kind === 'route') return this.needsWarmup(p) ? this.warmup(() => this.showRoute(p)) : this.showRoute(p);
     if (p.kind === 'town') {
       const lines = (p.story ?? []).map((k) => fmt(k));
       return this.story(lines, () => {
-        if (p.id !== 'pallet') this.set(clearPlace(this.campaign, p));
-        this.showMap();
+        if (p.id === 'pallet') return this.showMap();
+        // A town is a place (W5, ux #9): its card says what is there and what is next.
+        const first = !placeCleared(this.campaign, p);
+        this.set(clearPlace(this.campaign, p));
+        tapCard(this.host.modal, placeCard(p, nextGoal(this.campaign), true), () => this.showMap(first ? p.id : undefined));
       });
     }
     if (p.kind === 'rival') {
@@ -166,6 +179,30 @@ export class JourneyGame {
     if (t) this.story(intro, () => this.battle(p, t), this.spriteOf(t) ?? undefined);
   }
 
+  /** The map's ▶ (W5): straight into the next goal's battle; towns, rivals, gyms and drills open as from the map. */
+  private go(): void {
+    const g = nextGoal(this.campaign);
+    if (!g) return;
+    const { place: p, trainer: t } = g;
+    if (p.kind !== 'route' || !t) return this.enterPlace(p);
+    const fight = () => {
+      this.showRoute(p);
+      this.battle(p, t);
+    };
+    if (this.needsWarmup(p)) this.warmup(fight);
+    else fight();
+  }
+
+  /** Oak's warm-up runs the first time a save enters Route 1 (W5, design G). */
+  private needsWarmup(p: Place): boolean {
+    return p.id === WARMUP_PLACE && !this.campaign.warmup;
+  }
+
+  private warmup(then: () => void): void {
+    this.host.puzzle.stop();
+    warmup({ modal: this.host.modal, path: this.host.path, campaign: () => this.campaign, set: (c) => this.set(c), rng: this.rng, oak: personSprite('oak') }, then);
+  }
+
   /** A trainer's sprite: a named person, "-" for none, else the class sprite. */
   private spriteOf(t: Trainer): string | undefined | null {
     if (t.sprite === '-') return null;
@@ -174,14 +211,16 @@ export class JourneyGame {
 
   private showRoute(p: Place): void {
     this.host.puzzle.stop();
+    this.host.path.stop();
     this.set(visit(this.campaign, p));
     const route = routeOf(p) as Route;
-    this.host.show(routeScreen(p, this.campaign, { battle: (t) => this.battle(p, t), walk: () => this.walkGrass(p, route), back: () => this.showMap() }));
+    this.host.show(routeScreen(p, this.campaign, { battle: (t) => this.battle(p, t), walk: () => this.walkGrass(p, route), back: () => this.showMap(), sprite: (t) => this.spriteOf(t) ?? undefined }));
   }
 
   /** The theme a trainer teaches: each trainer on a route takes the next of its themes; the rival mixes them all. */
   private focus(p: Place, t: Trainer): string {
     if (t.lesson) return t.lesson;
+    if (t.easy) return 'mateIn1'; // the first trainers (W5)
     if (t.themes === 'learned') return 'mixed';
     const themes = themesFor(p, t);
     return themes[Math.max(0, (p.trainers ?? []).indexOf(t)) % themes.length] ?? 'mixed';
@@ -244,7 +283,7 @@ export class JourneyGame {
     let played = 0;
     let won = 0;
     let missed = false;
-    const who = `${fmt(t.class)} ${fmt(t.name)}`;
+    const who = trainerName(t);
     const pips: string[] = [];
     // The banner (§B14, W3): the trainer, the pips and what is still needed; the goal is in the header now.
     const text = () => {
@@ -261,6 +300,7 @@ export class JourneyGame {
     void this.host.puzzle.start({
       themes: t.topics ?? (theme === 'mixed' ? themesFor(p, t) : [theme]),
       battle: true,
+      easy: t.easy,
       boost: t.boost ?? 0,
       banner: text,
       // The trainer you are battling stands on the top plate (W3, ux #5), not the story stage's Rocket trainer.
@@ -276,21 +316,25 @@ export class JourneyGame {
       },
       onResult: () => {
         // Called on Continue after the review (§B15): no timer, the player decides when to move on.
-        if (won >= need) return this.win(p, t);
+        if (won >= need) return this.win(p, t, `${pips.join('')}${'○'.repeat(t.puzzles - pips.length)}`);
         if (played - won > t.puzzles - need) return this.lose(p, t);
         next();
       },
     });
   }
 
-  private win(p: Place, t: Trainer): void {
+  /** A trainer beaten (W5): the defeat story ends with the next goal, then a card with what was won and, when that
+   * cleared the place, a card with what opened; the map then stamps the place. */
+  private win(p: Place, t: Trainer, pips: string): void {
     const before = placeCleared(this.campaign, p);
     const stageBefore = stageFor(this.campaign.badges.length);
     let c = beatTrainer(this.campaign, p, t);
     const lines = [fmt(t.defeat)];
+    let badge: string | undefined;
     // Badge ceremony (§B13 C3): the gym's badge, and the queen slot with the first one.
     if (p.kind === 'gym' && p.badge && !c.badges.includes(p.badge)) {
       c = { ...c, badges: [...c.badges, p.badge] };
+      badge = p.badge;
       lines.push(fmt('badge.received', { badge: fmt(`badge.${p.badge}` as StringKey) }));
       if (c.badges.length === 1 && !c.queenOpen) lines.push(fmt('badge.queen'));
       save('backupDue', true); // the hub then offers "Back up your save" (§B18 item 2)
@@ -298,14 +342,19 @@ export class JourneyGame {
     this.set(c);
     music.play('victory');
     const now = placeCleared(this.campaign, p);
-    if (!before && now && p.kind === 'route') lines.push(fmt('story.route.cleared', { route: placeName(p) }));
+    const cleared = !before && now;
+    const goal = goalLine(this.campaign);
+    if (goal) lines.push(goal); // "Next: ..." closes every win story (W5, design H)
     const next = () => {
       const more = !now ? nextTrainer(this.campaign, p) : null;
       if (more && p.kind === 'league') return this.battle(p, more);
       if (p.kind === 'route' && !now) return this.showRoute(p);
-      this.showMap();
+      this.showMap(cleared ? p.id : undefined);
     };
-    const tell = () => this.story(lines, () => (now && !before ? this.reward(p, next) : next()), this.spriteOf(t) ?? undefined);
+    const modal = this.host.modal;
+    const unlock = () => tapCard(modal, placeCard(p, nextGoal(this.campaign)), () => this.reward(p, next));
+    const cards = () => tapCard(modal, winCard(this.campaign, p, t, this.spriteOf(t), pips, badge), () => (cleared ? unlock() : next()));
+    const tell = () => this.story(lines, cards, this.spriteOf(t) ?? undefined);
     // A badge that crosses 3 or 6 evolves both story teams (§B18 item 5): one evolution ceremony per piece.
     const stage = stageFor(this.campaign.badges.length);
     // Rocket's stage brings a new trainer and team (change B), not an evolution: only Red's pieces evolve.

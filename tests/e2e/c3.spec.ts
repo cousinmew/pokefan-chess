@@ -27,6 +27,7 @@ async function playThrough(page: Page) {
     else if (await vis('trainer-intro')) await page.getByTestId('trainer-intro').click();
     else if (await vis('lesson-ok')) await page.getByTestId('lesson-ok').click();
     else if (await vis('review-continue')) await page.getByTestId('review-continue').click();
+    else if (await page.locator('.overlay .progress-card').first().isVisible()) await page.locator('.overlay .progress-card').first().click(); // W5 win, unlock and town cards
     else if (await page.locator('[data-testid^="choose-"]').first().isVisible()) await page.locator('[data-testid^="choose-"]').first().click();
     else if ((await kc<string>(page, 'puzzlePhase')) === 'player' && (await page.getByTestId('screen-game').isVisible())) {
       const uci = (await kc<string>(page, 'puzzleAnswer'))!;

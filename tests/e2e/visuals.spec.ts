@@ -28,6 +28,7 @@ test('starter picker, name step, battle intro, My Team and Pokédex sprites all 
   await page.getByTestId('story').click();
   await page.getByTestId('story').click();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await page.getByTestId('lesson-ok').click();
   await allLoaded(page, '[data-testid="trainer-intro"]', 2);

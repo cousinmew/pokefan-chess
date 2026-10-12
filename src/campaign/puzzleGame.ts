@@ -11,7 +11,7 @@ import { button, el } from '../ui/dom';
 import type { App } from '../main';
 import type { Side } from '../look';
 import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
-import { loadTrainer, pick, pool, record, THEMES } from './trainer';
+import { loadTrainer, pick, pickEasy, pool, record, THEMES } from './trainer';
 
 /** The first puzzles of a save say how to move (W3). */
 const TAP_HELP_PUZZLES = 3;
@@ -58,6 +58,8 @@ export interface PuzzleContext {
   opponent?: Side;
   /** Called the moment a puzzle is decided, before the review (pips update at once, design J). */
   onAttempt?(result: 'solved' | 'assisted' | 'missed'): void;
+  /** The first trainers (W5): positions with the fewest pieces first, whatever the rating. */
+  easy?: boolean;
 }
 
 export class PuzzleGame {
@@ -177,7 +179,7 @@ export class PuzzleGame {
     this.ratingEl.hidden = true;
     const rows = forced ? [forced.row] : await pool(theme);
     if (g !== this.gen) return;
-    this.row = pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
+    this.row = (this.context?.easy ? pickEasy(rows, this.trainer.seen) : null) ?? pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
     const setup = this.run.first();
     const first = this.host.firstSteps();

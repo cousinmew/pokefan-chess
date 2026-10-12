@@ -14,7 +14,7 @@ export interface MenuItem {
   name?: string;
 }
 
-/** A Gen 1 style summary box for one save: player, cartridge, badges, Pokédex and time. YELLOW has no badges or
+/** A Gen 1 style summary box for one save: player, cartridge, badges, Pokédex, time and BLUE's next goal. YELLOW has no badges or
  * Pokédex, so its box shows the lessons done and the stickers instead (ux #16). */
 export function summaryBox(s: SlotSummary, testid = 'start-summary'): HTMLElement {
   const box = el('div', 'gb-box summary');
@@ -39,6 +39,13 @@ export function summaryBox(s: SlotSummary, testid = 'start-summary'): HTMLElemen
   }
   row('start.time', s.time, 'time');
   box.append(sprite, rows);
+  if (s.next) {
+    // The journey's next goal (W5): where CONTINUE leads.
+    const next = el('p', 'summary-next');
+    next.dataset.testid = `${testid}-next`;
+    next.textContent = s.next;
+    box.append(next);
+  }
   return box;
 }
 

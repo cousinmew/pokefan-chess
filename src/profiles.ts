@@ -3,6 +3,7 @@
 // slot's data; a session flag skips the picker on that reload.
 import type { Campaign } from './campaign/kanto';
 import { DEX } from './campaign/kanto';
+import { goalLine, journeyState } from './campaign/journey';
 import { fmt } from './game/text';
 import { clearProfile, loadFrom, MAX_SLOTS, readMeta, removeFrom, saveTo, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
@@ -85,6 +86,7 @@ export function summaries(all = false): SlotSummary[] {
       dex: DEX.filter((s) => c?.caught?.[s]).length,
       time: playTime(c?.playMs),
       lessons: c?.path ?? 0,
+      next: loadFrom<string>(n, 'cartridge') === 'yellow' ? null : goalLine(journeyState(c)),
     };
   });
 }

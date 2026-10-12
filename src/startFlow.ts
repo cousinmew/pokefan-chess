@@ -30,6 +30,8 @@ export interface StartHost {
   newGame(): void;
   /** PLAY CHESS (§B22 item 4): a guest game, nothing saved. */
   quickPlay(kind: 'computer' | 'friend' | 'online'): void;
+  /** A save was renamed: the game reloads its copy, so nothing writes the old name back (bugs #6). */
+  renamed(): void;
 }
 
 /** A save as a Two Players side: its trainer, name and team (null slot = guest). */
@@ -134,7 +136,7 @@ export class StartFlow {
         add: () => this.newGame(),
         refresh: again,
         back,
-        rename: (n, name) => (renameProfile(n, name), again()),
+        rename: (n, name) => (renameProfile(n, name), this.host.renamed(), again()),
         remove: (n) => deleteProfile(n) || again(),
       }),
     );

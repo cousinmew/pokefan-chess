@@ -23,9 +23,9 @@ import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
-import { furthest, PLACES } from './campaign/journey';
-import { hubData } from './ui/hubData';
-import { placeName, trainerSrc } from './ui/kanto';
+import { goalLine } from './campaign/journey';
+import { continueLine, hubData } from './ui/hubData';
+import { trainerSrc } from './ui/kanto';
 import type { Page } from './ui/manual';
 import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
@@ -138,6 +138,7 @@ function boot(): App {
   let gen = 0;
   let notice: Line | null = null;
   let introOpen = false;
+  let red: Color = 'w'; // the colour wearing Red's look in the game on the board (W3: you, in puzzles and the Path)
   const away = new Away(() => stage.firstElementChild === gameView); // leaving bumps `gen`, not the game (bugs #7)
 
   const board = new Board(game, {
@@ -230,6 +231,7 @@ function boot(): App {
     gen: () => gen,
     evolveAnim: (from, to) => overlay.evolve(from, to),
     startChallenge: (ch) => startChallenge(ch),
+    path: { run: (lesson, hooks) => path.run(lesson, hooks), stop: () => path.stop() }, // Oak's Route 1 warm-up (W5)
   });
   app.journey = journey;
   app.campaignRng = journey.rng;
@@ -289,7 +291,7 @@ function boot(): App {
   }
 
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
-  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()) });
+  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()), renamed: () => (journey.campaign = loadCampaign()) });
   /** Two Players: each side as a save or a guest when the device has more than one (change C). */
   let duo: Record<Color, DuoSide> | null = null;
   const twoPlayers = () => (slotCount() > 1 && !isGuest() ? flow.duo((w, b) => ((duo = { w: duoSide(w, 'w'), b: duoSide(b, 'b') }), startGame({ mode: 'two-players', human: 'w', level: 1 })), goTitle) : startGame({ mode: 'two-players', human: 'w', level: 1 }));
@@ -308,7 +310,8 @@ function boot(): App {
       modal.hidden = true;
       modal.onclick = null;
       modal.replaceChildren();
-      if (view !== gameView && lookOf('w') !== 'w') applyLooks({ w: look(), b: look() }, 'w'); // W3: menus read the default teams by colour
+      const wear = view === gameView ? red : 'w'; // W3: menus read the default teams by colour, the game its own (back from OPTION too)
+      if (lookOf('w') !== wear) applyLooks({ w: look(), b: look() }, wear);
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
@@ -358,6 +361,7 @@ function boot(): App {
     option: () => showSettings(),
     quit,
     guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)
+    next: yellow() || isGuest() ? null : goalLine(journey.campaign), // W5: the first line says what is next
   });
 
   function goTitle(): void {
@@ -379,12 +383,11 @@ function boot(): App {
     const c = journey.campaign;
     const last = load<string>('last');
     const journeyFirst = !!c.starter && (last === 'journey' || !g);
-    const here = PLACES[furthest(c)];
     const played = load<Setup>('lastQuickPlay');
     const quick = played ?? QUICK_DEFAULT;
     const hub = title({
       canContinue: !!g || !!c.starter,
-      hub: hubData(c, shownLevel(puzzle.trainer), played, journeyFirst ? fmt('hub.continue.journey', { place: here ? placeName(here) : '' }) : g ? fmt('hub.continue.game') : null),
+      hub: hubData(c, shownLevel(puzzle.trainer), played, continueLine(c, journeyFirst, !!g)),
       battle: () => startGame(quick),
       resume,
       training: () => journey.openFromHub('training', goTitle), dex: () => journey.openFromHub('dex', goTitle),
@@ -396,7 +399,9 @@ function boot(): App {
   }
 
   function configure(setup: Setup): void {
-    setWears(setup.mode === 'puzzle' || setup.mode === 'path' ? setup.human : 'w'); // W3: there you are always TEAM RED, whatever colour you play
+    if (setup.mode !== 'path') path.stop(); // the warm-up's bar never stays under another game (W5)
+    red = setup.mode === 'puzzle' || setup.mode === 'path' ? setup.human : 'w';
+    setWears(red); // W3: there you are always TEAM RED, whatever colour you play
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
     const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
@@ -404,7 +409,7 @@ function boot(): App {
     if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
     else if (ys) setSkins({ ...theirs, ...ys });
     else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : journey.campaign.team });
-    else if (setup.mode === 'puzzle') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2) }); // W3, design D
+    else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2) }); // W3, design D; BLUE's warm-up (W5)
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
@@ -435,8 +440,9 @@ function boot(): App {
   const turnLine = (c: Color) => fmt(lookOf(c) === 'w' ? 'turn.red' : 'turn.rocket'); // by the team the colour wears (W3)
   function updateTurn(): void {
     // W3: a puzzle's goal always (design C); the Path never says "TEAM ROCKET to move" after a solve (ux #11).
-    turnEl.textContent = app.mode === 'puzzle' ? puzzle.objective() : app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn());
-    turnEl.classList.toggle('objective', app.mode === 'puzzle');
+    const goal = app.mode === 'puzzle' ? puzzle.objective() : app.mode === 'path' ? path.objective() : ''; // BLUE's warm-up has its step goal (W5)
+    turnEl.textContent = goal || (app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn()));
+    turnEl.classList.toggle('objective', !!goal);
     backBtn.hidden = !canTakeBack();
   }
 
@@ -612,7 +618,7 @@ function boot(): App {
     app.ended = true;
     board.locked = true;
     // A puzzle that ends in mate is finished by the puzzle player, not the end screen.
-    if (app.mode === 'puzzle') return;
+    if (app.mode === 'puzzle' || app.mode === 'path') return; // the Path and the warm-up have their own Next (W5)
     // YELLOW (§B17): no "blacked out"; a gentle line instead.
     if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
     text.show([end.line]);

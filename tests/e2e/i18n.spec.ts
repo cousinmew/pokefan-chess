@@ -98,6 +98,7 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();

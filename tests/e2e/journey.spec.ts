@@ -61,6 +61,7 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await expect(page.getByTestId('place-viridian')).toBeDisabled();
 
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await expect(page.locator('.trainer-row')).toHaveCount(2);
   for (const who of ['YOUNGSTER TOBY', 'LASS MINA']) {
     await expect(page.getByTestId('battle-trainer')).toHaveText(`Battle ${who}`);
@@ -72,11 +73,17 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
     }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
     await beatTrainer(page);
-    await readStory(page, who === 'LASS MINA' ? 2 : 1);
+    await readStory(page, 1);
+    await expect(page.getByTestId('story-text')).toHaveText(who === 'LASS MINA' ? 'Next: Go to VIRIDIAN CITY' : 'Next: LASS MINA at ROUTE 1');
+    await readStory(page, 1);
+    await page.getByTestId('win-card').click(); // W5: what you won
+    if (who === 'LASS MINA') await page.getByTestId('unlock-card').click(); // W5: what opened
   }
   await expect(page.getByTestId('place-viridian')).toBeEnabled();
   await page.getByTestId('place-viridian').click();
   await readStory(page, 2);
+  await expect(page.getByTestId('town-card')).toContainText('Next: Battle RIVAL BLUE'); // W5: a town says what is there
+  await page.getByTestId('town-card').click();
   await page.getByTestId('place-rival-1').click();
   await expect(page.getByTestId('story-text')).toContainText('BLUE:');
   await readStory(page, 2);
@@ -91,8 +98,10 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
     await solveOne(page);
     await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  // BLUE's defeat line, then Oak's reward: the starter neither of you picked (§B12).
-  await readStory(page, 1);
+  // BLUE's defeat line and the next goal, the win and unlock cards, then Oak's reward: the starter neither of you picked (§B12).
+  await readStory(page, 2);
+  await page.getByTestId('win-card').click();
+  await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('story-text')).toContainText('SQUIRTLE wanted to come along!');
   await readStory(page, 1);
   await expect(page.getByTestId('route-viridian-forest')).toBeEnabled();

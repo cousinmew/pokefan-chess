@@ -93,6 +93,7 @@ test('bugs #8: a Journey card left behind never starts a puzzle in a later game'
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await expect(page.getByTestId('trainer-intro')).toBeVisible();
   // S no longer opens START over the card; a tap that reaches it anyway must leave nothing behind.
@@ -134,13 +135,14 @@ test('Enter advances a story box and a trainer card like a tap, and never opens 
   await expect(page.getByTestId('start-overlay')).toHaveCount(0);
   // The trainer card, then the goal card: Enter moves on as a tap does.
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await expect(page.getByTestId('trainer-intro')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('goal-card')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('goal-card')).toBeHidden();
-  await expect(page.getByTestId('puzzle-banner')).toContainText('need'); // the goal itself is in the header (W3)
+  await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/); // W3 moved the goal to the header
   await expect(page.getByTestId('start-overlay')).toHaveCount(0);
 });
 
