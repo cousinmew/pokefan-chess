@@ -28,6 +28,7 @@
    "trainers": [
     {
      "id": "r1-toby",
+    "easy": true,
      "class": "trainer.class.youngster",
      "name": "trainer.name.toby",
      "team": [
@@ -39,6 +40,7 @@
     },
     {
      "id": "r1-mina",
+    "easy": true,
      "class": "trainer.class.lass",
      "name": "trainer.name.mina",
      "team": [
@@ -58,7 +60,8 @@
    "story": [
     "story.viridian.1",
     "story.viridian.2"
-   ]
+   ],
+   "here": "town.viridian.here"
   },
   {
    "id": "rival-1",

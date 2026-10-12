@@ -33,8 +33,11 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   // Oak's line about your partner, then BLUE slides in for one line.
   await page.getByTestId('story').click();
   await page.getByTestId('story').click();
-  await expect(page.getByTestId('route-viridian-forest')).toBeDisabled();
+  // W5: only the next locked place shows (as ???); the rest fold into one line.
+  await expect(page.getByTestId('route-viridian-forest')).toHaveCount(0);
+  await expect(page.getByTestId('map-more')).toBeVisible();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('walk-grass').click();
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.seedEncounters(7));
   await solve(page);
@@ -66,7 +69,7 @@ test('a C2 save opens on the map; Pokédex counts the starter; Two Players keeps
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
-  await expect(page.locator('.map-top p')).toHaveText('Pokédex: 1 of 151 caught');
+  await expect(page.locator('.map-strip p').first()).toHaveText('Pokédex: 1 of 151 caught'); // W5: in the map's top strip
   await page.getByTestId('back').click();
   await page.getByTestId('two-players').click();
   await expect(page.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'PIKACHU');

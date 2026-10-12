@@ -8,8 +8,9 @@ import type { StringKey } from '../game/text';
 import { el } from './dom';
 
 export type StartItem = 'journey' | 'computer' | 'friend' | 'online' | 'dex' | 'option' | 'quit';
-/** What START offers; `guest` labels the last item QUIT, as a guest's game is not saved (ux #14). */
-export type StartActions = Partial<Record<StartItem, () => void>> & { guest?: boolean };
+/** What START offers; `guest` labels the last item QUIT, as a guest's game is not saved (ux #14); `next` is the
+ * journey's next goal, shown as the first line (W5). */
+export type StartActions = Partial<Record<StartItem, () => void>> & { guest?: boolean; next?: string | null };
 
 /** A story box, popup or card over the screen (the modal layer, or the "wants to battle" card). */
 const popup = () => document.querySelector<HTMLElement>('#app > .overlay:not([hidden]), [data-testid="intro"]');
@@ -101,6 +102,12 @@ export class StartButton {
     back.onclick = (e) => e.target === back && this.close();
     const list = el('div', 'gb-box start-list start-pop');
     list.setAttribute('role', 'menu');
+    if (acts.next) {
+      const next = el('p', 'start-next');
+      next.dataset.testid = 'start-next';
+      next.textContent = acts.next;
+      list.append(next);
+    }
     const item = (id: string, label: StringKey, run?: () => void) => {
       const b = el('button', 'start-item');
       b.type = 'button';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Puzzle pools (loaded per theme on demand), puzzle choice by Trainer Rating, and saved progress.
-import { PUZZLE_RD, PUZZLE_SEEN_MAX, PUZZLE_WIDEN, PUZZLE_WINDOW } from '../config';
+import { EASY_MAX_PIECES, PUZZLE_RD, PUZZLE_SEEN_MAX, PUZZLE_WIDEN, PUZZLE_WINDOW } from '../config';
 import type { Rng } from '../game/rng';
 import { load, save } from '../store/persist';
 import type { PuzzleRow } from './puzzle';
@@ -25,6 +25,17 @@ export function pick(rows: PuzzleRow[], rating: number, seen: readonly string[],
     if (near.length) return near[Math.floor(rng.next() * near.length)]!;
   }
   return rows[Math.floor(rng.next() * rows.length)]!;
+}
+
+/** Pieces on the board of a FEN. */
+export const pieceCount = (fen: string) => (fen.split(' ')[0] ?? '').replace(/[^a-zA-Z]/g, '').length;
+
+/** The first trainers' pick (W5, design G): unseen puzzles with at most EASY_MAX_PIECES pieces, the fewest pieces
+ * first, then the lowest rating. Null when none is left (the normal pick takes over). */
+export function pickEasy(rows: PuzzleRow[], seen: readonly string[]): PuzzleRow | null {
+  const skip = new Set(seen);
+  const easy = rows.filter((r) => pieceCount(r[1]) <= EASY_MAX_PIECES && !skip.has(r[0]));
+  return easy.sort((a, b) => pieceCount(a[1]) - pieceCount(b[1]) || a[3] - b[3])[0] ?? null;
 }
 
 export interface Trainer {

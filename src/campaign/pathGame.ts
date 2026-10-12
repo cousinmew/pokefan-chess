@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Pikachu's Path controller (§B17, YELLOW): one move puzzles on the main board, free hints, one sticker per lesson.
 import { Chess } from 'chess.js';
-import { SPECIES } from '../board/pieces';
+import { SPECIES, speciesFor } from '../board/pieces';
 import type { Rng } from '../game/rng';
 import { fmt, type StringKey } from '../game/text';
 import { button, el } from '../ui/dom';
@@ -25,6 +25,12 @@ export interface PathHost {
   rng: Rng;
 }
 
+/** Oak's warm-up in BLUE (W5): what follows the last move, or Skip. No sticker. */
+export interface WarmupHooks {
+  done(): void;
+  skip(): void;
+}
+
 export class PathGame {
   readonly bar: HTMLElement;
   phase: 'idle' | 'player' | 'moving' | 'solved' = 'idle';
@@ -32,6 +38,10 @@ export class PathGame {
   private idx = 0;
   private readonly progress: HTMLElement;
   private readonly nextBtn: HTMLButtonElement;
+  private readonly backBtn: HTMLButtonElement;
+  private readonly skipBtn: HTMLButtonElement;
+  /** Set while Oak's warm-up runs (W5): no sticker at the end, Skip instead of Back, the step goal in the header. */
+  private hooks: WarmupHooks | null = null;
 
   constructor(private readonly host: PathHost) {
     this.bar = el('div', 'path-bar');
@@ -39,7 +49,33 @@ export class PathGame {
     this.progress = el('p', 'path-progress');
     this.progress.dataset.testid = 'path-progress';
     this.nextBtn = button('path.next', () => this.next(), 'path-next', 'primary');
-    this.bar.append(this.progress, button('path.hint', () => this.hint(), 'path-hint'), this.nextBtn, button('back', () => this.open(), 'path-back', 'secondary'));
+    this.backBtn = button('back', () => this.open(), 'path-back', 'secondary');
+    this.skipBtn = button('warm.skip', () => this.leave('skip'), 'warmup-skip', 'secondary');
+    this.bar.append(this.progress, button('path.hint', () => this.hint(), 'path-hint'), this.nextBtn, this.backBtn, this.skipBtn);
+  }
+
+  /** Oak's warm-up (W5): the lesson's positions on the main board, then `hooks.done` (or `hooks.skip`). */
+  run(lesson: Lesson, hooks: WarmupHooks): void {
+    this.lesson = lesson;
+    this.hooks = hooks;
+    this.idx = 0;
+    this.puzzle();
+  }
+
+  private leave(how: keyof WarmupHooks): void {
+    const h = this.hooks;
+    this.stop();
+    h?.[how]();
+  }
+
+  /** The warm-up step's goal for the header ("Take the RATTATA!"); empty in YELLOW, where the text box says it. */
+  objective(): string {
+    const p = this.current;
+    if (!this.hooks || !p) return '';
+    const take = p.goal === 'capture' ? hintMove(p) : null;
+    const them = new Chess(p.fen).turn() === 'w' ? 'b' : 'w';
+    const piece = take?.captured ? speciesFor(them, take.captured, take.to).name : '';
+    return fmt(`warm.${this.idx + 1}` as StringKey, { piece });
   }
 
   private get campaign(): Campaign {
@@ -54,6 +90,7 @@ export class PathGame {
   stop(): void {
     this.phase = 'idle';
     this.lesson = null;
+    this.hooks = null;
     this.bar.hidden = true;
   }
 
@@ -75,7 +112,9 @@ export class PathGame {
     this.host.marks(p.star ? [p.star] : [], []);
     this.bar.hidden = false;
     this.nextBtn.hidden = true;
-    this.progress.textContent = fmt('path.progress', { n: String(this.idx + 1) });
+    this.backBtn.hidden = !!this.hooks;
+    this.skipBtn.hidden = !this.hooks;
+    this.progress.textContent = fmt(this.hooks ? 'warm.step' : 'path.progress', { n: String(this.idx + 1) });
     this.host.say(`path.goal.${p.goal}` as StringKey);
     this.phase = 'player';
   }
@@ -116,6 +155,7 @@ export class PathGame {
       this.idx++;
       return this.puzzle();
     }
+    if (this.hooks) return this.leave('done');
     this.finish(this.lesson.n);
   }
 

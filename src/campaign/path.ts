@@ -35,6 +35,13 @@ export const AUTHORED: Lesson[] = [
 ];
 export const LESSON_COUNT = 12;
 
+/** Oak's Route 1 warm-up in BLUE (W5, design G): one capture, one check, one mate in 1, with the YELLOW engine. */
+export const WARMUP: Lesson = {
+  n: 0,
+  goal: 'capture',
+  puzzles: [g('capture', '7k/8/8/8/2n5/8/8/2R4K'), g('check', '7k/8/8/8/8/8/8/R6K'), g('mate', '6k1/5ppp/8/8/8/8/8/R5K1')],
+};
+
 /** Lessons 10 to 12 from easy mateIn1 puzzles: the position after the set up move, three per lesson. */
 export function mateLessons(rows: [string, string, string, number][]): Lesson[] {
   const easy = rows.filter((r) => r[3] < 800 && r[2].split(' ').length === 2);

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Kanto Journey screens (§B11, §B12): story boxes, name and starter, the journey map, a route with its trainers,
 // trainer intros, the Trainer Card, Training, the 151 Pokédex with candy and stars, My Team, and the encounter panel.
-import { MASTERY_NEED, MASTERY_WINDOW, STAR_STEPS } from '../config';
+// The map and a route's screen moved to src/ui/journeyMap.ts (W5).
+import { STAR_STEPS } from '../config';
 import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
-import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution, type Route } from '../campaign/kanto';
+import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution } from '../campaign/kanto';
 import { stepKey } from '../campaign/trainer';
-import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
+import { PLACES, placeName, teamOf, type Trainer } from '../campaign/journey';
+
+export { placeName };
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
 import { whyNot } from '../../worker/src/team';
@@ -116,107 +119,6 @@ export function oakScreen(pick: (id: string) => void, back: () => void): HTMLEle
     row.append(b);
   }
   return screen('oak', el('h2', '', 'oak.title'), el('p', '', 'oak.line'), row, button('back', back, 'back', 'secondary'));
-}
-
-export interface MapActions {
-  place(index: number): void;
-  dex(): void;
-  team(): void;
-  card(): void;
-  training(): void;
-  back(): void;
-  hof?(): void;
-}
-
-export const placeName = (p: Place) => routeOf(p)?.name ?? (p.name ? fmt(p.name) : p.id);
-
-export function mapScreen(c: Campaign, a: MapActions): HTMLElement {
-  const caught = DEX.filter((s) => c.caught[s]).length;
-  const list = el('div', 'kanto-map');
-  const here = furthest(c);
-  PLACES.forEach((p, i) => {
-    const open = placeUnlocked(c, i);
-    const done = placeCleared(c, p);
-    const testid = p.route ? `route-${p.route}` : `place-${p.id}`;
-    const b = el('button', `node ${p.kind}${open ? '' : ' locked'}${i === here ? ' here' : ''}`);
-    b.dataset.testid = testid;
-    b.disabled = !open;
-    const title = el('b');
-    title.textContent = `${placeName(p)}${done ? ' ✓' : ''}`;
-    b.append(title);
-    b.dataset.kind = p.kind;
-    if (p.kind === 'gym' && p.badge) {
-      const won = c.badges.includes(p.badge);
-      const badge = el('p', `small badge-line${won ? ' won' : ''}`);
-      badge.textContent = `${fmt(`badge.${p.badge}` as StringKey)}${won ? ' ✓' : ''}`;
-      b.append(badge);
-    }
-    if (p.optional) b.classList.add('optional');
-    else if (p.route) {
-      const r = routeOf(p)!;
-      const sp = routeSpecies(r as Route);
-      b.append(line('route.dex', { caught: String(sp.filter((s) => c.caught[s]).length), total: String(sp.length) }, 'small'));
-    }
-    if (!open) b.append(line('map.locked', undefined, 'small'));
-    b.onclick = () => open && a.place(i);
-    list.append(b);
-  });
-  const top = el('div', 'map-top');
-  top.append(
-    line('map.pokedex', { caught: String(caught), total: '151' }),
-    button('map.card', a.card, 'open-card'),
-    button('map.dex', a.dex, 'open-dex'),
-    button('map.team', a.team, 'open-team'),
-    button('map.training', a.training, 'open-training'),
-    ...(c.champion && a.hof ? [button('map.champion', a.hof, 'open-hof')] : []),
-  );
-  const s = screen('map', el('h2', '', 'map.title'), top, list, button('back', a.back, 'back', 'secondary'));
-  // Open on the furthest point reached (§B11).
-  requestAnimationFrame(() => list.children[here]?.scrollIntoView({ block: 'center' }));
-  return s;
-}
-
-export interface RouteActions {
-  battle(t: Trainer): void;
-  walk(): void;
-  back(): void;
-}
-
-export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement {
-  const r = routeOf(p) as Route;
-  const st = c.routes[r.id];
-  const trainers = el('div', 'trainers');
-  const next = nextTrainer(c, p);
-  for (const t of p.trainers ?? []) {
-    const row = el('div', 'trainer-row');
-    const beaten = c.journey.beaten.includes(t.id);
-    row.textContent = `${fmt(t.class)} ${fmt(t.name)}${beaten ? ` ✓ ${fmt('trainer.beaten')}` : ''}`;
-    trainers.append(row);
-  }
-  const fight = next
-    ? button('trainer.next', () => a.battle(next), 'battle-trainer', 'primary')
-    : line('trainer.cleared', undefined, 'cleared');
-  if (next) fight.textContent = fmt('trainer.next', { class: fmt(next.class), name: fmt(next.name) });
-  const dex = el('div', 'dex-grid');
-  for (const s of routeSpecies(r)) {
-    const cell = el('div', 'dex-cell');
-    cell.append(mon(s, 'dex-sprite', !c.caught[s]), document.createTextNode(c.caught[s] ? SPECIES[s]!.name : fmt('dex.unknown')));
-    dex.append(cell);
-  }
-  const h = el('h2');
-  h.textContent = r.name;
-  const played = st?.last.length ?? 0;
-  const solved = st?.last.filter(Boolean).length ?? 0;
-  return screen(
-    'route',
-    h,
-    trainers,
-    fight,
-    button('route.walk', a.walk, 'walk-grass', 'secondary-wide'),
-    line('route.mastery', { solved: String(solved), played: String(played), need: String(MASTERY_NEED), window: String(MASTERY_WINDOW) }, 'small'),
-    dex,
-    button('back', a.back, 'back', 'secondary'),
-  );
 }
 
 /** Battle intro card (§B14): the trainer slides in, "{CLASS} {NAME} wants to battle!" and their 1 to 3 Pokémon. */
@@ -494,8 +396,9 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }
 
-/** The panel shown over the board after a tall grass solve. A shiny shows from the start (§B12). */
-export function encounterPanel(id: string, shiny: boolean, throwBall: () => boolean, again: () => void, map: () => void): HTMLElement {
+/** The panel shown over the board after a tall grass solve. A shiny shows from the start (§B12). With `next` (the
+ * warm-up's first catch, W5) one Continue follows the throw instead of "walk again" and "map". */
+export function encounterPanel(id: string, shiny: boolean, throwBall: () => boolean, again: () => void, map: () => void, next?: () => void): HTMLElement {
   const p = el('div', `panel encounter${shiny ? ' shiny' : ''}`);
   p.dataset.testid = 'encounter';
   const msg = line('enc.appeared', { name: SPECIES[id]!.name });
@@ -504,7 +407,8 @@ export function encounterPanel(id: string, shiny: boolean, throwBall: () => bool
   const ball = button('enc.throw', () => {
     const caught = throwBall();
     msg.textContent = fmt(caught ? 'enc.caught' : 'enc.fled', { name: SPECIES[id]!.name });
-    row.replaceChildren(button('enc.again', again, 'walk-again'), button('route.leave', map, 'to-map'));
+    if (next) row.replaceChildren(button('review.continue', next, 'enc-next', 'primary'));
+    else row.replaceChildren(button('enc.again', again, 'walk-again'), button('route.leave', map, 'to-map'));
   }, 'throw-ball');
   row.append(ball);
   p.append(mon(id, 'menu-sprite', false, shiny), ...(shiny ? [line('enc.shiny', undefined, 'shiny-note')] : []), msg, row);
