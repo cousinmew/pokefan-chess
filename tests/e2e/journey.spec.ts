@@ -25,7 +25,9 @@ async function beatTrainer(page: Page) {
   await page.getByTestId('trainer-intro').click();
   await expect(page.getByTestId('goal-card')).toBeVisible();
   await page.getByTestId('goal-card').click();
-  await expect(page.getByTestId('puzzle-banner')).toContainText('Goal:');
+  // W3: the banner keeps the trainer, the pips and what is still needed; the goal is in the header.
+  await expect(page.getByTestId('puzzle-banner')).toContainText(/○○ need \d/);
+  await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/);
   for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
     await solveOne(page);
     // After a short pause either the next puzzle starts or the defeat story shows.

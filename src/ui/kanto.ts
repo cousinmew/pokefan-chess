@@ -4,6 +4,7 @@
 import { MASTERY_NEED, MASTERY_WINDOW, STAR_STEPS } from '../config';
 import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
 import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution, type Route } from '../campaign/kanto';
+import { stepKey } from '../campaign/trainer';
 import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
@@ -326,6 +327,7 @@ export function cardScreen(c: Campaign, rating: number | null, back: () => void)
     line('card.name', { name: c.name || fmt('name.1') }),
     rating === null ? line('card.levelNew', undefined, 'level') : line('card.level', { level: String(Math.round(rating)) }, 'level'),
     line('card.levelNote', undefined, 'small'),
+    line(stepKey(rating ?? 0), undefined, 'small'), // moved here from the puzzle bar (W3)
     el('p', 'small', 'card.badges'),
     badges,
     line('card.dex', { seen: String(seen), caught: String(caught), pct: String(Math.round((caught / 151) * 100)) }),

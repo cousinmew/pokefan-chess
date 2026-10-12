@@ -51,6 +51,17 @@ export interface TeamSkin {
 export const SKIN_ROLES = ['k', 'q', 'r', 'bLight', 'bDark', 'n', 'p'] as const;
 let skins: Partial<Record<Color, TeamSkin>> = {};
 let stages: Partial<Record<Color, TeamSkin>> = {};
+// Which team's look each colour wears (W3, playtest 12 Oct): Red on white and Rocket on black, except in puzzles,
+// where you are always TEAM RED, so a black to move puzzle puts Red's look on black.
+let wears: Record<Color, Color> = { w: 'w', b: 'b' };
+
+/** You (RED) play `red`: that colour wears Red's look, the other Rocket's. Every other mode keeps Red on white. */
+export function setWears(red: Color): void {
+  wears = red === 'w' ? { w: 'w', b: 'b' } : { w: 'b', b: 'w' };
+}
+
+/** The colour whose team look `color` wears ('w' Red, 'b' Rocket). */
+export const lookOf = (color: Color): Color => wears[color];
 
 /** BLUE story stage per side (§B18 item 5): species that stand in for the default team until it evolves. */
 export function setStages(next: Partial<Record<Color, TeamSkin>>): void {
@@ -108,7 +119,7 @@ export function speciesIdFor(color: Color, role: Role, square: string): SpeciesI
   const key = role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role;
   const pick = skin?.[key] ?? stages[color]?.[key];
   if (pick && SPECIES[parseVariant(pick).base]) return pick;
-  return defaultSpecies(color, role, isDarkSquare(square));
+  return defaultSpecies(wears[color], role, isDarkSquare(square));
 }
 
 /** The v1 roster's species for a role (the fully evolved team). */

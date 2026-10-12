@@ -120,6 +120,8 @@ export function installHarness(app: App): void {
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,
+    /** The next puzzle to start, instead of a random one: a Lichess row and its theme (W3 tests). */
+    forcePuzzle: (row: [string, string, string, number], theme: string) => void (app.puzzle.forced = { row, theme }),
     /** The last refutation shown in a review (§B15): position, reply, and whether Stockfish found it. */
     refutation: () => app.puzzle.lastRefutation,
     /** True once every background sprite preload has decoded. */

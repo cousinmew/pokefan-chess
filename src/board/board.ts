@@ -2,7 +2,7 @@
 // Own DOM board (D6): CSS grid of 64 cells, Pointer Events, highlights, glyphs, keyboard.
 import { DRAG_THRESHOLD_PX, MOVE_SLIDE_MS } from '../config';
 import type { Game } from '../game/chess';
-import { GLYPHS, speciesFor, spriteUrl, type Color, type Role, type Species } from './pieces';
+import { GLYPHS, lookOf, speciesFor, spriteUrl, type Color, type Role, type Species } from './pieces';
 import { ASSET_BASE, HOLD_MS, PIECE_FILL, type PieceStyle } from '../config';
 import trim from '../data/trim.json';
 import { fmt } from '../game/text';
@@ -33,6 +33,8 @@ export class Board {
   orientation: Color = 'w';
   /** Your side: its pieces get a team coloured ground shadow when the other side has the same species (change A). */
   mine: Color | null = null;
+  /** Puzzles (W3): the ground shadow under every one of your pieces, not only the ones with a twin. */
+  groundAll = false;
   /** Squares whose piece shows faded: your wrong move in a puzzle review (§B21 item 1). */
   faded: string[] = [];
   locked = false;
@@ -147,7 +149,7 @@ export class Board {
           cell.dataset.piece = `${piece.color}${piece.type}`;
           cell.setAttribute('aria-label', fmt('square.piece', { piece: sp.name, square: sq }));
           // Piece style (§B19 item 3): Pokémon + badge, Big badge (sprite behind the chip), or Classic symbols only.
-          if (piece.color === this.mine && twins.has(sp.dex) && pieceStyle !== 'classic') cell.append(Object.assign(document.createElement('span'), { className: `ground ground-${piece.color}` }));
+          if (piece.color === this.mine && (this.groundAll || twins.has(sp.dex)) && pieceStyle !== 'classic') cell.append(Object.assign(document.createElement('span'), { className: `ground ground-${lookOf(piece.color)}` }));
           if (pieceStyle !== 'classic') cell.append(pieceImg(sp, animate, pieceStyle === 'badge'));
           if (sp.stars) {
             const star = document.createElement('span');

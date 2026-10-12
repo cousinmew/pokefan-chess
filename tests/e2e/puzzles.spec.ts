@@ -35,15 +35,18 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openPuzzles(page);
-  await expect(page.getByTestId('trainer-rating')).toHaveText('Trainer Rating: about 600 (an estimate, not an official chess rating)');
+  // W3: no rating line mid-puzzle (the Trainer Card has it); the goal is in the header.
+  await expect(page.getByTestId('trainer-rating')).toBeHidden();
+  await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/);
   for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     await playAnswer(page);
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('checking');
     await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('reply');
   }
-  await expect(page.getByTestId('text-main')).toContainText('Solved!');
+  await expect(page.getByTestId('text-main')).toHaveText(/^(Solved|Checkmate)! Well done\.$/);
   await expect(page.getByTestId('review')).toBeVisible();
-  await expect(page.getByTestId('trainer-rating')).not.toHaveText(/about 600 /);
+  // A first solve from 600 raises the rating: a small "+N" chip.
+  await expect(page.getByTestId('trainer-rating')).toHaveText(/^\+\d+$/);
   expect(errors).toEqual([]);
 });
 
@@ -83,7 +86,7 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
     }
   }
   expect(played).toBe(true);
-  await expect(page.getByTestId('text-main')).toContainText('Not quite. First your move, then the right one.');
+  await expect(page.getByTestId('text-main')).toContainText('Not quite. Watch what happens, then the right move.');
   expect(await phase(page)).toBe('review');
   await expect(page.getByTestId('review-answer')).toBeVisible();
 });

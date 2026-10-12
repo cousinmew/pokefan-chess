@@ -114,6 +114,10 @@ export interface Campaign {
   /** YELLOW wins vs Computer after the 12 lessons, and how many linear unlocks are already in the sticker book. */
   yellowWins: number;
   yellowGiven: number;
+  /** One time tips already shown (W3): 'puzzle' is the first puzzle's coach marks. */
+  tips: string[];
+  /** Puzzles started on this save; the first few say how to make a move (W3). */
+  puzzlesStarted: number;
 }
 
 export const TEAM_RULES_VERSION = 2;
@@ -129,6 +133,7 @@ const fresh = (): Campaign => ({
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
   badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
   queenOpen: false, champion: false, hallOfFame: [], rewards: [], path: 0, yellowWins: 0, yellowGiven: 0,
+  tips: [], puzzlesStarted: 0,
 });
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
@@ -146,6 +151,9 @@ export function loadCampaign(): Campaign {
     // Saves from before §B14 have no teamRules: their teams are checked once below.
     teamRules: c ? (c.teamRules ?? 0) : TEAM_RULES_VERSION,
     journey: { cleared: [...(c?.journey?.cleared ?? [])], beaten: [...(c?.journey?.beaten ?? [])], visited: [...(c?.journey?.visited ?? [])] },
+    // W3: saves from before the coach marks that already beat a trainer have seen puzzles; they skip the first tips.
+    tips: [...(c?.tips ?? (c?.journey?.beaten?.length ? ['puzzle'] : []))],
+    puzzlesStarted: c?.puzzlesStarted ?? (c?.journey?.beaten?.length ? 3 : 0),
   };
   if (c && (c.v ?? 1) < CAMPAIGN_VERSION) {
     for (const [id, n] of Object.entries(out.caught)) {

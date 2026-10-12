@@ -3,7 +3,8 @@
 import './style.css';
 import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, type AiLevel } from './config';
 import { Board } from './board/board';
-import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
+import { lookOf, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
+import { puzzleMoments } from './ui/puzzleMoments';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
 import { prewarmAudio, sound } from './audio/audio';
@@ -51,7 +52,7 @@ import { warmHubSheet } from './ui/icons';
 import { preloadNow, releaseIdle } from './ui/loader';
 import { endPanel, promotionPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
-import { applyLooks, computerTeam, ladderFaces, myLook, standing, storyStage } from './look';
+import { applyLooks, computerTeam, ladderFaces, myLook, puzzleTeam, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { dexScreen } from './ui/kanto';
@@ -205,17 +206,10 @@ function boot(): App {
   app.online = online;
   const puzzle = new PuzzleGame({
     app,
-    startBoard: (fen, human) => {
-      configure({ mode: 'puzzle', human, level: 1 });
-      show(gameView);
-      restart(fen);
-    },
+    startBoard: (fen, human) => (configure({ mode: 'puzzle', human, level: 1 }), show(gameView), restart(fen)),
     applyMove: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
     say: (key, vars) => text.plain(fmt(key, vars)),
-    hint: (squares) => {
-      board.hints = squares;
-      board.render();
-    },
+    hint: (squares) => ((board.hints = squares), board.render()),
     showFrame: (frame) => {
       game.loadFen(frame.fen);
       board.locked = true;
@@ -224,6 +218,8 @@ function boot(): App {
     },
     clearFrames: () => reviewLayer.replaceChildren(),
     engineReply: (fen) => app.engine.bestMove(fen, REFUTATION_LEVEL),
+    them: () => plates.nameOf(app.human === 'w' ? 'b' : 'w') ?? fmt('team.rocket'), // W3: the opponent by name
+    firstSteps: (): { n: number; coach: boolean } => journey.firstSteps(), coach: (event) => moments.coach(event), solvedMoment: () => moments.solved(),
   });
   app.puzzle = puzzle;
   const journey = new JourneyGame({
@@ -246,18 +242,10 @@ function boot(): App {
   const path = new PathGame({
     show,
     modal,
-    startBoard: (fen) => {
-      configure({ mode: 'path', human: fen.split(' ')[1] === 'b' ? 'b' : 'w', level: 1 });
-      show(gameView);
-      restart(fen);
-    },
+    startBoard: (fen) => (configure({ mode: 'path', human: fen.split(' ')[1] === 'b' ? 'b' : 'w', level: 1 }), show(gameView), restart(fen)),
     applyMove: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
     say: (key, vars) => text.plain(fmt(key, vars)),
-    marks: (stars, hints) => {
-      board.stars = stars;
-      board.hints = hints;
-      board.render();
-    },
+    marks: (stars, hints) => ((board.stars = stars), (board.hints = hints), board.render()),
     home: () => goTitle(),
     stickers: (back) => show(dexScreen(loadCampaign(), () => undefined, back, true)),
     rng: journey.rng,
@@ -273,7 +261,7 @@ function boot(): App {
   const look = () => (isGuest() ? { stage: 2 as const, trainer: 'red' as const } : myLook(!yellow(), journey.campaign.badges.length));
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
-    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo }, (k) => fmt(k as StringKey)), board.orientation);
+    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo, them: puzzle.opponent() }, (k) => fmt(k as StringKey)), board.orientation);
   const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
   const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey), journey.campaign.starter);
   const unlockMeir = () => (journey.campaign = meirJoins(journey.campaign));
@@ -309,6 +297,7 @@ function boot(): App {
 
   const drawReview = (frame: Frame) => drawFrame(reviewLayer, boardWrap, board, frame);
   gameView.append(header, main);
+  const moments = puzzleMoments({ view: gameView, board, boardWrap, turnEl, plates, human: () => app.human, reducedMotion }); // W3
 
   function show(view: HTMLElement): void {
     const staying = view === gameView && stage.firstElementChild === gameView;
@@ -319,6 +308,7 @@ function boot(): App {
       modal.hidden = true;
       modal.onclick = null;
       modal.replaceChildren();
+      if (lookOf('w') !== 'w') applyLooks({ w: look(), b: look() }, 'w'); // W3: menus read the default teams by colour
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);
@@ -406,6 +396,7 @@ function boot(): App {
   }
 
   function configure(setup: Setup): void {
+    setWears(setup.mode === 'puzzle' || setup.mode === 'path' ? setup.human : 'w'); // W3: there you are always TEAM RED, whatever colour you play
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
     const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
@@ -413,11 +404,13 @@ function boot(): App {
     if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
     else if (ys) setSkins({ ...theirs, ...ys });
     else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : journey.campaign.team });
-    else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) and Training use default teams (§B14).
+    else if (setup.mode === 'puzzle') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2) }); // W3, design D
+    else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
     app.human = setup.mode === 'two-players' ? 'w' : setup.human;
     board.mine = app.human;
+    board.groundAll = setup.mode === 'puzzle'; // a soft shadow under every one of your pieces (design D)
     app.level = setup.level;
     app.aiFailed = false;
   }
@@ -439,8 +432,11 @@ function boot(): App {
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
 
+  const turnLine = (c: Color) => fmt(lookOf(c) === 'w' ? 'turn.red' : 'turn.rocket'); // by the team the colour wears (W3)
   function updateTurn(): void {
-    turnEl.textContent = app.ended ? '' : fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket');
+    // W3: a puzzle's goal always (design C); the Path never says "TEAM ROCKET to move" after a solve (ux #11).
+    turnEl.textContent = app.mode === 'puzzle' ? puzzle.objective() : app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn());
+    turnEl.classList.toggle('objective', app.mode === 'puzzle');
     backBtn.hidden = !canTakeBack();
   }
 
@@ -457,8 +453,9 @@ function boot(): App {
 
   /** Capture battle and evolution, before the board shows the result. */
   async function present(out: Outcome, from: string, to: string): Promise<void> {
-    // A move made while another screen shows (a puzzle's reply under OPTION) plays no battle over that screen.
-    const mode = stage.firstElementChild === gameView ? settings.anim : 'off';
+    // A move made while another screen shows (a puzzle's reply under OPTION) plays no battle over that screen; a puzzle's
+    // set up move plays Quick, so the player sees the position, not a battle, first (W3, ux #6).
+    const mode = stage.firstElementChild !== gameView ? 'off' : app.mode === 'puzzle' && puzzle.phase === 'setup' && settings.anim === 'full' ? 'quick' : settings.anim;
     if (out.battle && mode !== 'off') music.play('battle');
     if (out.battle && mode === 'full') {
       // The player's Pokémon is always the near one. Two Players: the side that just moved.
@@ -487,7 +484,7 @@ function boot(): App {
     app.busy = false;
     board.locked = false;
     board.setLastMove(from, to);
-    legend.clear();
+    legend.refresh(legendOn()); // clears the highlight; rebuilt when the species on the board changed (ux #13)
     if (settings.autoFlip && app.mode === 'two-players' && !out.end) board.orientation = game.turn();
     plates.orient(board.orientation);
     if (out.battle) plates.capture(out.move.color);
@@ -498,7 +495,7 @@ function boot(): App {
     // Each side's move line goes to that side's plate; yours keeps your prompts (§B24 item 2).
     const said = lines.length ? lines.map((l) => fmt(l.key, l.vars)).join(' ') : fmt('moved', { piece: sp.name, square: to });
     if (!plates.message(out.move.color, said)) text.show(lines.length ? lines : [{ key: 'moved', vars: { piece: sp.name, square: to } }]);
-    else text.plain(fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket')); // your bar keeps a prompt
+    else if (app.mode !== 'puzzle') text.plain(turnLine(game.turn())); // your bar keeps a prompt; a puzzle says its own
     announce([fmt('moved', { piece: sp.name, square: to }), ...out.lines.map((l) => fmt(l.key, l.vars))].join(' '));
     if (out.move.isKingsideCastle() || out.move.isQueensideCastle()) sound.castle();
     else if (!out.battle) sound.place();
@@ -602,7 +599,7 @@ function boot(): App {
     modal.hidden = true;
     away.panel = null;
     board.resetMarks();
-    text.plain(fmt(game.turn() === 'w' ? 'turn.red' : 'turn.rocket'));
+    text.plain(turnLine(game.turn()));
     persistGame();
     updateTurn();
     void maybeAi();
@@ -675,8 +672,8 @@ function boot(): App {
     legend.render(legendOn());
     const opponent: Color = app.human === 'w' ? 'b' : 'w';
     const introKey = app.mode === 'two-players' || app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed';
-    // The intro is the opponent's line, in their bar when they have one (change A).
-    text.plain(plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
+    // The intro is the opponent's line, in their bar when they have one (change A). A puzzle says its own (W3).
+    text.plain(app.mode === 'puzzle' || plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
     persistGame();
     updateTurn();
     if (withIntro) {
