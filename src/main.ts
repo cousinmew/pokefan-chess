@@ -3,7 +3,8 @@
 import './style.css';
 import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, YELLOW_BOARD_PX, type AiLevel } from './config';
 import { Board } from './board/board';
-import { lookOf, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
+import { lookOf, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role, type TeamSkin } from './board/pieces';
+import { withoutRival } from './campaign/rivalTeam';
 import { puzzleMoments } from './ui/puzzleMoments';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites, prepareSprites } from './battle/sprites';
@@ -50,7 +51,7 @@ import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
 import { warmHubSheet } from './ui/icons';
 import { preloadNow, releaseIdle } from './ui/loader';
-import { endPanel, promotionPanel } from './ui/gamePanels';
+import { endPanel, promotionPanel, quitPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
 import { applyLooks, computerTeam, ladderFaces, myLook, puzzleTeam, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
@@ -265,7 +266,8 @@ function boot(): App {
   const showPlates = () =>
     plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo, them: puzzle.opponent() }, (k) => fmt(k as StringKey)), board.orientation);
   const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
-  const faces = (human: Color) => ladderFaces(human, journey.campaign.name || fmt('name.1'), (k) => fmt(k as StringKey), journey.campaign.starter);
+  const faces = (human: Color) => ladderFaces(human, isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), // a guest is "Guest" (playtest, 12 Oct)
+    (k) => fmt(k as StringKey), journey.campaign.starter);
   const unlockMeir = () => (journey.campaign = meirJoins(journey.campaign));
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
@@ -350,6 +352,15 @@ function boot(): App {
     if ((load<Cartridge>('cartridge') ?? cart) !== cart) setCart(load<Cartridge>('cartridge')!); // the save's own cartridge after a guest game (bugs #9)
     return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
+  /** A guest's game in progress is lost on QUIT, so QUIT asks first (playtest, 12 Oct). */
+  const guestInGame = () => isGuest() && stage.firstElementChild === gameView && !app.ended && game.chess.history().length > 0;
+  function askQuit(): void {
+    const stay = () => ((modal.hidden = true), modal.replaceChildren(), (away.panel = null));
+    modal.onclick = null;
+    modal.replaceChildren(quitPanel(() => (stay(), quit()), stay));
+    modal.hidden = false;
+    away.panel = askQuit;
+  }
   /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */
   const startActions = (): StartActions => ({
     ...(!yellow() && !isGuest() ? { journey: () => journey.open() } : {}),
@@ -359,7 +370,7 @@ function boot(): App {
     // POKéDEX's Back returns to where START was opened, like OPTION (ux #14).
     ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, returnHere(), true)) : journey.openFromHub('dex', returnHere())) } : {}),
     option: () => showSettings(),
-    quit,
+    quit: () => (guestInGame() ? askQuit() : quit()),
     guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)
     next: yellow() || isGuest() ? null : goalLine(journey.campaign), // W5: the first line says what is next
   });
@@ -405,11 +416,12 @@ function boot(): App {
     // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
     const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
     const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
+    const mine = (skin: TeamSkin) => withoutRival(skin, journey.campaign.starter, look().stage ?? 2); // no rival's starter on your side (playtest, 12 Oct)
     const theirs = setup.mode === 'computer' ? { [cpu]: computerTeam(setup.level, cpu, journey.campaign.starter) } : {};
     if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
     else if (ys) setSkins({ ...theirs, ...ys });
-    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : journey.campaign.team });
-    else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2) }); // W3, design D; BLUE's warm-up (W5)
+    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : mine(journey.campaign.team) });
+    else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: mine(puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2)) }); // W3, design D; BLUE's warm-up (W5)
     else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
     if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
     app.mode = setup.mode;
@@ -678,8 +690,9 @@ function boot(): App {
     legend.render(legendOn());
     const opponent: Color = app.human === 'w' ? 'b' : 'w';
     const introKey = app.mode === 'two-players' || app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed';
-    // The intro is the opponent's line, in their bar when they have one (change A). A puzzle says its own (W3).
-    text.plain(app.mode === 'puzzle' || plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
+    // The intro is the opponent's line, in their bar when they have one (change A). A puzzle and the Path say their own
+    // (W3; playtest, 12 Oct: a wrong Path move restarts the board, which said "TEAM ROCKET wants to battle!").
+    text.plain(app.mode === 'puzzle' || app.mode === 'path' || plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
     persistGame();
     updateTurn();
     if (withIntro) {

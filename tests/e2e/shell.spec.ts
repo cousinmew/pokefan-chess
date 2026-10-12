@@ -54,6 +54,7 @@ test.describe('360x640', () => {
     await expect(page.getByTestId('takeback')).toBeVisible();
     await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
     await page.getByTestId('start-menu-quit').click();
+    await page.getByTestId('quit-yes').click(); // a guest game in progress asks first (playtest, 12 Oct)
     await expect(page.getByTestId('screen-start')).toBeVisible(); // the real start menu
     expect(errors).toEqual([]);
   });

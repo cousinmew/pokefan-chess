@@ -94,6 +94,7 @@ export const PUZZLE_RD = 75; // assumed deviation of a well played Lichess puzzl
 export const PUZZLE_WINDOW = 150; // serve puzzles within this many points of the Trainer Rating
 export const PUZZLE_WIDEN = 100; // widen the window by this much when a theme runs dry
 export const EASY_MAX_PIECES = 16; // the first trainers' puzzles (W5): mate in 1 with at most this many pieces
+export const RATING_SETTLE = 10; // rated puzzles (solved or missed) before the Trainer Level shows a number (playtest, 12 Oct)
 export const PUZZLE_SEEN_MAX = 400; // remember this many solved or missed puzzle ids to avoid repeats
 export const PUZZLE_REPLY_MS = 900; // the puzzle's own moves (set up and replies) play this slowly, same as OPPONENT_REPLY_MS (§B15)
 export const PUZZLE_SETUP_MS = 1500; // W3: the position and "{them} moves first. Watch!" stay this long before the set up move

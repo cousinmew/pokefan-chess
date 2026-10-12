@@ -932,3 +932,19 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .summary { flex-wrap: wrap; }
 .summary-next { flex-basis: 100%; margin: 0; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .stamp-now .stamp, .kanto-map .node.current .pointer { animation: none; } }
+/* Polish, 12 Oct (playtest replay). The ▼ marker sits in the text's own end strip, never over its last line
+   (the earlier `right: auto` cancelled its inline end inset, so it fell to the start under the text). */
+.plate .textbox { padding: 0; padding-inline-end: 16px; }
+.plate .tb-tick { right: auto; left: auto; inset-inline-end: 6px; }
+/* Oak's warm-up card: one button per row, each label on one line where it fits. */
+.warmup-intro .end-buttons { flex-direction: column; align-items: stretch; width: 100%; }
+.warmup-intro .end-buttons button { min-height: 48px; }
+/* The trainer slides in and ends centred (the plain slide-in ended at transform: none, half off the right edge). */
+.story-trainer.slide-in { animation-name: story-slide-in; }
+@keyframes story-slide-in { from { transform: translateX(60vw); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .story-trainer.slide-in { animation: none; } }
+.story-trainer.sil { position: fixed; } /* the silhouette's position: relative put it at the right edge */
+/* YELLOW's Big badge (decisions C5b) keeps its intent, a badge easy to read, as a corner chip at every size, so the
+   Pokémon under it shows whole; it is a little larger than the normal chip, and the sprite is no longer faded. */
+.chip.big { top: 1px; left: 1px; transform: none; width: max(22px, calc(var(--sq) * 0.44)); height: max(22px, calc(var(--sq) * 0.44)); font-size: max(14px, calc(var(--sq) * 0.32)); }
+.piece.faded { opacity: 1; }

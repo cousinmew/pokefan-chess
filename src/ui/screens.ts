@@ -9,6 +9,7 @@ import { sound } from '../audio/audio';
 import { button, el, footer, screen, toast } from './dom';
 import { manualScreen, type Page } from './manual';
 import { trainerSprite } from './kanto';
+import { levelNewVars, type ShownLevel } from '../campaign/trainer';
 import { itemIcon, pixelIcon, type PixelIcon } from './icons';
 
 function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLElement {
@@ -45,7 +46,7 @@ export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | '
 export interface HubData {
   continueText: string | null;
   /** `level` is null before the first puzzle (shown as "new"). */
-  card: { name: string; level: number | null; badges: string[] };
+  card: { name: string; level: ShownLevel; badges: string[] };
   chips: Partial<Record<HubTile, string>>;
   /** A tile subtitle in place of its usual one (the Battle tile on a brand-new save). */
   subs?: Partial<Record<HubTile, StringKey>>;
@@ -152,7 +153,8 @@ export function title(a: TitleActions): HTMLElement {
     const name = el('b');
     name.textContent = data.card.name;
     const lvl = el('span');
-    lvl.textContent = data.card.level === null ? fmt('hub.card.miniLevelNew') : fmt('hub.card.miniLevel', { level: String(Math.round(data.card.level)) });
+    const level = data.card.level;
+    lvl.textContent = level.r === null ? fmt('hub.card.miniLevelNew', levelNewVars(level)) : fmt('hub.card.miniLevel', { level: String(Math.round(level.r)) });
     const dots = el('span', 'badges');
     for (const b of ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']) dots.append(el('span', `badge ${data.card.badges.includes(b) ? `won ${b}` : 'empty'}`));
     mini.append(name, lvl, dots);

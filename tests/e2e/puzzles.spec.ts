@@ -45,8 +45,8 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   }
   await expect(page.getByTestId('text-main')).toHaveText(/^(Solved|Checkmate)! Well done\.$/);
   await expect(page.getByTestId('review')).toBeVisible();
-  // A first solve from 600 raises the rating: a small "+N" chip.
-  await expect(page.getByTestId('trainer-rating')).toHaveText(/^\+\d+$/);
+  // A first solve raises the rating, but no "+N" until the level settles after 10 rated puzzles (playtest, 12 Oct).
+  await expect(page.getByTestId('trainer-rating')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

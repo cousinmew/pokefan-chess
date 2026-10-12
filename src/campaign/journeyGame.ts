@@ -47,6 +47,10 @@ const CLASSES = trainers.classes as Record<string, string>;
 /** Sprite of a named person (oak, red, blue, brock...) or a trainer class; undefined means the CSS silhouette. */
 export const personSprite = (id: string) => (id === 'red' ? trainerSpriteId(myTrainer()) : PEOPLE[id]);
 export const classSprite = (cls: string) => CLASSES[cls];
+/** After a miss: "Win 2 more of the next 3.", but "Win the next one!" / "Win the next 2!" when every one is needed
+ * (playtest, 12 Oct: "Win 1 more of the next 1."). */
+export const leftLine = (still: number, left: number): string =>
+  still !== left ? fmt('trainer.left', { need: String(still), left: String(left) }) : left === 1 ? fmt('trainer.leftOne') : fmt('trainer.leftAll', { n: String(left) });
 
 export class JourneyGame {
   campaign: Campaign = loadCampaign();
@@ -87,22 +91,26 @@ export class JourneyGame {
         sound.shimmer();
         toast('secret.meir');
       };
-      this.host.show(
-        nameScreen((name) => {
-          endCreating(); // the save exists from here; BACK is gone (§B22 item 2)
-          if (name === 'MEIR') meir();
-          this.set({ ...this.campaign, name });
-          this.host.show(
-            oakScreen((id) => {
-              sound.cry(SPECIES[id]!.dex);
-              this.set(chooseStarter(this.campaign, id));
-              this.story([fmt('story.oak.starter', { starter: SPECIES[id]!.name })], () =>
-                this.story([fmt('story.blue.meet')], () => this.showMap(), personSprite('blue')),
-              personSprite('oak'));
-            }, back),
-          );
-        }, back, personSprite('red'), true),
-      );
+      // The starter's Back returns to the name step (playtest, 12 Oct: it dropped a new save into a hub with no
+      // starter); a NEW GAME stays "being created", with ◀ BACK on the name step, until the starter is chosen.
+      const naming = () =>
+        this.host.show(
+          nameScreen((name) => {
+            if (name === 'MEIR') meir();
+            this.set({ ...this.campaign, name });
+            this.host.show(
+              oakScreen((id) => {
+                endCreating(); // the save exists from here; BACK is gone (§B22 item 2)
+                sound.cry(SPECIES[id]!.dex);
+                this.set(chooseStarter(this.campaign, id));
+                this.story([fmt('story.oak.starter', { starter: SPECIES[id]!.name })], () =>
+                  this.story([fmt('story.blue.meet')], () => this.showMap(), personSprite('blue')),
+                personSprite('oak'));
+              }, naming),
+            );
+          }, back, personSprite('red'), true),
+        );
+      naming();
     };
     this.host.show(oakIntro(lines, personSprite('oak'), this.campaign.introSeen, afterIntro));
   }
@@ -291,7 +299,7 @@ export class JourneyGame {
       const left = t.puzzles - played;
       const still = need - won;
       if (still <= 0 || still > left) return pipLine; // decided either way
-      return `${pipLine} ${missed ? fmt('trainer.left', { need: String(still), left: String(left) }) : fmt('trainer.need', { n: String(still) })}`;
+      return `${pipLine} ${missed ? leftLine(still, left) : fmt('trainer.need', { n: String(still) })}`;
     };
     const next = () => {
       this.host.puzzle.refreshBanner();

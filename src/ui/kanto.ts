@@ -5,7 +5,7 @@
 import { STAR_STEPS } from '../config';
 import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
 import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution } from '../campaign/kanto';
-import { stepKey } from '../campaign/trainer';
+import { levelNewVars, stepKey, type ShownLevel } from '../campaign/trainer';
 import { PLACES, placeName, teamOf, type Trainer } from '../campaign/journey';
 
 export { placeName };
@@ -208,8 +208,9 @@ export function goalCard(theme: string, puzzles: number, need: number, extra?: s
   return p;
 }
 
-/** `rating` is null before the first puzzle: the level then reads "new" (ux #15). */
-export function cardScreen(c: Campaign, rating: number | null, back: () => void): HTMLElement {
+/** `level.r` is null until the level settles: it then reads "new (3/10)" (ux #15, playtest 12 Oct). */
+export function cardScreen(c: Campaign, level: ShownLevel, back: () => void): HTMLElement {
+  const rating = level.r;
   const caught = DEX.filter((s) => c.caught[s]).length;
   const seen = DEX.filter((s) => c.seen.includes(s) || c.caught[s]).length;
   const mins = Math.floor(c.playMs / 60000);
@@ -227,7 +228,7 @@ export function cardScreen(c: Campaign, rating: number | null, back: () => void)
   card.append(
     playerSprite(),
     line('card.name', { name: c.name || fmt('name.1') }),
-    rating === null ? line('card.levelNew', undefined, 'level') : line('card.level', { level: String(Math.round(rating)) }, 'level'),
+    rating === null ? line('card.levelNew', levelNewVars(level), 'level') : line('card.level', { level: String(Math.round(rating)) }, 'level'),
     line('card.levelNote', undefined, 'small'),
     line(stepKey(rating ?? 0), undefined, 'small'), // moved here from the puzzle bar (W3)
     el('p', 'small', 'card.badges'),

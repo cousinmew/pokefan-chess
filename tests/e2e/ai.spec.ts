@@ -45,7 +45,7 @@ test('engine blocked: Gym Leader shows ai.failed, then the game finishes', async
   });
   await page.click('[data-square="b1"]');
   await page.click('[data-square="c1"]');
-  await expect(page.getByTestId('text-main')).toContainText('The computer trainer got lost. Switching to Youngster.', { timeout: 8000 });
+  await expect(page.getByTestId('text-main')).toContainText('The computer trainer got lost. Switching to the Easy level.', { timeout: 8000 });
   await expect(page.locator('[data-square="h7"]')).toHaveAttribute('data-piece', 'bk', { timeout: 8000 });
   await page.click('[data-square="c1"]');
   await page.click('[data-square="h1"]');

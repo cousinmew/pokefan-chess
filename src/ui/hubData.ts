@@ -4,13 +4,14 @@ import { furthest, goalLine, PLACES, placeName, trainingThemes } from '../campai
 import { DEX, type Campaign } from '../campaign/kanto';
 import { fmt, type StringKey } from '../game/text';
 import type { HubData } from './screens';
+import { levelNewVars, type ShownLevel } from '../campaign/trainer';
 
-/** `rating` is null before the first puzzle ("new", ux #15); `quick` is null before the first quick game. */
-export function hubData(c: Campaign, rating: number | null, quick: { mode: string; level: number } | null, continueText: string | null): HubData {
+/** `level.r` is null until the level settles ("new (3/10)"); `quick` is null before the first quick game. */
+export function hubData(c: Campaign, level: ShownLevel, quick: { mode: string; level: number } | null, continueText: string | null): HubData {
   const lessons = trainingThemes(c).length;
   return {
     continueText,
-    card: { name: c.name || fmt('name.1'), level: rating, badges: c.badges },
+    card: { name: c.name || fmt('name.1'), level, badges: c.badges },
     // A brand-new save has no "last time" to play like (ux #15).
     subs: quick ? {} : { battle: 'hub.battle.subNew' },
     chips: {
@@ -23,7 +24,7 @@ export function hubData(c: Campaign, rating: number | null, quick: { mode: strin
       online: fmt('hub.chip.code'),
       dex: fmt('hub.chip.dex', { n: String(DEX.filter((s) => c.caught[s]).length) }),
       team: fmt('hub.chip.team', { n: String(Object.values(c.team).filter(Boolean).length) }),
-      card: rating === null ? fmt('hub.chip.levelNew') : fmt('hub.chip.level', { n: String(Math.round(rating)) }),
+      card: level.r === null ? fmt('hub.chip.levelNew', levelNewVars(level)) : fmt('hub.chip.level', { n: String(Math.round(level.r)) }),
     },
   };
 }

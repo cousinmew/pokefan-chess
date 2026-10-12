@@ -40,6 +40,7 @@ export class PathGame {
   private readonly nextBtn: HTMLButtonElement;
   private readonly backBtn: HTMLButtonElement;
   private readonly skipBtn: HTMLButtonElement;
+  private readonly hintBtn: HTMLButtonElement;
   /** Set while Oak's warm-up runs (W5): no sticker at the end, Skip instead of Back, the step goal in the header. */
   private hooks: WarmupHooks | null = null;
 
@@ -51,7 +52,8 @@ export class PathGame {
     this.nextBtn = button('path.next', () => this.next(), 'path-next', 'primary');
     this.backBtn = button('back', () => this.open(), 'path-back', 'secondary');
     this.skipBtn = button('warm.skip', () => this.leave('skip'), 'warmup-skip', 'secondary');
-    this.bar.append(this.progress, button('path.hint', () => this.hint(), 'path-hint'), this.nextBtn, this.backBtn, this.skipBtn);
+    this.hintBtn = button('path.hint', () => this.hint(), 'path-hint');
+    this.bar.append(this.progress, this.hintBtn, this.nextBtn, this.backBtn, this.skipBtn);
   }
 
   /** Oak's warm-up (W5): the lesson's positions on the main board, then `hooks.done` (or `hooks.skip`). */
@@ -68,10 +70,12 @@ export class PathGame {
     h?.[how]();
   }
 
-  /** The warm-up step's goal for the header ("Take the RATTATA!"); empty in YELLOW, where the text box says it. */
+  /** The step's goal for the header: the warm-up's ("Take the RATTATA!"), or the lesson's in YELLOW, so it stays
+   * there while the text box says "Try again!" (playtest, 12 Oct). */
   objective(): string {
     const p = this.current;
-    if (!this.hooks || !p) return '';
+    if (!p) return '';
+    if (!this.hooks) return fmt(`path.goal.${p.goal}` as StringKey);
     const take = p.goal === 'capture' ? hintMove(p) : null;
     const them = new Chess(p.fen).turn() === 'w' ? 'b' : 'w';
     const piece = take?.captured ? speciesFor(them, take.captured, take.to).name : '';
@@ -112,10 +116,12 @@ export class PathGame {
     this.host.marks(p.star ? [p.star] : [], []);
     this.bar.hidden = false;
     this.nextBtn.hidden = true;
+    this.hintBtn.hidden = false;
     this.backBtn.hidden = !!this.hooks;
     this.skipBtn.hidden = !this.hooks;
     this.progress.textContent = fmt(this.hooks ? 'warm.step' : 'path.progress', { n: String(this.idx + 1) });
-    this.host.say(`path.goal.${p.goal}` as StringKey);
+    // The warm-up says the idea in plain words (playtest, 12 Oct: "check means attack the king"); its goal is in the header.
+    this.host.say(this.hooks ? (`warm.teach.${this.idx + 1}` as StringKey) : (`path.goal.${p.goal}` as StringKey));
     this.phase = 'player';
   }
 
@@ -126,9 +132,10 @@ export class PathGame {
     const after = new Chess(p.fen);
     const move = after.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
     if (!meets(p, move, after)) {
-      this.host.say('path.again');
+      // The board first: starting it clears the text box, and the line must outlive it (playtest, 12 Oct).
       this.host.startBoard(p.fen);
       this.host.marks(p.star ? [p.star] : [], []);
+      this.host.say('path.again');
       return;
     }
     this.phase = 'moving';
@@ -140,6 +147,7 @@ export class PathGame {
     this.phase = 'solved';
     this.host.say('path.good');
     this.nextBtn.hidden = false;
+    this.hintBtn.hidden = true; // nothing left to hint after a solve (playtest, 12 Oct)
   }
 
   /** Free and unlimited: the piece and where it goes. */

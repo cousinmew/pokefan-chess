@@ -23,17 +23,23 @@ export interface MomentsHost {
 export function puzzleMoments(h: MomentsHost): { coach(event: 'start' | 'setup' | 'stop'): void; solved(): void } {
   const coach = new Coach();
   h.view.append(coach.el);
-  const boardRect = (part: 'bottom' | 'all') => {
-    const r = h.board.el.getBoundingClientRect();
-    return part === 'all' ? r : new DOMRect(r.left, r.top + r.height * 0.75, r.width, r.height * 0.25);
+  const boardRect = () => h.board.el.getBoundingClientRect();
+  /** A tight box around your own pieces (playtest, 12 Oct: the bottom two rows could hold the opponent's), so the
+   * bubble goes above or below it and never covers your king. */
+  const mine = (): DOMRect => {
+    const rs = [...h.board.el.querySelectorAll<HTMLElement>(`[data-square][data-piece^="${h.human()}"]`)].map((e) => e.getBoundingClientRect());
+    if (!rs.length) return boardRect();
+    const left = Math.min(...rs.map((r) => r.left));
+    const top = Math.min(...rs.map((r) => r.top));
+    return new DOMRect(left, top, Math.max(...rs.map((r) => r.right)) - left, Math.max(...rs.map((r) => r.bottom)) - top);
   };
   return {
     // Your pieces at the bottom, the goal in the header, then (after the set up move) the opponent's move.
     coach(event) {
       if (event === 'stop') return coach.close();
-      if (event === 'setup') return coach.add({ text: fmt('coach.them'), target: () => boardRect('all') });
+      if (event === 'setup') return coach.add({ text: fmt('coach.them'), target: boardRect });
       coach.start([
-        { text: fmt('coach.you', { team: fmt('team.red') }), target: () => boardRect('bottom') },
+        { text: fmt('coach.you', { team: fmt('team.red') }), target: mine },
         { text: fmt('coach.goal'), target: () => h.turnEl.getBoundingClientRect() },
       ], 1);
     },

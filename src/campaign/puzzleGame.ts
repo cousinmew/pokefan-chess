@@ -11,7 +11,7 @@ import { button, el } from '../ui/dom';
 import type { App } from '../main';
 import type { Side } from '../look';
 import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
-import { loadTrainer, pick, pickEasy, pool, record, THEMES } from './trainer';
+import { loadTrainer, pick, pickEasy, pool, record, shownLevel, THEMES } from './trainer';
 
 /** The first puzzles of a save say how to move (W3). */
 const TAP_HELP_PUZZLES = 3;
@@ -241,9 +241,10 @@ export class PuzzleGame {
         const result = this.hints > 0 ? 'assisted' : 'solved';
         this.trainer = record(this.trainer, this.row, result);
         board.locked = true;
-        // A small "+12" only when the rating went up (W3, design J); no numbers mid-puzzle otherwise.
+        // A small "+12" only when the rating went up (W3, design J) and has settled (playtest, 12 Oct: no "+494" on a
+        // first solve); no numbers mid-puzzle otherwise.
         const up = Math.round(this.trainer.rating.r) - Math.round(before);
-        this.ratingEl.hidden = up <= 0;
+        this.ratingEl.hidden = up <= 0 || shownLevel(this.trainer).r === null;
         this.ratingEl.textContent = fmt('puzzle.ratingUp', { n: String(up) });
         const mate = !!this.run && new Chess(this.run.currentFen()).isCheckmate();
         this.host.say(result === 'assisted' ? 'puzzle.assisted' : mate ? 'puzzle.solvedMate' : 'puzzle.solved');
