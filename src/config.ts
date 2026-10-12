@@ -9,6 +9,7 @@ export const MOVE_SLIDE_MS = 160; // quiet move slide duration
 export const SELECT_HOP_PX = 4; // how far a selected piece hops
 export const DRAG_THRESHOLD_PX = 6; // pointer travel before a press becomes a drag
 export const MIN_SQUARE_PX = 44; // smallest board square (D10)
+export const YELLOW_BOARD_PX = 8 * 52 + 6; // YELLOW's board when the window allows it: 52 px squares (W2: asked of the fitter)
 export const BOARD_SIDE_GUTTER_PX = 8; // horizontal room left around the board: phones use the full width minus 8 px (§B19 item 7)
 export const BOARD_CHROME_PX = 220; // vertical room kept for the text box and header
 export const END_ANIM_MS = 1400; // blasting off / fainting animation on mate

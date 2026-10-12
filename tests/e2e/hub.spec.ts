@@ -23,9 +23,11 @@ for (const size of [{ width: 360, height: 640 }, { width: 1280, height: 800 }]) 
       await expect(tile.locator('.tile-sub'), id).toBeVisible();
       expect((await tile.locator('.tile-sub').textContent())!.length, id).toBeGreaterThan(10);
     }
-    // One column at every width (§B16 addendum): every tile starts at the same x.
-    const boxes = await Promise.all(TILES.map((id) => page.getByTestId(id).boundingBox()));
-    expect(new Set(boxes.map((b) => Math.round(b!.x))).size).toBe(1);
+    // One column per zone (§B16 addendum); W2 sets the zones side by side when the window is wide enough.
+    for (const zone of await page.locator('.hub-zone').all()) {
+      const xs = await zone.locator('.tile').evaluateAll((ts) => ts.map((t) => Math.round(t.getBoundingClientRect().x)));
+      expect(new Set(xs).size).toBe(1);
+    }
     // No mascots; item icons load; the five original pixel icons are drawn; one static Oak in the Journey header.
     await expect(page.locator('.tile-mascot, .tile img[data-species]')).toHaveCount(0);
     // Item icons come from one preloaded sheet (load fix).

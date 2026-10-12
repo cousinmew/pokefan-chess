@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, YELLOW_BOARD_PX, type AiLevel } from './config';
 import { Board } from './board/board';
 import { SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { Overlay } from './battle/overlay';
@@ -304,7 +304,7 @@ function boot(): App {
   const plates = new Plates();
   main.append(plates.top, boardWrap, plates.bottom, legend.el, online.bar, puzzle.bar, path.bar);
   plates.attachText(text.el); // your plate and the text box are one bar (change A)
-  const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar], start: startBtn.inBar });
+  const fitter = new Fitter({ header, main, board: boardWrap, legend: legend.el, others: [plates.top, plates.bottom, online.bar, puzzle.bar, path.bar], bars: [puzzle.bar, path.bar], start: startBtn.inBar, minBoard: () => (yellow() ? YELLOW_BOARD_PX : 0) });
   /** Story stage and trainers (§B18 items 5 and 8). Online, each side brings its own look from the relay. */
   const look = () => (isGuest() ? { stage: 2 as const, trainer: 'red' as const } : myLook(!yellow(), journey.campaign.badges.length));
   let looks: Partial<Record<Color, Look>> = {};

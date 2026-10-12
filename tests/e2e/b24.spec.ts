@@ -41,13 +41,17 @@ for (const [w, h] of [[1440, 900], [360, 640]] as const) {
     }
     // The status text stays centred over the board.
     expect(Math.abs(turn.x + turn.width / 2 - (board.x + board.width / 2))).toBeLessThanOrEqual(w > h ? 4 : 40);
-    // Name and title on one line, the title whole, no stray separator.
+    // The name is never shortened (W2, R7): narrow, name and title share a line, or the title goes when there is no
+    // room for both; wide, the title sits whole under the name.
     for (const plate of ['plate-top', 'plate-bottom']) {
       const name = page.getByTestId(plate).locator('.plate-name');
+      expect(await name.locator('b').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), plate).toBe(true);
+      if (await page.getByTestId(plate).evaluate((e) => e.classList.contains('no-title'))) continue;
       const b = await name.locator('b').boundingBox();
       const t = await name.locator('.plate-title').boundingBox();
       const who = await page.getByTestId(plate).locator('.plate-who').boundingBox();
-      expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
+      if (w > h) expect(t!.y).toBeGreaterThanOrEqual(b!.y + b!.height - 1);
+      else expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
       expect(t!.x + t!.width).toBeLessThanOrEqual(who!.x + who!.width + 1);
       expect(await name.locator('.plate-title').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
     }
