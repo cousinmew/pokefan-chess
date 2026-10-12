@@ -74,8 +74,8 @@ export function useProfile(n: number): void {
 
 /** Boot: the slot list (slot 1 on a new device), and old style kc:v1:<key> data moved into the current slot.
  * That migrates a save from before profiles into slot 1 once, without losing anything. `abandoned(n)` says a save
- * is an empty one left behind (no progress, not a NEW GAME being made): it is dropped while another save remains,
- * and when it was the current one the first remaining save loads instead (playtest, 12 Oct). */
+ * is a NEW GAME left empty (profiles.ts bootSaves decides; a save it has no note for never is): it is dropped while
+ * another save remains, and when it was the current one the first remaining save loads instead (playtest, 12 Oct). */
 export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
   const m = readMeta() ?? { slots: [1], current: 1 };
   if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;

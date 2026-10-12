@@ -2,10 +2,11 @@
 // Save slot controller (§B18 item 2). Switching player reloads the page, so every module starts clean on the new
 // slot's data; a session flag skips the picker on that reload.
 import type { Campaign } from './campaign/kanto';
-import { DEX } from './campaign/kanto';
+import { DEX, solvedBefore } from './campaign/kanto';
 import { goalLine, journeyState } from './campaign/journey';
+import type { Trainer } from './campaign/trainer';
 import { fmt } from './game/text';
-import { clearProfile, loadFrom, MAX_SLOTS, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
+import { bootProfiles, clearProfile, loadFrom, MAX_SLOTS, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
 
 const PICKED = 'kc:v1:picked';
@@ -52,11 +53,16 @@ export const playTime = (ms = 0) => `${Math.floor(ms / 3_600_000)}:${String(Math
 export const needsPicker = () => meta().slots.length > 1 && !session();
 
 /** A save worth CONTINUE, a summary box and a place in SWITCH TRAINER (playtest, 12 Oct): a game in progress, a
- * starter, a name, a YELLOW lesson or win, a game played, a Two Players win or anything caught. Picking a cartridge
- * alone is not progress, so a brand-new device shows only NEW GAME, PLAY CHESS and OPTION. */
+ * starter, a name, a YELLOW lesson or win, a game played, a Two Players win, anything caught, and anything else
+ * earned (data loss review): the MEIR code, a puzzle result, a badge, a trainer beaten or a route solve. Picking a
+ * cartridge, settings, a language or an intro seen are not progress, so a brand-new device shows only NEW GAME, PLAY
+ * CHESS and OPTION. */
 export function hasProgress(n: number): boolean {
   const c = loadFrom<Partial<Campaign>>(n, 'campaign');
   const g = loadFrom<{ pgn?: unknown; fen?: unknown }>(n, 'game');
+  // 'trainer' holds the MEIR code, or the puzzle record (the first Puzzles mode had no name, starter or catches).
+  const t = loadFrom<'meir' | Partial<Trainer>>(n, 'trainer');
+  const puzzles = typeof t === 'object' && t ? (t.solved ?? 0) + (t.missed ?? 0) + (t.assisted ?? 0) : 0;
   return (
     (!!g && typeof g.pgn === 'string' && typeof g.fen === 'string') ||
     !!c?.starter ||
@@ -67,7 +73,11 @@ export function hasProgress(n: number): boolean {
     (c?.yellowWins ?? 0) > 0 ||
     (loadFrom<number>(n, 'gamesPlayed') ?? 0) > 0 ||
     (loadFrom<number>(n, 'duoWins') ?? 0) > 0 ||
-    Object.values(c?.caught ?? {}).some((x) => x > 0)
+    Object.values(c?.caught ?? {}).some((x) => x > 0) ||
+    t === 'meir' ||
+    puzzles > 0 ||
+    !!c?.badges?.length ||
+    solvedBefore(c)
   );
 }
 
@@ -95,11 +105,11 @@ export function summaries(all = false): SlotSummary[] {
 // reloads does nothing, so a double tap can't make two saves.
 let leaving = false;
 
-/** Loads save n by reloading the page. Any unfinished NEW GAME ends here, unless this reload starts it. */
+/** Loads save n by reloading the page. Any unfinished NEW GAME is left here, unless this reload starts it. */
 export function switchTo(n: number, intent: Intent | null = null): void {
   if (leaving) return;
   leaving = true;
-  if (intent !== 'newgame') endCreating();
+  if (intent !== 'newgame') leaveCreating();
   const m = meta();
   if (m.slots.includes(n)) writeMeta({ ...m, current: n });
   session(true);
@@ -126,22 +136,32 @@ function creating(): { from: number; slot: number } | null {
   const [from, slot] = (session2() ?? '').split(':').map(Number);
   return from && slot ? { from, slot } : null;
 }
-// The session flag is this tab's own. Another tab booting must not drop a save this one is still making (review fix),
-// so the device keeps a note too: save slot to when its NEW GAME started, cleared on confirm or BACK. A note older
-// than NEW_GAME_HOLD_MS is from a tab that was closed mid NEW GAME, and boot may drop that save again.
+// The session flag is this tab's own, so the device keeps a note too (review fix): save slot to when its NEW GAME
+// started, written only when NEW GAME adds or wipes the slot (a save it reuses in place keeps the note it has, renewed).
+// Boot drops a save only through its note (data loss review, 12 Oct): a save without one, so every save from before,
+// is never dropped, whatever it holds. A note younger than NEW_GAME_HOLD_MS is a NEW GAME some tab is still making;
+// an older one is a tab closed mid NEW GAME. Leaving a NEW GAME unfinished (a switch, or BACK on a save it reused)
+// dates the note 0, so the next boot drops that save if it is still empty; the starter, YELLOW, or BACK dropping the
+// save clear the note.
 const NEW_GAMES = 'newGames';
 export const NEW_GAME_HOLD_MS = 30 * 60 * 1000;
 const newGames = (): Record<string, number> => readDevice<Record<string, number>>(NEW_GAMES) ?? {};
-function noteNewGame(slot: number, on: boolean): void {
+/** Dates save n's note, or clears it (null). */
+function noteNewGame(slot: number, at: number | null): void {
   const notes = newGames();
-  if (on) notes[slot] = Date.now();
-  else delete notes[slot];
+  if (at === null) delete notes[slot];
+  else notes[slot] = at;
   if (Object.keys(notes).length) writeDevice(NEW_GAMES, notes);
   else removeDevice(NEW_GAMES);
 }
+const noted = (n: number): boolean => typeof newGames()[n] === 'number';
 /** Save n is being made by NEW GAME in some tab of this device (this one or another), started recently. */
 export const beingMade = (n: number, now = Date.now()): boolean => now - (newGames()[n] ?? -Infinity) < NEW_GAME_HOLD_MS;
-const beginCreating = (from: number, slot: number) => (session2(`${from}:${slot}`), noteNewGame(slot, true));
+/** `made`: NEW GAME added or wiped the slot, so it gets a note. */
+function beginCreating(from: number, slot: number, made: boolean): void {
+  session2(`${from}:${slot}`);
+  if (made || noted(slot)) noteNewGame(slot, Date.now());
+}
 /** A NEW GAME is unnamed and it is save n (the current one by default): BACK, Escape and B drop it. */
 export const isCreating = (n = meta().current): boolean => creating()?.slot === n;
 /** The NEW GAME reuses the current empty save in place (a fresh device, §B22 item 2): nothing to drop on BACK. */
@@ -149,25 +169,32 @@ export const creatingInPlace = (): boolean => {
   const c = creating();
   return !!c && c.from === c.slot && c.slot === meta().current;
 };
-/** The starter is chosen: the new save is real now (and other tabs may drop it again if it is ever left empty). */
+/** The starter is chosen (or YELLOW): the new save is real now and its note goes, so boot never drops it. */
 export function endCreating(): void {
   const c = creating();
-  if (c) noteNewGame(c.slot, false);
+  if (c) noteNewGame(c.slot, null);
+  session2(null);
+}
+/** This tab leaves its NEW GAME unfinished: a save NEW GAME made is dated 0, for the next boot to drop if empty. */
+export function leaveCreating(): void {
+  const c = creating();
+  if (c && noted(c.slot)) noteNewGame(c.slot, 0);
   session2(null);
 }
 /** BACK during NEW GAME: the unnamed save is dropped and the start menu of the previous save comes back. Does
- * nothing (but forget the flag) unless the save being created is the current one. */
+ * nothing (but leave the NEW GAME) unless the save being created is the current one. */
 export function abandonNewGame(): void {
   const c = creating();
   const m = meta();
   if (leaving) return;
-  if (!c || c.slot !== m.current) return endCreating();
-  endCreating();
+  if (!c || c.slot !== m.current) return leaveCreating();
   if (c.from === c.slot) {
-    // A reused empty save: forget the cartridge and the intro; boot drops the save if others exist.
-    for (const key of ['cartridge', 'campaign']) removeFrom(c.slot, key);
+    // A reused empty save: forget the cartridge, the intro and a MEIR code typed on the way (it had no progress
+    // before). The switch dates its note, if NEW GAME made it, so boot drops it while others exist; else it stays.
+    for (const key of ['cartridge', 'campaign', 'trainer']) removeFrom(c.slot, key);
     return switchTo(c.slot, 'menu');
   }
+  endCreating();
   clearProfile(c.slot);
   const slots = m.slots.filter((x) => x !== c.slot);
   const back = slots.includes(c.from) ? c.from : (slots[0] ?? 1);
@@ -178,7 +205,7 @@ export function abandonNewGame(): void {
 /** NEW GAME with all 4 slots in use: this save is wiped and a new game starts in its place (after a 2 s hold). */
 export function replaceProfile(n: number): void {
   if (leaving) return;
-  beginCreating(meta().current, n);
+  beginCreating(meta().current, n, true);
   clearProfile(n);
   switchTo(n, 'newgame');
 }
@@ -188,7 +215,7 @@ export function replaceProfile(n: number): void {
 export function reuseEmpty(): boolean {
   const n = meta().current;
   if (leaving || hasProgress(n)) return false;
-  beginCreating(n, n);
+  beginCreating(n, n, false);
   return true;
 }
 
@@ -197,15 +224,25 @@ export function addProfile(): void {
   if (leaving) return;
   const m = meta();
   if (!hasProgress(m.current)) {
-    beginCreating(m.current, m.current);
+    beginCreating(m.current, m.current, false);
     return switchTo(m.current, 'newgame');
   }
   const n = [1, 2, 3, 4].find((x) => !m.slots.includes(x));
   if (!n || m.slots.length >= MAX_SLOTS) return;
   clearProfile(n);
   writeMeta({ slots: [...m.slots, n].sort(), current: m.current });
-  beginCreating(m.current, n);
+  beginCreating(m.current, n, true);
   switchTo(n, 'newgame');
+}
+
+/** Boot: the slot list, dropping only a save NEW GAME made and left empty (data loss review, 12 Oct): it has a note
+ * older than the hold, it is not this tab's NEW GAME and it has no progress; the last save always stays (bootProfiles).
+ * Notes go with their saves, and from a save with progress once nobody is making it (named, then its tab closed). */
+export function bootSaves(now = Date.now()): ProfileMeta {
+  const idle = (n: number) => !beingMade(n, now) && !isCreating(n);
+  const m = bootProfiles((n) => noted(n) && idle(n) && !hasProgress(n));
+  for (const n of Object.keys(newGames()).map(Number)) if (!m.slots.includes(n) || (idle(n) && hasProgress(n))) noteNewGame(n, null);
+  return m;
 }
 
 export function renameProfile(n: number, name: string): void {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Playtest 12 Oct (W1): which saves count as progress, the NEW GAME "creating" flag, the double tap latch, and boot
-// dropping an empty save left behind.
+// dropping only a NEW GAME left empty (data loss review: never a save from before, whatever it holds).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = new Map<string, string>();
@@ -32,11 +32,14 @@ beforeEach(() => {
 });
 
 describe('hasProgress', () => {
-  it('a cartridge alone, or an intro seen, is not progress', async () => {
+  it('a cartridge, settings, a language or an intro seen are not progress', async () => {
     const { hasProgress } = await fresh();
     expect(hasProgress(1)).toBe(false);
     set('p1:cartridge', 'blue');
-    set('p1:campaign', { introSeen: true, caught: {}, path: 0, playMs: 0 });
+    set('p1:campaign', { introSeen: true, caught: {}, path: 0, playMs: 0, badges: [], routes: { route1: { last: [false], streak: 0 } } });
+    set('p1:settings', { v: 2, sound: false, anim: 'off' });
+    set('p1:lang', 'de');
+    set('p1:yellowAnim', true);
     expect(hasProgress(1)).toBe(false);
   });
 
@@ -49,6 +52,12 @@ describe('hasProgress', () => {
     ['a game played', 'gamesPlayed', 1],
     ['a Two Players win', 'duoWins', 2],
     ['a game in progress', 'game', { fen: '8/8/8/8/8/8/8/K6k w - - 0 1', pgn: '' }],
+    // Data loss review: everything else a player earns.
+    ['the MEIR code', 'trainer', 'meir'],
+    ['a puzzle result', 'trainer', { rating: { r: 1450, rd: 200, vol: 0.06 }, solved: 0, missed: 1, assisted: 0, seen: ['00sHx'] }],
+    ['a badge', 'campaign', { badges: ['boulder'] }],
+    ['a trainer beaten', 'campaign', { journey: { cleared: [], beaten: ['route1-youngster'], visited: [] } }],
+    ['a route solve', 'campaign', { routes: { route1: { last: [true], streak: 1 } } }],
   ])('%s is progress', async (_, key, value) => {
     const { hasProgress } = await fresh();
     set(`p2:${key}`, value);
@@ -73,7 +82,7 @@ describe('hasProgress', () => {
 });
 
 describe('NEW GAME and BACK', () => {
-  it('NEW GAME on an empty save reuses it: no new slot', async () => {
+  it('NEW GAME on an empty save reuses it: no new slot, and no note (it is not NEW GAME\'s own)', async () => {
     const { bootProfiles, addProfile, reuseEmpty, isCreating } = await fresh();
     set('p1:cartridge', 'blue');
     bootProfiles();
@@ -81,6 +90,7 @@ describe('NEW GAME and BACK', () => {
     expect(isCreating()).toBe(true);
     addProfile();
     expect(meta()).toEqual({ slots: [1], current: 1 });
+    expect(store.has('kc:v1:dev:newGames')).toBe(false);
   });
 
   it('a double tap on NEW GAME makes one save', async () => {
@@ -137,74 +147,129 @@ describe('NEW GAME and BACK', () => {
 });
 
 describe('boot', () => {
-  const abandoned = (m: Awaited<ReturnType<typeof fresh>>) => (n: number) => !m.hasProgress(n) && !m.isCreating(n);
+  const HOLD = 30 * 60 * 1000;
+  const note = (n: Record<number, number>) => set('dev:newGames', n);
+  const notes = () => JSON.parse(store.get('kc:v1:dev:newGames') ?? 'null') as Record<string, number> | null;
+  /** ASH's device, NEW GAME tapped (slot 2, BLUE picked, no name yet) and the page reloaded. */
+  const newGameFromAsh = async () => {
+    store.clear();
+    session.clear();
+    let m = await fresh();
+    set('profiles', { slots: [1], current: 1 });
+    set('p1:campaign', { name: 'ASH' });
+    m.bootSaves();
+    m.addProfile();
+    m = await fresh();
+    m.bootSaves();
+    m.saveTo(2, 'cartridge', 'blue');
+    return m;
+  };
 
-  it('drops an empty current save when others exist', async () => {
+  it('never drops a save from before, whatever it holds: settings, a language, the MEIR code (data loss review)', async () => {
     const m = await fresh();
-    set('profiles', { slots: [1, 2], current: 2 });
+    set('profiles', { slots: [1, 2, 3, 4], current: 2 });
     set('p1:campaign', { name: 'ASH' });
     set('p2:cartridge', 'blue');
-    expect(m.bootProfiles(abandoned(m))).toEqual({ slots: [1], current: 1 });
-    expect(store.has('kc:v1:p2:cartridge')).toBe(false);
+    set('p2:settings', { v: 2, sound: false });
+    set('p2:lang', 'de');
+    set('p3:trainer', 'meir');
+    set('p4:campaign', { introSeen: true });
+    const before = JSON.stringify([...store].sort());
+    // The sweep before this review dropped 2, 3 and 4 here.
+    expect(m.bootSaves()).toEqual({ slots: [1, 2, 3, 4], current: 2 });
+    expect(JSON.stringify([...store].sort())).toBe(before);
+    expect(m.currentSlot()).toBe(2);
+  });
+
+  it('drops a NEW GAME left empty once its note is stale, current or not, and clears the note', async () => {
+    const m = await fresh();
+    set('profiles', { slots: [1, 2, 3], current: 3 });
+    set('p1:campaign', { name: 'ASH' });
+    set('p2:cartridge', 'blue');
+    set('p3:campaign', { introSeen: true });
+    note({ 2: Date.now() - HOLD - 1, 3: 0 });
+    expect(m.bootSaves()).toEqual({ slots: [1], current: 1 });
+    expect([...store.keys()].filter((k) => /^kc:v1:p[23]:/.test(k))).toEqual([]);
+    expect(notes()).toBeNull();
     expect(m.currentSlot()).toBe(1);
   });
 
-  it('drops an empty save left behind that is not current, too', async () => {
-    const m = await fresh();
-    set('profiles', { slots: [1, 2, 3], current: 2 });
-    set('p1:campaign', { name: 'ASH' });
-    set('p2:campaign', { name: 'SKY' });
-    set('p3:cartridge', 'blue');
-    expect(m.bootProfiles(abandoned(m))).toEqual({ slots: [1, 2], current: 2 });
-  });
-
-  it('keeps it while it is being created, and keeps a lone empty save', async () => {
+  it("keeps a fresh note's save (another tab is making it), this tab's own, a named one, and the last save", async () => {
     let m = await fresh();
-    set('profiles', { slots: [1, 2], current: 2 });
+    set('profiles', { slots: [1, 2, 3, 4], current: 4 });
     set('p1:campaign', { name: 'ASH' });
-    session.set('kc:v1:creating', '1:2');
-    expect(m.bootProfiles(abandoned(m))).toEqual({ slots: [1, 2], current: 2 });
+    set('p2:cartridge', 'blue'); // another tab's NEW GAME, a minute old
+    set('p3:campaign', { name: 'SKY' }); // named, then its tab was closed
+    set('p4:cartridge', 'blue'); // this tab's NEW GAME, older than the hold
+    session.set('kc:v1:creating', '1:4');
+    const old = Date.now() - HOLD - 1;
+    note({ 2: Date.now() - 60_000, 3: old, 4: old });
+    expect(m.bootSaves()).toEqual({ slots: [1, 2, 3, 4], current: 4 });
+    expect(Object.keys(notes() ?? {})).toEqual(['2', '4']); // SKY's save is real: its note went
     store.clear();
     session.clear();
     m = await fresh();
     set('p1:cartridge', 'blue');
-    expect(m.bootProfiles(abandoned(m))).toEqual({ slots: [1], current: 1 });
+    note({ 1: 0 });
+    expect(m.bootSaves()).toEqual({ slots: [1], current: 1 });
     expect(store.has('kc:v1:p1:cartridge')).toBe(true);
   });
 
-  it('another tab booting keeps a save this tab is still making, until the name is confirmed (review fix)', async () => {
+  it('another tab booting keeps a save this tab is still making, until the hold is over (review fix)', async () => {
     const tabA = await fresh();
     set('profiles', { slots: [1], current: 1 });
     set('p1:campaign', { name: 'ASH' });
-    tabA.bootProfiles();
+    tabA.bootSaves();
     tabA.addProfile(); // slot 2, still unnamed
     tabA.saveTo(2, 'cartridge', 'blue');
     // Tab B: its own session storage, the same device storage.
     session.clear();
-    const tabB = await fresh();
-    const gone = (n: number) => !tabB.hasProgress(n) && !tabB.isCreating(n) && !tabB.beingMade(n);
-    expect(tabB.bootProfiles(gone).slots).toEqual([1, 2]);
+    let tabB = await fresh();
+    expect(tabB.bootSaves().slots).toEqual([1, 2]);
     expect(store.has('kc:v1:p2:cartridge')).toBe(true);
     // Half an hour later the note is stale (a tab closed mid NEW GAME): the empty save goes.
-    expect(tabB.beingMade(2, Date.now() + tabB.NEW_GAME_HOLD_MS + 1)).toBe(false);
+    tabB = await fresh();
+    expect(tabB.bootSaves(Date.now() + HOLD + 1)).toEqual({ slots: [1], current: 1 });
+    expect(store.has('kc:v1:p2:cartridge')).toBe(false);
+    expect(notes()).toBeNull();
   });
 
-  it('confirming the name or BACK clears the device note', async () => {
+  it('the starter or BACK clears the note; leaving another way dates it, and the next boot drops the save (bugs #2)', async () => {
+    let m = await newGameFromAsh();
+    expect(m.beingMade(2)).toBe(true);
+    m.saveTo(2, 'campaign', { name: 'JO', starter: 'squirtle' });
+    m.endCreating(); // the starter
+    expect(notes()).toBeNull();
+    m = await newGameFromAsh();
+    m.abandonNewGame(); // ◀ BACK
+    expect(notes()).toBeNull();
+    expect(meta()).toEqual({ slots: [1], current: 1 });
+    m = await newGameFromAsh();
+    m.switchTo(1, 'continue'); // SWITCH TRAINER back to ASH, the new save unnamed
+    expect(notes()).toEqual({ 2: 0 });
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1], current: 1 });
+    expect(notes()).toBeNull();
+  });
+
+  it('BACK on a reused save forgets what NEW GAME wrote; boot drops it only when NEW GAME made it', async () => {
     let m = await fresh();
-    set('profiles', { slots: [1], current: 1 });
+    set('profiles', { slots: [1, 2], current: 2 });
     set('p1:campaign', { name: 'ASH' });
-    m.bootProfiles();
-    m.addProfile();
-    m = await fresh();
-    m.bootProfiles();
-    expect(m.beingMade(2)).toBe(true);
-    m.endCreating();
-    expect(m.beingMade(2)).toBe(false);
-    m.addProfile(); // slot 2 has no progress: reused in place
-    m = await fresh();
-    m.bootProfiles();
-    expect(m.beingMade(2)).toBe(true);
+    set('p2:settings', { v: 2, sound: false });
+    m.bootSaves();
+    expect(m.reuseEmpty()).toBe(true);
+    m.saveTo(2, 'cartridge', 'blue');
+    m.saveTo(2, 'trainer', 'meir'); // the MEIR code on the shelf
     m.abandonNewGame();
-    expect(m.beingMade(2)).toBe(false);
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 2 }); // a save from before: kept, as it was
+    expect(m.profileData(2)).toEqual({ settings: { v: 2, sound: false } });
+    // A reload in the middle of a NEW GAME reuses its save in place; BACK then leaves it for boot.
+    m = await newGameFromAsh();
+    expect(m.reuseEmpty()).toBe(true);
+    m.abandonNewGame();
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1], current: 1 });
   });
 });

@@ -7,7 +7,7 @@ import type { Color, TeamSkin } from './board/pieces';
 import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
-import { abandonNewGame, addProfile, creatingInPlace, endCreating, deleteProfile, hasProgress, isCreating, isFull, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
+import { abandonNewGame, addProfile, creatingInPlace, deleteProfile, hasProgress, isCreating, isFull, leaveCreating, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
 import { currentSlot, loadFrom } from './store/persist';
 import { button, el, screen } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
@@ -86,8 +86,8 @@ export class StartFlow {
     if (!['screen-shelf', 'screen-intro', 'screen-name'].includes(id) || !isCreating()) return;
     view.querySelector('[data-testid="back"]')?.remove(); // one back control on the name step (ux #14)
     // The shelf of a fresh device's empty save: nothing chosen yet, so BACK shows the menu in place, with no reload
-    // through the splash (playtest, 12 Oct).
-    const back = () => (id === 'screen-shelf' && !this.host.hasCart() && creatingInPlace() ? (endCreating(), this.menu()) : abandonNewGame());
+    // through the splash (playtest, 12 Oct). Left, not ended: a save NEW GAME made stays droppable at boot.
+    const back = () => (id === 'screen-shelf' && !this.host.hasCart() && creatingInPlace() ? (leaveCreating(), this.menu()) : abandonNewGame());
     view.prepend(button('newgame.back', back, 'newgame-back', 'newgame-back'));
     view.classList.add('has-newgame-back');
     const onKey = (e: KeyboardEvent) => {

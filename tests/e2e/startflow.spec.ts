@@ -178,7 +178,8 @@ test('PLAY CHESS: straight into a game as a guest; nothing is saved and the Jour
 });
 
 // Playtest 12 Oct (W1): CONTINUE only with progress, first launch straight into the new game, NEW GAME reusing an
-// empty save, BACK that can only drop the save being made, empty saves dropped at boot, and the double tap latch.
+// empty save, BACK that can only drop the save being made, a NEW GAME left empty dropped at boot (never a save from
+// before, data loss review), and the double tap latch.
 const profiles = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:profiles') ?? 'null'));
 const menuItems = (page: Page) => page.locator('[data-testid^="start-"].start-item').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
 /** Seeds exactly these keys once per test (no old style keys, which would move into the current save). */
@@ -256,13 +257,18 @@ test('CONTINUE names the save', async ({ page }) => {
   await expect(page.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
 });
 
-test('an empty save left behind is dropped at boot; SWITCH TRAINER never lists one', async ({ page }) => {
-  await seedRaw(page, { 'kc:v1:profiles': { slots: [1, 2, 3], current: 2 }, 'kc:v1:p1:cartridge': 'blue', 'kc:v1:p1:campaign': camp, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p3:campaign': { introSeen: true } });
+test('a NEW GAME left empty is dropped at boot, a save from before never is; SWITCH TRAINER lists neither', async ({ page }) => {
+  // Saves 2 and 3: NEW GAMEs left unnamed, their device notes older than the 30 minute hold. Save 4 is from before
+  // the notes, with only a cartridge, settings and a language: it stays (data loss review).
+  const notes = { 2: Date.now() - 31 * 60_000, 3: 0 };
+  const save4 = { 'kc:v1:p4:cartridge': 'blue', 'kc:v1:p4:settings': { v: 2, sound: false }, 'kc:v1:p4:lang': 'de' };
+  await seedRaw(page, { 'kc:v1:profiles': { slots: [1, 2, 3, 4], current: 2 }, 'kc:v1:p1:cartridge': 'blue', 'kc:v1:p1:campaign': camp, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p3:campaign': { introSeen: true }, ...save4, 'kc:v1:dev:newGames': notes });
   await startMenu(page);
   await expect(page.getByTestId('start-summary-name')).toHaveText('JADE');
   await expect(page.getByTestId('start-switch')).toHaveCount(0);
-  expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
-  expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => /^kc:v1:p[23]:/.test(k)))).toEqual([]);
+  expect(await profiles(page)).toEqual({ slots: [1, 4], current: 1 });
+  expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => /^kc:v1:(p[23]:|dev:newGames)/.test(k)))).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('kc:v1:p4:lang'))).toBe('"de"');
 });
 
 test('bugs #2: a NEW GAME left unnamed can no longer delete another save', async ({ page }) => {
