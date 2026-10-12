@@ -139,7 +139,8 @@ test('Enter advances a story box and a trainer card like a tap, and never opens 
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('goal-card')).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('puzzle-banner')).toContainText('Goal:');
+  await expect(page.getByTestId('goal-card')).toBeHidden();
+  await expect(page.getByTestId('puzzle-banner')).toContainText('need'); // the goal itself is in the header (W3)
   await expect(page.getByTestId('start-overlay')).toHaveCount(0);
 });
 

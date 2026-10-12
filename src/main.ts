@@ -308,7 +308,7 @@ function boot(): App {
       modal.hidden = true;
       modal.onclick = null;
       modal.replaceChildren();
-      if (lookOf('w') !== 'w') applyLooks({ w: look(), b: look() }, 'w'); // W3: menus read the default teams by colour
+      if (view !== gameView && lookOf('w') !== 'w') applyLooks({ w: look(), b: look() }, 'w'); // W3: menus read the default teams by colour
     }
     if (view === gameView) music.play('board');
     stage.replaceChildren(view);

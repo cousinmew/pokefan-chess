@@ -86,6 +86,8 @@ test.describe('iPhone Safari', () => {
 test.describe('getting ready for offline', () => {
   test.use({ serviceWorkers: 'allow' });
   test('after install the core files are cached, so the first offline launch has the engine and puzzles', async ({ page, context }) => {
+    // A returning player: a cartridge alone is no progress, and the first launch would go straight into NEW GAME.
+    await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ name: 'ASH' })));
     await page.goto('./');
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
