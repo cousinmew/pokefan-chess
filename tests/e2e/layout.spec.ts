@@ -203,6 +203,7 @@ test('@both W2: the game, a puzzle review and its Continue fit every window', as
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await page.waitForTimeout(300);
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
