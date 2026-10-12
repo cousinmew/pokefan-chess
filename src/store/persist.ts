@@ -62,6 +62,7 @@ export const readMeta = () => parse<ProfileMeta>(get(META));
 /** Device level values (kc:v1:dev:<key>), shared by every save: the feedback waiting to send (§B23 item 2). */
 export const readDevice = <T>(key: string): T | null => parse<T>(get(`${STORAGE_NS}dev:${key}`));
 export const writeDevice = (key: string, value: unknown) => set(`${STORAGE_NS}dev:${key}`, JSON.stringify(value));
+export const removeDevice = (key: string) => drop(`${STORAGE_NS}dev:${key}`);
 export const writeMeta = (m: ProfileMeta) => set(META, JSON.stringify(m));
 export const currentSlot = () => slot;
 

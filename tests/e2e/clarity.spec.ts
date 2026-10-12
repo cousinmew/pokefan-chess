@@ -130,6 +130,47 @@ test('the coach marks show once per save, and Escape skips them', async ({ page 
   expect((await save(page)).puzzlesStarted).toBe(2);
 });
 
+/** Each side's pieces as "square:alt", and the Who's who team name over each colour's entries. */
+const sides = (page: Page) =>
+  page.evaluate(() => ({
+    pieces: [...document.querySelectorAll<HTMLElement>('#board .sq[data-piece]')].map((e) => `${e.dataset.square}:${e.querySelector('img.piece')?.getAttribute('alt')}`).sort(),
+    teams: [...document.querySelectorAll('[data-testid="legend"] .legend-team')].map((r) => `${r.querySelector('.legend-team-name')?.textContent}:${(r.querySelector<HTMLElement>('.legend-item')?.dataset.testid ?? '').slice(7, 8)}`),
+  }));
+
+test('black to move puzzle: START → OPTION → Back keeps your team and theirs (review regression)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await toRoute1(page, { ...SAVE, tips: ['puzzle'] });
+  await startTrainer(page);
+  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
+  const before = await sides(page);
+  // You play black: your starter is the king on g7, PIKACHU stands where the story team had BULBASAUR (f6, dark).
+  expect(before.pieces).toEqual(['a4:SNORLAX', 'd7:ZUBAT', 'f5:SANDSLASH', 'f6:PIKACHU', 'g7:BULBASAUR', 'h4:RATTATA', 'h5:RATICATE']);
+  expect(before.teams).toEqual(['TEAM RED:b', 'TEAM ROCKET:w']);
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-option').click();
+  await expect(page.getByTestId('screen-settings')).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  expect(await sides(page)).toEqual(before);
+  await expect(page.locator('[data-square="g7"] .ground')).toHaveClass(/ground-w/);
+});
+
+test('coach marks close when the game screen is left: Escape on OPTION goes back at once (review fix)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await toRoute1(page, SAVE);
+  await startTrainer(page);
+  await expect(page.getByTestId('coach')).toBeVisible();
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-option').click();
+  await expect(page.getByTestId('screen-settings')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  await expect(page.getByTestId('coach')).toBeHidden();
+  // The board takes taps again, and no bubble comes back for the set up move.
+  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
+  await expect(page.getByTestId('coach')).toBeHidden();
+});
+
 test('a save that already beat trainers says "Your turn!" and shows no coach marks', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await toRoute1(page, { ...SAVE, journey: { cleared: [], beaten: ['r1-toby'], visited: ['route-1'] } });

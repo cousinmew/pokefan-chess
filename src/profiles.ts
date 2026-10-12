@@ -5,7 +5,7 @@ import type { Campaign } from './campaign/kanto';
 import { DEX } from './campaign/kanto';
 import { goalLine, journeyState } from './campaign/journey';
 import { fmt } from './game/text';
-import { clearProfile, loadFrom, MAX_SLOTS, readMeta, removeFrom, saveTo, writeMeta, type ProfileMeta } from './store/persist';
+import { clearProfile, loadFrom, MAX_SLOTS, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
 
 const PICKED = 'kc:v1:picked';
@@ -126,11 +126,30 @@ function creating(): { from: number; slot: number } | null {
   const [from, slot] = (session2() ?? '').split(':').map(Number);
   return from && slot ? { from, slot } : null;
 }
-const beginCreating = (from: number, slot: number) => void session2(`${from}:${slot}`);
+// The session flag is this tab's own. Another tab booting must not drop a save this one is still making (review fix),
+// so the device keeps a note too: save slot to when its NEW GAME started, cleared on confirm or BACK. A note older
+// than NEW_GAME_HOLD_MS is from a tab that was closed mid NEW GAME, and boot may drop that save again.
+const NEW_GAMES = 'newGames';
+export const NEW_GAME_HOLD_MS = 30 * 60 * 1000;
+const newGames = (): Record<string, number> => readDevice<Record<string, number>>(NEW_GAMES) ?? {};
+function noteNewGame(slot: number, on: boolean): void {
+  const notes = newGames();
+  if (on) notes[slot] = Date.now();
+  else delete notes[slot];
+  if (Object.keys(notes).length) writeDevice(NEW_GAMES, notes);
+  else removeDevice(NEW_GAMES);
+}
+/** Save n is being made by NEW GAME in some tab of this device (this one or another), started recently. */
+export const beingMade = (n: number, now = Date.now()): boolean => now - (newGames()[n] ?? -Infinity) < NEW_GAME_HOLD_MS;
+const beginCreating = (from: number, slot: number) => (session2(`${from}:${slot}`), noteNewGame(slot, true));
 /** A NEW GAME is unnamed and it is save n (the current one by default): BACK, Escape and B drop it. */
 export const isCreating = (n = meta().current): boolean => creating()?.slot === n;
 /** The name is confirmed: the new save is real now. */
-export const endCreating = () => void session2(null);
+export function endCreating(): void {
+  const c = creating();
+  if (c) noteNewGame(c.slot, false);
+  session2(null);
+}
 /** BACK during NEW GAME: the unnamed save is dropped and the start menu of the previous save comes back. Does
  * nothing (but forget the flag) unless the save being created is the current one. */
 export function abandonNewGame(): void {

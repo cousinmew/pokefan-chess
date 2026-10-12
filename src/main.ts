@@ -34,7 +34,7 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { endCreating, hasProgress, isCreating, slotCount, switchTo } from './profiles';
+import { beingMade, endCreating, hasProgress, isCreating, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
@@ -73,7 +73,7 @@ function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
   // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
-  bootProfiles((n) => !hasProgress(n) && !isCreating(n)); // an empty save left behind is dropped (playtest, 12 Oct)
+  bootProfiles((n) => !hasProgress(n) && !isCreating(n) && !beingMade(n)); // an empty save left behind is dropped (playtest, 12 Oct; not one another tab is making, review fix)
   registerShell();
   // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
   warmHubSheet();
@@ -310,6 +310,7 @@ function boot(): App {
       modal.hidden = true;
       modal.onclick = null;
       modal.replaceChildren();
+      if (view !== gameView) moments.coach('stop'); // the first puzzle's coach marks stay on the game screen (review fix)
       const wear = view === gameView ? red : 'w'; // W3: menus read the default teams by colour, the game its own (back from OPTION too)
       if (lookOf('w') !== wear) applyLooks({ w: look(), b: look() }, wear);
     }

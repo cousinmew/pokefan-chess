@@ -138,6 +138,10 @@ const fresh = (): Campaign => ({
   tips: [], puzzlesStarted: 0, warmup: false,
 });
 
+/** A stored save that has solved a puzzle: a trainer beaten, or a solve recorded on a route (Training, tall grass). */
+const solvedBefore = (c: Partial<Campaign> | null): boolean =>
+  !!c?.journey?.beaten?.length || Object.values(c?.routes ?? {}).some((r) => (r?.streak ?? 0) > 0 || !!r?.last?.some(Boolean));
+
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
  * every catch so far earns its candy, caught species count as seen, and a mastered route counts as cleared. */
 export function loadCampaign(): Campaign {
@@ -153,9 +157,10 @@ export function loadCampaign(): Campaign {
     // Saves from before §B14 have no teamRules: their teams are checked once below.
     teamRules: c ? (c.teamRules ?? 0) : TEAM_RULES_VERSION,
     journey: { cleared: [...(c?.journey?.cleared ?? [])], beaten: [...(c?.journey?.beaten ?? [])], visited: [...(c?.journey?.visited ?? [])] },
-    // W3: saves from before the coach marks that already beat a trainer have seen puzzles; they skip the first tips.
-    tips: [...(c?.tips ?? (c?.journey?.beaten?.length ? ['puzzle'] : []))],
-    puzzlesStarted: c?.puzzlesStarted ?? (c?.journey?.beaten?.length ? 3 : 0),
+    // W3: saves from before the coach marks that already solved a puzzle (a trainer beaten, or Training and tall grass
+    // on a route, review fix) have seen puzzles; they skip the first tips.
+    tips: [...(c?.tips ?? (solvedBefore(c) ? ['puzzle'] : []))],
+    puzzlesStarted: c?.puzzlesStarted ?? (solvedBefore(c) ? 3 : 0),
     // W5: saves from before the warm-up that already beat a Route 1 trainer, or walked Route 1, skip it.
     warmup: c?.warmup ?? (!!c?.journey?.visited?.includes(WARMUP_PLACE) || !!PLACES.find((p) => p.id === WARMUP_PLACE)?.trainers?.some((t) => c?.journey?.beaten?.includes(t.id))),
   };

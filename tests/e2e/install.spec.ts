@@ -96,13 +96,41 @@ test.describe('getting ready for offline', () => {
     await page.getByTestId('screen-splash').click();
     await page.getByRole('menuitem', { name: 'OPTION' }).click(); // without ?debug the title menu comes first
     await expect(page.getByTestId('install-box')).toBeVisible();
-    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    // Every progress line shown, in order (review fix: one warm up however often it is asked for, never back from ready).
+    await page.evaluate(() => {
+      const seen: string[] = ((window as unknown as { seen: string[] }).seen = []);
+      const box = document.querySelector('[data-testid="install-box"]')!;
+      new MutationObserver(() => {
+        const t = box.querySelector('[data-testid="install-progress"]')?.textContent;
+        if (t && seen.at(-1) !== t) seen.push(t);
+      }).observe(box, { childList: true, subtree: true, characterData: true });
+    });
+    // Accepting the prompt and appinstalled both ask for it.
+    await page.evaluate(() => (window.dispatchEvent(new Event('appinstalled')), window.dispatchEvent(new Event('appinstalled'))));
     await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline', { timeout: 30000 });
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await page.waitForTimeout(1000);
+    await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline');
+    const seen = await page.evaluate(() => (window as unknown as { seen: string[] }).seen);
+    expect(seen.at(-1)).toBe('Ready to play offline');
+    expect(seen.indexOf('Ready to play offline')).toBe(seen.length - 1);
+    const pcts = seen.slice(0, -1).map((t) => Number(/\d+/.exec(t)?.[0]));
+    expect(pcts).toEqual([...pcts].sort((a, b) => a - b));
     const { files } = (await (await page.request.get('./offline.json')).json()) as { files: string[] };
     expect(files).toContain('engine/stockfish-19-lite-single.wasm');
     expect(files.filter((f) => /^assets\/[^/]+\.js$/.test(f)).length).toBeGreaterThan(1);
+    // The starters' lines, BLUE's stage teams and Route 1's first catch are in the list (review fix): CHARIZARD 6,
+    // PONYTA 77, PIDGEY 16.
+    for (const dex of [6, 77, 16]) expect(files).toContain(`assets/cries/${dex}.ogg`);
     const missing = await page.evaluate(async (fs) => (await Promise.all(fs.map(async (f) => ((await caches.match(f)) ? null : f)))).filter(Boolean), files);
     expect(missing).toEqual([]);
+    // The worker cached them itself, the sprites into its build's own cache.
+    const inBuild = await page.evaluate(async (fs) => {
+      const key = (await caches.keys()).find((k) => k.startsWith('pfc-assets-'))!;
+      const c = await caches.open(key);
+      return (await Promise.all(fs.filter((f) => f.startsWith('assets/')).map(async (f) => !!(await c.match(f, { ignoreVary: true }))))).every(Boolean);
+    }, files);
+    expect(inBuild).toBe(true);
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByTestId('screen-splash')).toBeVisible();

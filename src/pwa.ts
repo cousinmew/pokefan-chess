@@ -49,10 +49,17 @@ export function onInstallChange(f: () => void): () => void {
   return () => watchers.delete(f);
 }
 
-/** Fetches the core files into the cache once, reporting progress to the watchers. No service worker: nothing to do. */
+let warming: Promise<void> | null = null;
+
+/** Fetches the core files into the cache once, reporting progress to the watchers. No service worker: nothing to do.
+ * One run at a time (accepting the prompt and appinstalled both ask), and once ready it stays ready (review fix). */
 export function getReadyOffline(): void {
-  if (typeof warm === 'number') return;
-  void warmUp((pct) => ((warm = pct), changed())).then((ok) => ((warm = ok ? 'ready' : null), changed()));
+  if (warm === 'ready' || warming) return;
+  warming = warmUp((pct) => ((warm = pct), changed())).then((ok) => {
+    warm = ok ? 'ready' : null;
+    warming = null;
+    changed();
+  });
 }
 
 /** Opens Chromium's install prompt; the outcome, or 'unavailable' when there is no prompt to show. */

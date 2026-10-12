@@ -19,8 +19,10 @@ export class Coach {
   private readonly text = el('p', 'coach-text');
   private queue: CoachStep[] = [];
   private current: CoachStep | null = null;
-  private readonly onTap = () => this.next();
+  // Off screen (the game screen was left), the marks close and let the key or tap through (review fix).
+  private readonly onTap = () => (this.el.isConnected ? this.next() : this.close());
   private readonly onKey = (e: KeyboardEvent) => {
+    if (!this.el.isConnected) return this.close();
     if (e.key !== 'Escape') return;
     e.preventDefault();
     e.stopPropagation();

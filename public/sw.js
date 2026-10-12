@@ -2,8 +2,8 @@
 // Offline app shell (§B18 item 2) and the sprite cache (load fix). Sprites and other files under assets/ are served
 // cache first from a cache named after the build, so a revisit shows them at once and a deploy starts fresh.
 // Everything else same origin goes to the network first, with the cache as offline fallback. The relay (another
-// origin) is never touched. Progress lives in localStorage. Install for offline play fetches offline.json's list
-// through here (src/net/offline.ts), so each copy is written before the fetch event ends (waitUntil).
+// origin) is never touched. Progress lives in localStorage. Install for offline play asks this worker to cache
+// offline.json's list (src/net/offline.ts, the message handler below).
 const BUILD = '__BUILD__';
 const CACHE = 'pfc-shell-v1';
 const SPRITES = `pfc-assets-${BUILD}`;
@@ -32,6 +32,48 @@ const keep = (e, cache, req, res) => {
   }
   return res;
 };
+
+// Getting ready for offline (review fix): the worker itself fetches offline.json's list into this build's caches, so
+// a newer worker taking over halfway can never delete what an older page warmed up. Files under assets/ that this
+// build has already are skipped; the shell is fetched again (network first, as above). The page that asked gets
+// { warm: 0..100 } as files land and { warm: 'done', ok } at the end; one run at a time, later askers join it.
+const PARALLEL = 4;
+let warming = null;
+const asked = new Set();
+const tell = (msg) => asked.forEach((c) => c.postMessage(msg));
+
+async function warmUp() {
+  const res = await fetch('offline.json', { cache: 'no-store' });
+  if (!res.ok) return false;
+  const { files } = await res.json();
+  const sprites = await caches.open(SPRITES);
+  const shell = await caches.open(CACHE);
+  let done = 0, failed = 0, next = 0;
+  const one = async (file) => {
+    const url = new URL(file, self.registration.scope).href;
+    const assets = new URL(url).pathname.includes('/assets/');
+    if (!(assets && (await sprites.match(url, ANY)))) {
+      const r = await fetch(url).catch(() => null);
+      if (r?.ok) await (assets ? sprites : shell).put(url, r);
+      else failed++;
+    }
+    tell({ warm: Math.floor((++done * 100) / files.length) });
+  };
+  const lane = async () => {
+    while (next < files.length) await one(files[next++]);
+  };
+  await Promise.all(Array.from({ length: PARALLEL }, lane));
+  return failed === 0;
+}
+
+self.addEventListener('message', (e) => {
+  if (e.data?.type !== 'warm' || !e.source) return;
+  asked.add(e.source);
+  warming ??= warmUp()
+    .catch(() => false)
+    .then((ok) => (tell({ warm: 'done', ok }), asked.clear(), (warming = null), ok));
+  e.waitUntil(warming);
+});
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;

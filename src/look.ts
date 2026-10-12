@@ -3,7 +3,7 @@
 // (RED, or MEIR once the secret code is entered). BLUE's story stage comes from the badges.
 import type { Look } from '../worker/src/protocol';
 import type { Color, TeamSkin } from './board/pieces';
-import { lookOf, setStages, setWears } from './board/pieces';
+import { defaultSpecies, lookOf, parseVariant, setStages, setWears, SKIN_ROLES } from './board/pieces';
 import { ROCKET_STAGE_TRAINERS, stageFor, stageSkin, type Stage } from './board/stages';
 import { loadout } from './board/loadouts';
 import trainers from './data/trainers.json';
@@ -95,12 +95,26 @@ export function standing(o: Standing, name: (key: string) => string): Record<Col
   return pair(me, npc(stageTrainer(o.stage)));
 }
 
-/** Your side in puzzles (W3, design D): My Team with your starter as king. When the story team already has the
- * starter (a stage 0 queen or bishop), PIKACHU takes that place, so no Pokémon stands twice on your side. */
+type SkinKey = (typeof SKIN_ROLES)[number];
+
+/** Your side in puzzles (W3, design D): My Team with your starter as king. No Pokémon stands twice on your side
+ * (review fix): where the story team already has the starter (a stage 0 queen or bishop), PIKACHU stands instead,
+ * or the role's own default when PIKACHU is taken; a starter My Team placed already is not made king as well. */
 export function puzzleTeam(team: TeamSkin, starter: string, stage: Stage): TeamSkin {
   if (team.k) return { ...team };
-  const swap = Object.entries(stageSkin('w', stage)).filter(([, id]) => id === starter).map(([role]) => [role, 'pikachu']);
-  return { ...Object.fromEntries(swap), k: starter, ...team };
+  const story = stageSkin('w', stage);
+  const out: TeamSkin = { ...team };
+  const fallback = (key: SkinKey) => defaultSpecies('w', key === 'bLight' || key === 'bDark' ? 'b' : key, key === 'bDark');
+  const shown = (key: SkinKey) => parseVariant(out[key] ?? story[key] ?? fallback(key)).base;
+  const used = (id: string, but: SkinKey) => SKIN_ROLES.some((k) => k !== but && shown(k) === id);
+  const king = !Object.values(team).some((id) => parseVariant(id).base === starter);
+  if (king) out.k = starter;
+  for (const key of SKIN_ROLES) {
+    if (team[key] || (king && key === 'k') || !used(shown(key), key)) continue;
+    const free = ['pikachu', fallback(key), ...SKIN_ROLES.map(fallback)].find((id) => !used(id, key));
+    if (free) out[key] = free;
+  }
+  return out;
 }
 
 /** The level picker's faces (§B20 item 1): you, and the computer's ladder for the side it plays. */

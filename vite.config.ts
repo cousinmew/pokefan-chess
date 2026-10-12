@@ -21,9 +21,36 @@ function stampWorker(): Plugin {
 }
 
 /**
- * Writes dist/offline.json, the core files Install for offline play fetches into the cache (src/net/offline.ts):
+ * Every species vs Computer and the story can show before the Journey's wild encounters: the two default teams, each
+ * computer trainer's team (with BLUE's answers to each starter), BLUE's story stages, the three starters and their
+ * evolutions, and Route 1 (Oak's warm-up plays your own team; its first catch PIDGEY and its trainers' teams).
+ */
+function offlineSpecies(): string[] {
+  const json = <T>(f: string) => JSON.parse(readFileSync(f, 'utf8')) as T;
+  const roster = json<{ teams: Record<string, { pieces: Record<string, string | Record<string, string>> }> }>('src/data/roster.gen1.json');
+  const trainers = json<{ trainers: Record<string, { team: Record<string, string>; byStarter?: Record<string, Record<string, string>> }> }>('src/data/trainer-teams.json').trainers;
+  const kanto = json<{ starters: string[]; evolutions: { from: string; to: string }[] }>('src/data/kanto.json');
+  const journey = json<{ places: { id: string; trainers?: { team: string[] }[] }[] }>('src/data/journey.kanto.json');
+  const ids = new Set(Object.values(roster.teams).flatMap((t) => Object.values(t.pieces).flatMap((p) => (typeof p === 'string' ? [p] : Object.values(p)))));
+  const add = (team: Record<string, string | undefined>) => Object.values(team).forEach((id) => id && ids.add(id));
+  for (const t of Object.values(trainers)) [t.team, ...Object.values(t.byStarter ?? {})].forEach(add);
+  // Red's stage table in src/board/stages.ts (read as text: importing it here would pull the game's modules into the
+  // config). Rocket's stages are computer trainers, above.
+  const red = /const RED\b[^=]*=\s*\[([\s\S]*?)\];/.exec(readFileSync('src/board/stages.ts', 'utf8'))?.[1];
+  if (!red) throw new Error('offline list: Red stage table not found in src/board/stages.ts');
+  for (const [, id] of red.matchAll(/:\s*'([a-z-]+)'/g)) ids.add(id!);
+  const line = [...kanto.starters];
+  for (const id of line) for (const e of kanto.evolutions) if (e.from === id && !line.includes(e.to)) line.push(e.to);
+  line.forEach((id) => ids.add(id));
+  ids.add('pidgey'); // the warm-up's first catch (src/campaign/warmup.ts FIRST_CATCH)
+  for (const t of journey.places.find((p) => p.id === 'route-1')?.trainers ?? []) t.team.filter((id) => !id.startsWith('@')).forEach((id) => ids.add(id));
+  return [...ids];
+}
+
+/**
+ * Writes dist/offline.json, the core files Install for offline play caches (the service worker fetches them, sw.js):
  * every code chunk and stylesheet (puzzle sets included), the engine, icons and art, and the sprites and cries of
- * the two vs Computer teams. Other sprites are cached as they are first shown, so the list stays a few MB.
+ * offlineSpecies(). Wild encounters are cached as they are first shown, so the list stays a few MB.
  */
 function offlineList(): Plugin {
   return {
@@ -33,9 +60,8 @@ function offlineList(): Plugin {
       if (!existsSync('dist')) return;
       const dir = (d: string) => (existsSync(join('dist', d)) ? readdirSync(join('dist', d), { withFileTypes: true }).filter((f) => f.isFile()).map((f) => `${d}/${f.name}`) : []);
       const has = (f: string) => existsSync(join('dist', f));
-      const roster = JSON.parse(readFileSync('src/data/roster.gen1.json', 'utf8')) as { species: Record<string, { dex: number }>; teams: Record<string, { pieces: Record<string, string | Record<string, string>> }> };
-      const ids = new Set(Object.values(roster.teams).flatMap((t) => Object.values(t.pieces).flatMap((p) => (typeof p === 'string' ? [p] : Object.values(p)))));
-      const dexes = [...ids].map((id) => roster.species[id]?.dex).filter((d): d is number => typeof d === 'number');
+      const species = (JSON.parse(readFileSync('src/data/kanto.json', 'utf8')) as { species: Record<string, { dex: number }> }).species;
+      const dexes = offlineSpecies().map((id) => species[id]?.dex).filter((d): d is number => typeof d === 'number');
       const sprites = dexes.flatMap((d) => [
         ...['front', 'back'].map((k) => (has(`assets/${k}/${d}.webp`) ? `assets/${k}/${d}.webp` : `assets/${k}/${d}.gif`)),
         `assets/static/front/${d}.png`,

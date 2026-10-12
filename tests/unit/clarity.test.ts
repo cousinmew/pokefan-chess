@@ -4,7 +4,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { objective, playerMoves } from '../../src/campaign/puzzle';
 import { fmt } from '../../src/game/text';
-import { lookOf, setWears, speciesIdFor } from '../../src/board/pieces';
+import { defaultSpecies, lookOf, setWears, speciesIdFor } from '../../src/board/pieces';
+import { stageSkin } from '../../src/board/stages';
 import { applyLooks, puzzleTeam, standing } from '../../src/look';
 import { loadCampaign } from '../../src/campaign/kanto';
 
@@ -61,6 +62,21 @@ describe('you are always TEAM RED (design D)', () => {
     expect(puzzleTeam({ k: 'ivysaur' }, 'bulbasaur', 0)).toEqual({ k: 'ivysaur' });
   });
 
+  it('your puzzle team never has a species twice (review fix)', () => {
+    const species = (t: ReturnType<typeof puzzleTeam>, stage: 0 | 1 | 2) =>
+      (['k', 'q', 'r', 'n', 'bLight', 'bDark', 'p'] as const).map((key) => t[key] ?? stageSkin('w', stage)[key] ?? defaultSpecies('w', key.startsWith('b') ? 'b' : (key as 'k'), key === 'bDark'));
+    const twice = (ids: string[]) => ids.filter((id, i) => ids.indexOf(id) !== i);
+    // My Team already placed the starter: it is not made king as well.
+    expect(puzzleTeam({ q: 'charmander' }, 'charmander', 0)).toEqual({ q: 'charmander' });
+    // My Team has PIKACHU: the story team's starter gives way to that role's default instead.
+    const t = puzzleTeam({ n: 'pikachu' }, 'bulbasaur', 0);
+    expect(t).toEqual({ k: 'bulbasaur', n: 'pikachu', bDark: 'venusaur' });
+    for (const stage of [0, 1, 2] as const)
+      for (const starter of ['bulbasaur', 'charmander', 'squirtle'])
+        for (const team of [{}, { n: 'pikachu' }, { p: 'pidgey' }, { r: starter }, { bLight: 'pikachu', p: starter }])
+          expect(twice(species(puzzleTeam(team, starter, stage), stage)), `${starter} ${stage} ${JSON.stringify(team)}`).toEqual([]);
+  });
+
   it('every other mode keeps Red on white', () => {
     setWears('w');
     expect([lookOf('w'), lookOf('b')]).toEqual(['w', 'b']);
@@ -90,5 +106,13 @@ describe('coach marks once per save (design F)', () => {
     expect(loadCampaign()).toMatchObject({ tips: ['puzzle'], puzzlesStarted: 3 });
     store.set('kc:v1:p1:campaign', JSON.stringify({ v: 2, starter: 'bulbasaur', tips: [], puzzlesStarted: 1, journey: { cleared: [], beaten: ['r1-toby'], visited: [] } }));
     expect(loadCampaign()).toMatchObject({ tips: [], puzzlesStarted: 1 });
+  });
+
+  it('a save that solved Training or tall grass puzzles (no trainer beaten) skips them too (review fix)', () => {
+    const solved = { v: 2, starter: 'bulbasaur', journey: { cleared: [], beaten: [], visited: ['route-1'] } };
+    store.set('kc:v1:p1:campaign', JSON.stringify({ ...solved, routes: { 'route-1': { last: [false, true], streak: 1 } } }));
+    expect(loadCampaign()).toMatchObject({ tips: ['puzzle'], puzzlesStarted: 3 });
+    store.set('kc:v1:p1:campaign', JSON.stringify({ ...solved, routes: { 'route-1': { last: [false], streak: 0 } } }));
+    expect(loadCampaign()).toMatchObject({ tips: [], puzzlesStarted: 0 });
   });
 });

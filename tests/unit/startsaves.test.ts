@@ -171,4 +171,40 @@ describe('boot', () => {
     expect(m.bootProfiles(abandoned(m))).toEqual({ slots: [1], current: 1 });
     expect(store.has('kc:v1:p1:cartridge')).toBe(true);
   });
+
+  it('another tab booting keeps a save this tab is still making, until the name is confirmed (review fix)', async () => {
+    const tabA = await fresh();
+    set('profiles', { slots: [1], current: 1 });
+    set('p1:campaign', { name: 'ASH' });
+    tabA.bootProfiles();
+    tabA.addProfile(); // slot 2, still unnamed
+    tabA.saveTo(2, 'cartridge', 'blue');
+    // Tab B: its own session storage, the same device storage.
+    session.clear();
+    const tabB = await fresh();
+    const gone = (n: number) => !tabB.hasProgress(n) && !tabB.isCreating(n) && !tabB.beingMade(n);
+    expect(tabB.bootProfiles(gone).slots).toEqual([1, 2]);
+    expect(store.has('kc:v1:p2:cartridge')).toBe(true);
+    // Half an hour later the note is stale (a tab closed mid NEW GAME): the empty save goes.
+    expect(tabB.beingMade(2, Date.now() + tabB.NEW_GAME_HOLD_MS + 1)).toBe(false);
+  });
+
+  it('confirming the name or BACK clears the device note', async () => {
+    let m = await fresh();
+    set('profiles', { slots: [1], current: 1 });
+    set('p1:campaign', { name: 'ASH' });
+    m.bootProfiles();
+    m.addProfile();
+    m = await fresh();
+    m.bootProfiles();
+    expect(m.beingMade(2)).toBe(true);
+    m.endCreating();
+    expect(m.beingMade(2)).toBe(false);
+    m.addProfile(); // slot 2 has no progress: reused in place
+    m = await fresh();
+    m.bootProfiles();
+    expect(m.beingMade(2)).toBe(true);
+    m.abandonNewGame();
+    expect(m.beingMade(2)).toBe(false);
+  });
 });
