@@ -22,6 +22,10 @@ test('an old save moves into slot 1; a second player gets the picker, own cartri
   expect(keys).toContain('kc:v1:p1:cartridge');
   expect(keys).toContain('kc:v1:p1:campaign');
   expect(keys).toContain('kc:v1:profiles');
+  // Moved, not copied: the old save itself is in slot 1 and its old keys are gone.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name)).toBe('ASH');
+  expect(keys).not.toContain('kc:v1:campaign');
+  expect(keys).not.toContain('kc:v1:cartridge');
   await settings(page);
   await page.getByTestId('players').click();
   await expect(page.getByTestId('slot-1')).toBeVisible();

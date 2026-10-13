@@ -58,8 +58,12 @@ for (const [w, h] of [[1440, 900], [360, 640]] as const) {
         continue;
       }
       const t = await name.locator('.plate-title').boundingBox();
-      if (w > h) expect(t!.y).toBeGreaterThanOrEqual(b!.y + b!.height - 1);
-      else expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
+      if (w > h) {
+        // Wide: the title starts where the name starts, right under it (measured: same x, top = name bottom).
+        expect(t!.y, plate).toBeGreaterThanOrEqual(b!.y + b!.height - 1);
+        expect(Math.abs(t!.x - b!.x), `${plate}: title under the name, not beside or indented`).toBeLessThanOrEqual(1);
+        expect(t!.y - (b!.y + b!.height), `${plate}: title right under the name`).toBeLessThanOrEqual(2);
+      } else expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
       expect(t!.x + t!.width).toBeLessThanOrEqual(who!.x + who!.width + 1);
       expect(await name.locator('.plate-title').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
     }
