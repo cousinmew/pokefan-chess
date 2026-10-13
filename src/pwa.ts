@@ -4,7 +4,7 @@
 // Share steps; once installed, the core files are fetched into the cache (src/net/offline.ts). Considerate warm up:
 // on its own it runs once per build per device and never on data saver or 2G; asked for (install, the OPTION button),
 // it is never held back.
-import { sparing, warmable, warmUp, type Connection } from './net/offline';
+import { readyBuild, sparing, warmable, warmUp, type Connection } from './net/offline';
 import { readDevice, writeDevice } from './store/persist';
 
 /** At boot: the install listeners first (they work under ?debug too), then the service worker. */
@@ -22,8 +22,9 @@ interface InstallPromptEvent extends Event {
 
 /** installed: runs as an app; prompt: Chromium can install now; ios: Share → Add to Home Screen; none: no way here. */
 export type InstallState = 'installed' | 'prompt' | 'ios' | 'none';
-/** Warm up progress: null when idle or not possible, 0 to 100 while fetching, 'ready' when done. */
-export type WarmState = number | 'ready' | null;
+/** Warm up progress: null when idle, not known yet or not possible, 0 to 100 once the worker answers, 'ready' when
+ * done, 'failed' when the last run found no worker or did not finish (OPTION says to try again later). */
+export type WarmState = number | 'ready' | 'failed' | null;
 
 let deferred: InstallPromptEvent | null = null;
 let installedNow = false;
@@ -44,13 +45,31 @@ export function installState(): InstallState {
   return isIos() ? 'ios' : 'none';
 }
 
-/** kc:v1:dev:offlineBuild: the build whose core files all got cached on this device (after a complete warm up). */
+/** kc:v1:dev:offlineBuild: the worker build whose core files all got cached on this device (a complete warm up). */
 const OFFLINE_BUILD = 'offlineBuild';
-/** This build is ready here from an earlier launch, so it stays ready without asking the worker again. */
-const readyHere = () => readDevice<string>(OFFLINE_BUILD) === __BUILD__;
 const connection = () => (navigator as Navigator & { connection?: Connection }).connection;
 
-export const warmState = (): WarmState => warm ?? (readyHere() ? 'ready' : null);
+/** Ready here from an earlier launch: null until checked (once per page). */
+let readyHere: boolean | null = null;
+let checking: Promise<boolean> | null = null;
+/** A complete warm up noted on this device is ready only while the newest worker still has it in its build's cache (fix,
+ * 13 Oct: Chromium can evict Cache Storage and keep localStorage, so the note alone made a launch skip it and OPTION
+ * say ready). The worker names its build, so a new build is not ready until its own run, and the page's code carries
+ * no build id (its chunks keep their hashes from build to build). No note: not ready, nothing to ask. */
+function checkReady(): Promise<boolean> {
+  checking ??= (readDevice<string>(OFFLINE_BUILD) !== null && warmable() ? readyBuild() : Promise.resolve(null)).then((build) => {
+    readyHere = build !== null;
+    if (build) {
+      writeDevice(OFFLINE_BUILD, build);
+      if (warm === null || warm === 'failed') warm = 'ready';
+    }
+    changed();
+    return readyHere;
+  });
+  return checking;
+}
+
+export const warmState = (): WarmState => warm;
 
 /** Calls `f` whenever the install or warm up state changes; returns the unsubscribe. */
 export function onInstallChange(f: () => void): () => void {
@@ -62,32 +81,36 @@ let warming: Promise<void> | null = null;
 
 /** Fetches the core files into the cache once, reporting progress to the watchers. No service worker: nothing to do.
  * One run at a time (accepting the prompt and appinstalled both ask), progress only goes up, and once ready it stays
- * ready (review fix). A complete run remembers the worker's build on this device. */
+ * ready (review fix). Progress shows only once the worker answers, and a run that finds none or does not finish ends
+ * 'failed' instead of the line just going away (fix, 13 Oct). A complete run remembers the worker's build here. */
 export function getReadyOffline(): void {
-  if (warmState() === 'ready' || warming || !warmable()) return;
-  warm = 0;
-  changed();
+  if (warm === 'ready' || warming || !warmable()) return;
   const progress = (pct: number) => {
-    if (typeof warm !== 'number' || pct <= warm) return;
+    if (warm === 'ready' || (typeof warm === 'number' && pct <= warm)) return;
     warm = pct;
     changed();
   };
   warming = warmUp(progress).then((build) => {
     if (build) writeDevice(OFFLINE_BUILD, build);
-    warm = build ? 'ready' : null;
+    warm = build ? 'ready' : 'failed';
     warming = null;
     changed();
   });
 }
 
-/** Not asked for (an app launch, OPTION in an installed app): only while this build is not ready on this device, and
- * never on data saver or 2G, where OPTION offers it as a button instead (offlineHeld). */
+/** Not asked for (an app launch, OPTION): checks once per page whether this device is ready; an installed app that is
+ * not gets ready, except on data saver or 2G, where OPTION offers it as a button instead (offlineHeld). After a failed
+ * run, opening OPTION tries again. */
 export function autoWarm(): void {
-  if (installState() === 'installed' && warmState() === null && !sparing(connection())) getReadyOffline();
+  void checkReady().then((ready) => {
+    if (!ready && warm !== 'ready' && installState() === 'installed' && !sparing(connection())) getReadyOffline();
+  });
 }
 
-/** An installed app whose automatic warm up waits for data saver or 2G: OPTION shows the line and the button. */
-export const offlineHeld = (): boolean => installState() === 'installed' && warmState() === null && !warming && warmable() && sparing(connection());
+/** An installed app, not ready here, whose automatic warm up waits for data saver or 2G (or whose run there failed):
+ * OPTION shows why and the button. Never before the check answered, so a ready app does not flash it. */
+export const offlineHeld = (): boolean =>
+  installState() === 'installed' && readyHere === false && (warm === null || warm === 'failed') && warmable() && sparing(connection());
 
 /** Opens Chromium's install prompt; the outcome, or 'unavailable' when there is no prompt to show. */
 export async function promptInstall(): Promise<'accepted' | 'dismissed' | 'unavailable'> {

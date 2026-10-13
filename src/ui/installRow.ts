@@ -14,9 +14,12 @@ export function installRow(): HTMLElement {
   let panelOpen = false;
   const render = () => {
     const state = installState();
+    const w = warmState();
+    const held = offlineHeld();
     const parts: HTMLElement[] = [];
     if (state === 'installed') {
-      const p = el('p', 'install-status', 'install.installed');
+      // No "plays offline" claim above a line saying the offline files wait or could not be fetched (fix, 13 Oct).
+      const p = el('p', 'install-status', held || w === 'failed' ? 'install.installedOnly' : 'install.installed');
       p.dataset.testid = 'install-installed';
       parts.push(p);
     } else if (state === 'none') {
@@ -52,23 +55,30 @@ export function installRow(): HTMLElement {
       p.setAttribute('role', 'status');
       parts.push(p);
     }
-    const w = warmState();
-    if (w !== null) {
+    if (w === 'ready' || typeof w === 'number') {
       const p = el('p', 'install-progress');
       p.dataset.testid = 'install-progress';
       p.setAttribute('role', 'status');
       p.textContent = w === 'ready' ? fmt('install.ready') : fmt('install.warming', { n: String(w) });
       parts.push(p);
-    } else if (offlineHeld()) {
+    } else if (w === 'failed') {
+      // No worker answered, or the run did not finish: say so rather than drop the line (fix, 13 Oct).
+      const p = el('p', 'install-hint', 'install.warmFailed');
+      p.dataset.testid = 'install-failed';
+      p.setAttribute('role', 'status');
+      parts.push(p);
+    } else if (held) {
       // Data saver or 2G held the automatic warm up back (considerate warm up): the player may still ask for it.
       const p = el('p', 'install-hint', 'install.held');
       p.dataset.testid = 'install-held';
-      parts.push(p, button('install.warmNow', () => (getReadyOffline(), render()), 'install-warm'));
+      parts.push(p);
     }
+    if (held) parts.push(button('install.warmNow', () => (getReadyOffline(), render()), 'install-warm'));
     box.replaceChildren(...parts);
   };
-  // Opened as an app whose files are not cached for this build yet: the automatic warm up starts from here too (once
-  // per build per device, not on data saver or 2G; no-op without a worker).
+  // Asks the worker whether this device is ready (once per page; the answer re-renders). Opened as an app whose files
+  // are not cached for this build: the automatic warm up starts from here too (not on data saver or 2G; no-op without
+  // a worker).
   autoWarm();
   render();
   // Re-render on prompt, install and progress events while this screen is open; drop the listener once it is gone.

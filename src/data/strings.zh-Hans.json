@@ -923,6 +923,7 @@
   "relay.down": "现在连不上服务器。请稍后再试。",
   "install.option": "安装以离线游玩",
   "install.installed": "已安装 ✓ — 可离线游玩",
+  "install.installedOnly": "已安装 ✓",
   "install.accepted": "正在安装，稍后可在应用中找到。",
   "install.dismissed": "未安装。随时可以再试。",
   "install.unsupported": "请在 Chrome 或 Edge 中打开以安装",
@@ -931,6 +932,7 @@
   "install.ios3": "3. 从主屏幕打开游戏",
   "install.warming": "正在准备离线游玩… {n}%",
   "install.ready": "已可离线游玩",
-  "install.held": "省流量模式或网速较慢，离线文件暂未下载。",
+  "install.warmFailed": "现在无法准备离线游玩，请稍后再试。",
+  "install.held": "为节省流量，离线文件尚未下载。",
   "install.warmNow": "立即准备离线游玩"
 }

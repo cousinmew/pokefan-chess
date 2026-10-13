@@ -8,8 +8,9 @@ const musicFiles = existsSync('public/audio') ? readdirSync('public/audio').filt
 // Sprites with a smaller animated WebP made by fetch-assets (load fix); the rest stay GIF.
 const webp = ['front', 'back', 'shiny/front', 'shiny/back'].flatMap((d) => (existsSync(`public/assets/${d}`) ? readdirSync(`public/assets/${d}`).filter((f) => f.endsWith('.webp')).map((f) => `${d}/${f.slice(0, -5)}`) : []));
 
-// One id per build: the service worker's caches are named after it (stampWorker) and the page knows it too
-// (__BUILD__), so an automatic offline warm up runs once per build per device (src/pwa.ts).
+// One id per build: the service worker's caches are named after it (stampWorker), and the page learns it from the
+// worker (src/net/offline.ts readyBuild), so an automatic offline warm up runs once per build per device (src/pwa.ts).
+// Only sw.js carries it: the page's chunks keep their hashes when the code does not change (fix, 13 Oct).
 const BUILD = Date.now().toString(36);
 
 /** Stamps the service worker with this build, so a deploy starts a fresh sprite cache (load fix). */
@@ -81,7 +82,7 @@ function offlineList(): Plugin {
 
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __WEBP__: JSON.stringify(webp), __VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version), __BUILD__: JSON.stringify(BUILD) },
+  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __WEBP__: JSON.stringify(webp), __VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version) },
   plugins: [stampWorker(), offlineList()],
   build: { target: 'es2022', sourcemap: false },
   test: { include: ['tests/unit/**/*.test.ts'], environment: 'node' },

@@ -923,6 +923,7 @@
   "relay.down": "De server is nu niet bereikbaar. Probeer het later nog eens.",
   "install.option": "INSTALLEREN VOOR OFFLINE SPELEN",
   "install.installed": "Geïnstalleerd ✓ — werkt offline",
+  "install.installedOnly": "Geïnstalleerd ✓",
   "install.accepted": "Wordt geïnstalleerd. Je vindt het bij je apps.",
   "install.dismissed": "Niet geïnstalleerd. Je kunt het altijd opnieuw proberen.",
   "install.unsupported": "Open in Chrome of Edge om te installeren",
@@ -931,6 +932,7 @@
   "install.ios3": "3. Open het spel vanaf je beginscherm",
   "install.warming": "Klaarmaken voor offline spelen… {n}%",
   "install.ready": "Klaar om offline te spelen",
-  "install.held": "Offline bestanden wachten: databesparing of traag netwerk.",
+  "install.warmFailed": "Klaarmaken voor offline lukt nu niet. Probeer het later opnieuw.",
+  "install.held": "Offline bestanden nog niet gedownload, om data te sparen.",
   "install.warmNow": "NU KLAARMAKEN VOOR OFFLINE"
 }

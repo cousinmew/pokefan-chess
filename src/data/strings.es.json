@@ -923,6 +923,7 @@
   "relay.down": "No se puede conectar con el servidor ahora. Inténtalo más tarde.",
   "install.option": "INSTALAR PARA JUGAR SIN CONEXIÓN",
   "install.installed": "Instalado ✓ — funciona sin conexión",
+  "install.installedOnly": "Instalado ✓",
   "install.accepted": "Instalando. Lo encontrarás entre tus apps.",
   "install.dismissed": "No se instaló. Puedes intentarlo cuando quieras.",
   "install.unsupported": "Ábrelo en Chrome o Edge para instalarlo",
@@ -931,6 +932,7 @@
   "install.ios3": "3. Abre el juego desde la pantalla de inicio",
   "install.warming": "Preparando para jugar sin conexión… {n}%",
   "install.ready": "Listo para jugar sin conexión",
-  "install.held": "Los archivos sin conexión esperan: ahorro de datos o red lenta.",
+  "install.warmFailed": "Ahora no se puede preparar el juego sin conexión. Inténtalo más tarde.",
+  "install.held": "Archivos sin conexión aún no descargados, para ahorrar datos.",
   "install.warmNow": "PREPARAR SIN CONEXIÓN AHORA"
 }
