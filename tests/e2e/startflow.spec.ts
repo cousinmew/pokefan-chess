@@ -275,6 +275,48 @@ test('a NEW GAME left empty is dropped at boot, a save from before never is; SWI
   expect(await page.evaluate(() => localStorage.getItem('kc:v1:p4:lang'))).toBe('"de"');
 });
 
+test('launch opens the save with progress, never a kept empty save or a dropped NEW GAME (review, 13 Oct)', async ({ page }) => {
+  // Save 1 is from before and empty (kept), save 3 a NEW GAME left unnamed (dropped). Boot fell back to save 1, so
+  // launch opened a NEW GAME shelf on it instead of JADE's CONTINUE.
+  const old = { 'kc:v1:p1:cartridge': 'blue', 'kc:v1:p1:settings': { v: 2, anim: 'off', sound: false } };
+  await seedRaw(page, { 'kc:v1:profiles': { slots: [1, 2, 3], current: 3 }, ...old, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p2:campaign': camp, 'kc:v1:p3:cartridge': 'blue', 'kc:v1:dev:newGames': { 3: 0 } });
+  await page.goto('./');
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
+  expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+  // The old empty save is current again (as another tab could leave it): it still never takes over launch.
+  await page.evaluate(() => localStorage.setItem('kc:v1:profiles', JSON.stringify({ slots: [1, 2], current: 1 })));
+  await page.reload();
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
+  expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:cartridge'), localStorage.getItem('kc:v1:p1:settings')])).toEqual(['"blue"', '{"v":2,"anim":"off","sound":false}']);
+});
+
+test('restoring a backup forgets the save\'s NEW GAME note, so boot keeps what was restored (review, 13 Oct)', async ({ page }) => {
+  // A NEW GAME left unfinished on the only save (its note dated 0, kept as the last save); OPTION, Import a backup
+  // with settings, a language and the intro seen, but no progress yet.
+  await seedRaw(page, { 'kc:v1:profiles': { slots: [1], current: 1 }, 'kc:v1:p1:cartridge': 'blue', 'kc:v1:dev:newGames': { 1: 0 } });
+  await startMenu(page);
+  await page.getByTestId('start-option').click();
+  const data = { cartridge: 'blue', lang: 'de', settings: { v: 2, anim: 'off' }, campaign: { introSeen: true } };
+  await page.getByTestId('import-file').setInputFiles({ name: 'save.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ app: 'pokefan-chess', v: 1, data })) });
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('screen-start')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('kc:v1:dev:newGames'))).toBeNull();
+  // A second player with progress arrives: the restored save is still there at the next launch.
+  await page.evaluate((c) => {
+    localStorage.setItem('kc:v1:p2:cartridge', '"blue"');
+    localStorage.setItem('kc:v1:p2:campaign', JSON.stringify(c));
+    localStorage.setItem('kc:v1:profiles', JSON.stringify({ slots: [1, 2], current: 1 }));
+  }, camp);
+  await page.reload();
+  await page.getByTestId('screen-splash').click();
+  await expect(page.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
+  expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:lang'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).introSeen])).toEqual(['"de"', true]);
+});
+
 test('bugs #2: a NEW GAME left unnamed can no longer delete another save', async ({ page }) => {
   const sky = { v: 2, name: 'SKY', introSeen: true, teamRules: 2 };
   await seed(page, { 'kc:v1:profiles': { slots: [1, 2], current: 1 }, 'kc:v1:p2:cartridge': 'blue', 'kc:v1:p2:campaign': sky });

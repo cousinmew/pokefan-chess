@@ -37,7 +37,7 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { bootSaves, endCreating, slotCount, switchTo } from './profiles';
+import { bootSaves, endCreating, forgetNewGame, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
@@ -304,7 +304,7 @@ function boot(): App {
   function showSettings(backTo?: unknown): void {
     const back = typeof backTo === 'function' ? (backTo as () => void) : returnHere();
     const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', ...(isGuest() ? {} : { onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) }) }; // a guest can't switch cartridge (bugs #9)
-    const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => switchTo(currentSlot(), 'continue') }), feedbackButton()];
+    const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => (forgetNewGame(currentSlot()), switchTo(currentSlot(), 'continue')) }), feedbackButton()];
     show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
   }
 

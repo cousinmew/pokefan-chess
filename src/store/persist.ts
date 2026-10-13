@@ -76,7 +76,7 @@ export function useProfile(n: number): void {
  * That migrates a save from before profiles into slot 1 once, without losing anything; an old MEIR unlock moves to
  * its own key in every save (moveMeir). `abandoned(n)` says a save is a NEW GAME left empty (profiles.ts bootSaves
  * decides; a save it has no note for never is): it is dropped while another save remains, and when it was the
- * current one the first remaining save loads instead (playtest, 12 Oct). */
+ * current one the first remaining save loads instead (playtest, 12 Oct; bootSaves then prefers one with progress). */
 export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
   const m = readMeta() ?? { slots: [1], current: 1 };
   if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;

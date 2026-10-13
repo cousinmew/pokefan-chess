@@ -6,7 +6,7 @@ import { DEX, solvedBefore } from './campaign/kanto';
 import { goalLine, journeyState } from './campaign/journey';
 import type { Trainer } from './campaign/trainer';
 import { fmt } from './game/text';
-import { bootProfiles, clearProfile, loadFrom, MAX_SLOTS, PLAYER_TRAINER, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
+import { bootProfiles, clearProfile, loadFrom, MAX_SLOTS, PLAYER_TRAINER, readDevice, readMeta, removeDevice, removeFrom, saveTo, useProfile, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
 
 const PICKED = 'kc:v1:picked';
@@ -155,6 +155,9 @@ function noteNewGame(slot: number, at: number | null): void {
   else removeDevice(NEW_GAMES);
 }
 const noted = (n: number): boolean => typeof newGames()[n] === 'number';
+/** A backup (file or save code) restored into save n: whatever it holds is the player's now, never a NEW GAME for
+ * boot to drop (review, 13 Oct). */
+export const forgetNewGame = (n: number): void => noteNewGame(n, null);
 /** Save n is being made by NEW GAME in some tab of this device (this one or another), started recently. */
 export const beingMade = (n: number, now = Date.now()): boolean => now - (newGames()[n] ?? -Infinity) < NEW_GAME_HOLD_MS;
 /** `made`: NEW GAME added or wiped the slot, so it gets a note. */
@@ -189,9 +192,14 @@ export function abandonNewGame(): void {
   if (leaving) return;
   if (!c || c.slot !== m.current) return leaveCreating();
   if (c.from === c.slot) {
-    // A reused empty save: forget the cartridge, the intro and a MEIR code typed on the way (it had no progress
-    // before). The switch dates its note, if NEW GAME made it, so boot drops it while others exist; else it stays.
-    for (const key of ['cartridge', 'campaign', PLAYER_TRAINER]) removeFrom(c.slot, key);
+    // A reused empty save goes back to no progress: a name or MEIR code typed on the way goes (neither is older than
+    // this NEW GAME, as either is progress). A save NEW GAME made (it has a note) forgets the cartridge and the intro
+    // too, and the switch dates the note, so boot drops it while others exist. A save from before keeps every key
+    // it has (review, 13 Oct: its campaign can hold My Team and the coach marks).
+    removeFrom(c.slot, PLAYER_TRAINER);
+    const camp = loadFrom<Partial<Campaign>>(c.slot, 'campaign');
+    if (noted(c.slot)) for (const key of ['cartridge', 'campaign']) removeFrom(c.slot, key);
+    else if (camp?.name !== undefined) saveTo(c.slot, 'campaign', { ...camp, name: undefined });
     return switchTo(c.slot, 'menu');
   }
   endCreating();
@@ -237,12 +245,25 @@ export function addProfile(): void {
 
 /** Boot: the slot list, dropping only a save NEW GAME made and left empty (data loss review, 12 Oct): it has a note
  * older than the hold, it is not this tab's NEW GAME and it has no progress; the last save always stays (bootProfiles).
- * Notes go with their saves, and from a save with progress once nobody is making it (named, then its tab closed). */
+ * Notes go with their saves, and from a save with progress once nobody is making it (named, then its tab closed).
+ * Launch then opens a save with progress (review, 13 Oct): when the current save went, or has none while another
+ * has some, the save this tab's NEW GAME came from (if it has progress) or else the first with progress becomes the
+ * current one, so a kept empty save never opens a NEW GAME shelf over a real save's CONTINUE. Nothing is deleted,
+ * and this tab's own NEW GAME stays current. */
 export function bootSaves(now = Date.now()): ProfileMeta {
+  const was = readMeta()?.current;
   const idle = (n: number) => !beingMade(n, now) && !isCreating(n);
   const m = bootProfiles((n) => noted(n) && idle(n) && !hasProgress(n));
   for (const n of Object.keys(newGames()).map(Number)) if (!m.slots.includes(n) || (idle(n) && hasProgress(n))) noteNewGame(n, null);
-  return m;
+  if (isCreating(m.current) || (m.current === was && hasProgress(m.current))) return m;
+  const real = m.slots.filter(hasProgress);
+  const from = creating()?.from;
+  const pick = real.find((n) => n === from) ?? (real.includes(m.current) ? m.current : real[0]);
+  if (pick === undefined || pick === m.current) return m;
+  const next = { ...m, current: pick };
+  writeMeta(next);
+  useProfile(pick);
+  return next;
 }
 
 export function renameProfile(n: number, name: string): void {
