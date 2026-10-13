@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, CARD_IN_MS, CHALLENGE_END_MS, END_HOLD_MS, HOLD_MIN_MS, INTRO_MS, MOVE_SLIDE_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, THEIR_SLIDE_MS, YELLOW_BOARD_PX, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, CARD_IN_MS, HOLD_MIN_MS, INTRO_MS, MOVE_SLIDE_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, THEIR_SLIDE_MS, YELLOW_BOARD_PX, type AiLevel } from './config';
 import { Board } from './board/board';
-import { lookOf, setSkins, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role, type TeamSkin } from './board/pieces';
-import { withoutRival } from './campaign/rivalTeam';
+import { lookOf, setSkins, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { puzzleMoments } from './ui/puzzleMoments';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites } from './battle/sprites';
@@ -18,10 +17,10 @@ import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine } from './ai/engine';
 import { computerTurn } from './ai/turn';
 import { TextBox } from './ui/textBox';
-import { button, el, toast } from './ui/dom';
+import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
-import { currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
+import { currentSlot, enterGuest, isGuest, leaveGuest, load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -32,7 +31,6 @@ import { dexScreen, trainerSrc } from './ui/kanto';
 import type { Page } from './ui/manual';
 import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
-import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
@@ -53,9 +51,8 @@ import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
 import { warmHubSheet } from './ui/icons';
 import { preloadNow, releaseIdle } from './ui/loader';
-import { endPanel, promotionPanel, quitPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
-import { applyLooks, computerTeam, ladderFaces, myLook, puzzleTeam, standing, storyStage } from './look';
+import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { loadCampaign, STARTERS } from './campaign/kanto';
@@ -65,9 +62,12 @@ import { Away } from './game/away';
 import { cancelHold, guard, hold, installPace } from './ui/pace';
 import { Covers, dip, domCovers, kindFor, type CoverKind } from './ui/transitions';
 import { watchModal } from './ui/cards';
+import { EndGame } from './game/endGame';
+import { configure as configureGame } from './game/configure';
+import { Challenges } from './game/challenge';
 
 export type { App, Challenge, Mode, Setup } from './appTypes';
-import type { App, Challenge, Mode, SavedGame, Setup } from './appTypes';
+import type { App, Mode, SavedGame, Setup } from './appTypes';
 
 const QUICK_DEFAULT: Setup = { mode: 'computer', human: 'w', level: 1 };
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -136,7 +136,7 @@ function boot(): App {
     playMove,
     restart,
     setMode,
-    takeBack,
+    takeBack: () => endGame.takeBack(),
   };
   let gen = 0;
   let notice: Line | null = null;
@@ -156,7 +156,7 @@ function boot(): App {
 
   const board = new Board(game, {
     onMove: (from, to) => {
-      if (game.isPromotion(from, to)) pickPromotion(from, to);
+      if (game.isPromotion(from, to)) endGame.pickPromotion(from, to);
       else submit(from, to);
     },
     // YELLOW: glyphs always on (§B17).
@@ -176,7 +176,7 @@ function boot(): App {
   const header = el('header', 'game-header');
   const turnEl = el('p', 'turn');
   turnEl.dataset.testid = 'turn';
-  const backBtn = button('game.takeBack', () => takeBack(), 'takeback');
+  const backBtn = button('game.takeBack', () => endGame.takeBack(), 'takeback');
   header.append(backBtn, turnEl); // START replaces Menu (§B24 item 1)
   // START (§B22 item 3), in the top bar on the game screen, in the corner or the top row elsewhere.
   const startBtn = new StartButton(() => startActions(), () => yellow() || !!journey.campaign.starter || isGuest());
@@ -202,7 +202,7 @@ function boot(): App {
       text.show([{ key }]);
       music.stop();
       music.play(key.endsWith('Win') ? 'victory' : 'defeat');
-      showEnd({ key }, key.endsWith('Win') && !isGuest() ? journey.onlineWin() : []);
+      endGame.showEnd({ key }, key.endsWith('Win') && !isGuest() ? journey.onlineWin() : []);
     },
     say: (key) => text.plain(fmt(key)),
     mySkin: () => journey.campaign.team,
@@ -243,7 +243,7 @@ function boot(): App {
     goTitle,
     gen: () => gen,
     evolveAnim: (from, to) => overlay.evolve(from, to),
-    startChallenge: (ch) => startChallenge(ch),
+    startChallenge: (ch) => challenges.start(ch),
     path: { run: (lesson, hooks) => path.run(lesson, hooks), stop: () => path.stop() }, // Oak's Route 1 warm-up (W5)
     cover: (kind) => covers.cover(kind), uncover: () => covers.reveal(),
     beat: (won) => plates.beat(won === (app.human === 'w') ? 'w' : 'b'),
@@ -284,6 +284,10 @@ function boot(): App {
   const faces = (human: Color) => ladderFaces(human, isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), // a guest is "Guest" (playtest, 12 Oct)
     (k) => fmt(k as StringKey), journey.campaign.starter);
   const unlockMeir = () => (journey.campaign = meirJoins(journey.campaign));
+  const endGame = new EndGame({
+    app, away, modal, plates, yellow, guest: isGuest, onBoard, duoSlot: (c) => duo?.[c].slot, onlineWin: () => journey.onlineWin(), yellowWin: () => yellowMode.win(),
+    drill: () => challenges.status(), endChallenge: (r) => challenges.end(r), startGame: (setup) => startGame(setup), goTitle, quit, submit, turnLine: (c) => turnLine(c), persist: persistGame, updateTurn, maybeAi: () => void maybeAi(),
+  });
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
   function setCart(c: Cartridge): void {
@@ -375,15 +379,6 @@ function boot(): App {
     if ((load<Cartridge>('cartridge') ?? cart) !== cart) setCart(load<Cartridge>('cartridge')!); // the save's own cartridge after a guest game (bugs #9)
     return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
-  /** A guest's game in progress is lost on QUIT, so QUIT asks first (playtest, 12 Oct). */
-  const guestInGame = () => isGuest() && stage.firstElementChild === gameView && !app.ended && game.chess.history().length > 0;
-  function askQuit(): void {
-    const stay = () => ((modal.hidden = true), modal.replaceChildren(), (away.panel = null));
-    modal.onclick = null;
-    modal.replaceChildren(quitPanel(() => (stay(), quit()), stay));
-    modal.hidden = false;
-    away.panel = askQuit;
-  }
   /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */
   const startActions = (): StartActions => ({
     ...(!yellow() && !isGuest() ? { journey: () => journey.open() } : {}),
@@ -393,7 +388,7 @@ function boot(): App {
     // POKéDEX's Back returns to where START was opened, like OPTION (ux #14).
     ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, returnHere(), true)) : journey.openFromHub('dex', returnHere())) } : {}),
     option: () => showSettings(),
-    quit: () => (guestInGame() ? askQuit() : quit()),
+    quit: () => (endGame.guestInGame() ? endGame.askQuit() : quit()),
     guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)
     next: yellow() || isGuest() ? null : goalLine(journey.campaign), // W5: the first line says what is next
   });
@@ -433,26 +428,7 @@ function boot(): App {
   }
 
   function configure(setup: Setup): void {
-    if (setup.mode !== 'path') path.stop(); // the warm-up's bar never stays under another game (W5)
-    red = setup.mode === 'puzzle' || setup.mode === 'path' ? setup.human : 'w';
-    setWears(red); // W3: there you are always TEAM RED, whatever colour you play
-    // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
-    const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
-    const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
-    const mine = (skin: TeamSkin) => withoutRival(skin, journey.campaign.starter, look().stage ?? 2); // no rival's starter on your side (playtest, 12 Oct)
-    const theirs = setup.mode === 'computer' ? { [cpu]: computerTeam(setup.level, cpu, journey.campaign.starter) } : {};
-    if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
-    else if (ys) setSkins({ ...theirs, ...ys });
-    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : mine(journey.campaign.team) });
-    else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: mine(puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2)) }); // W3, design D; BLUE's warm-up (W5)
-    else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
-    if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
-    app.mode = setup.mode;
-    app.human = setup.mode === 'two-players' ? 'w' : setup.human;
-    board.mine = app.human;
-    board.groundAll = setup.mode === 'puzzle'; // a soft shadow under every one of your pieces (design D)
-    app.level = setup.level;
-    app.aiFailed = false;
+    red = configureGame({ app, stopPath: () => path.stop(), yellowSkins: (m, h) => (yellow() ? yellowMode.skins(m, h) : null), campaign: () => journey.campaign, look, guest: isGuest, duo: () => duo }, setup);
   }
 
   /** A new game from a menu: the battle bars close first (pacing §2), then the game starts under them and they open on
@@ -488,7 +464,7 @@ function boot(): App {
     const goal = app.mode === 'puzzle' ? puzzle.objective() : app.mode === 'path' ? path.objective() : ''; // BLUE's warm-up has its step goal (W5)
     turnEl.textContent = goal || (app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn()));
     turnEl.classList.toggle('objective', !!goal);
-    backBtn.hidden = app.ended || !canTakeBack(); // the mate is final: none in the end hold (fix, 13 Oct)
+    backBtn.hidden = app.ended || !endGame.canTakeBack(); // the mate is final: none in the end hold (fix, 13 Oct)
   }
 
   function playMove(from: string, to: string, promotion?: Role): Outcome | null {
@@ -527,7 +503,7 @@ function boot(): App {
     const checked = game.checkedKing();
     if (checked) sound.cry(speciesFor(game.turn(), 'k', checked).dex);
     plates.check(checked ? game.turn() : null);
-    if (out.end) finish(out, slide);
+    if (out.end) endGame.finish(out, slide);
     persistGame();
     updateTurn();
     void maybeAi();
@@ -535,10 +511,7 @@ function boot(): App {
       lockForTurn();
       online.drain();
     }
-    if (app.mode === 'challenge' && challenge && !app.ended) {
-      if (out.move.color === app.human) challenge.made++;
-      if (challenge.limit && drillStatus(game.chess, challenge.made, challenge.limit, app.human) === 'limit') endChallenge('limit');
-    }
+    challenges.settled(out.move.color);
     if (app.mode === 'puzzle') puzzle.settled(slide);
     if (app.mode === 'path') path.settled(slide);
   }
@@ -551,41 +524,13 @@ function boot(): App {
     board.locked = app.ended || app.busy || (app.mode === 'online' && game.turn() !== app.human);
   }
 
-  let challenge: (Challenge & { made: number }) | null = null;
-
-  function startChallenge(ch: Challenge): void {
-    void covers.cover('battle').then(() => {
-      configure({ mode: 'challenge', human: 'w', level: ch.level });
-      challenge = { ...ch, made: 0 };
-      show(gameView);
-      restart(ch.fen);
-    });
-  }
-
-  function endChallenge(result: DrillStatus): void {
-    const ch = challenge;
-    if (!ch || result === 'playing') return;
-    challenge = null;
-    app.ended = true;
-    board.locked = true;
-    music.play(result === 'mate' ? 'victory' : 'defeat');
-    const r = away.round;
-    // A hold on the final position (pacing): skippable after HOLD_MIN_MS, after OPTION on the way back.
-    void hold(CHALLENGE_END_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => ch.onEnd(result)));
-  }
+  const challenges = new Challenges({ app, away, cover: () => covers.cover('battle'), configure, begin: (fen) => (show(gameView), restart(fen)) });
 
   function submit(from: string, to: string, promotion?: Role): void {
     if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
     else if (app.mode === 'puzzle') puzzle.submit(from + to + (promotion ?? ''));
     else if (app.mode === 'path') path.submit(from + to + (promotion ?? ''));
     else playMove(from, to, promotion);
-  }
-
-  function canTakeBack(): boolean {
-    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge' || app.mode === 'path') return false;
-    if (yellow()) return true; // YELLOW: take back always (§B17)
-    if (app.mode === 'two-players') return settings.takeBack;
-    return TAKE_BACK_LEVELS.includes(app.level);
   }
 
   /** Computer turn (src/ai/turn.ts): Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
@@ -601,74 +546,6 @@ function boot(): App {
 
   function setMode(mode: Mode, level: AiLevel = 1, human: Color = 'w'): void {
     startGame({ mode, level, human }, undefined, false);
-  }
-
-  function takeBack(): boolean {
-    if (!canTakeBack() || app.busy || app.ended) return false;
-    const n = app.mode === 'computer' && game.turn() === app.human ? 2 : 1;
-    let undone = 0;
-    while (undone < n && game.undo()) undone++;
-    if (!undone) return false;
-    board.locked = false;
-    modal.hidden = true;
-    away.panel = null;
-    board.resetMarks();
-    text.plain(turnLine(game.turn()));
-    persistGame();
-    updateTurn();
-    void maybeAi();
-    return true;
-  }
-
-  /** Game over (pacing C6): what it counts for at once; at the slide's end the line, the plates, the sting and the
-   * blast-off or faint on the undimmed board; END_HOLD_MS later (or on a skip) the end panel. */
-  function finish(out: Outcome, slide = 0): void {
-    const end = out.end;
-    if (!end) return;
-    app.ended = true;
-    board.locked = true;
-    // A puzzle that ends in mate is finished by the puzzle player, not the end screen.
-    if (app.mode === 'puzzle' || app.mode === 'path') return; // the Path and the warm-up have their own Next (W5)
-    // YELLOW (§B17): no "blacked out"; a gentle line instead.
-    if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
-    const drill = app.mode === 'challenge' ? drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human) : null;
-    // An online win evolves trade Pokémon on your team (§B12): saved now, told with the end panel (fix, 13 Oct).
-    const evolved = app.mode === 'online' && end.winner === app.human && !isGuest() ? journey.onlineWin() : [];
-    const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
-    if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);
-    if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
-    const r = away.round;
-    window.setTimeout(() => away.run(r, () => {
-      text.show([end.line]);
-      plates.end(end.winner ?? null);
-      music.stop();
-      if (drill) return endChallenge(drill);
-      if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
-      if (end.reason === 'checkmate') {
-        const king = game.checkedKing();
-        const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
-        img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
-      }
-      void hold(END_HOLD_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => showEnd(end.line, evolved)));
-    }), slide);
-  }
-
-  function showEnd(line: Line, evolved: [string, string][] = []): void {
-    // Gone on the first tap, so a second tap or Menu can't act too (fix, 13 Oct); away.panel stays if START cuts the dip.
-    const rematch = (swap: boolean) => ((modal.hidden = true), app.mode === 'online' ? ((away.panel = null), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
-    modal.onclick = null;
-    modal.replaceChildren(endPanel(line, { captions: settings.captions, online: app.mode === 'online', rematch, menu: goTitle }));
-    modal.hidden = false;
-    away.panel = () => showEnd(line); // back from OPTION, the end screen is still there (bugs #7)
-    for (const [from, to] of evolved) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
-  }
-
-  function pickPromotion(from: string, to: string): void {
-    const close = () => ((modal.hidden = true), (away.panel = null));
-    modal.onclick = null;
-    modal.replaceChildren(promotionPanel(game.turn(), to, (role) => (close(), submit(from, to, role)), () => (close(), board.clearSelection())));
-    modal.hidden = false;
-    away.panel = () => pickPromotion(from, to);
   }
 
   /** New game in the current mode (or a FEN / PGN to restore), optionally with the intro card. */
