@@ -66,6 +66,7 @@
   "end.wins": "{name} wins!",
   "promote.cancel": "Cancel",
   "board.label": "Chess board",
+  "board.loading": "Loading Pokémon...",
   "back": "Back",
   "settings.anim": "Animations",
   "anim.full": "Full",

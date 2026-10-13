@@ -3,9 +3,11 @@
 import { DRAG_THRESHOLD_PX, MOVE_SLIDE_MS } from '../config';
 import type { Game } from '../game/chess';
 import { GLYPHS, lookOf, speciesFor, spriteUrl, type Color, type Role, type Species } from './pieces';
-import { ASSET_BASE, HOLD_MS, PIECE_FILL, type PieceStyle } from '../config';
+import { HOLD_MS, PIECE_FILL, type PieceStyle } from '../config';
 import trim from '../data/trim.json';
 import { fmt } from '../game/text';
+import { decodedSrc, decodeImage, onDecoded, stillUrl, warmBoard, type OnBoard } from '../battle/sprites';
+import { neededAtReveal } from '../ui/loader';
 
 const FILES = 'abcdefgh';
 
@@ -123,6 +125,10 @@ export class Board {
     const checked = this.game.checkedKing();
     const { glyphs, pieceStyle, animate, coords } = this.hooks.settings();
     const twins = this.twins();
+    // Built before it is shown (the constructor), the board must not hold up the menus' images (load fix); on screen
+    // its pieces load first, as stills until each animated sprite has decoded (loading fix, 14 Oct).
+    const live = this.el.isConnected;
+    const mons: OnBoard[] = [];
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
         const file = this.orientation === 'w' ? f : 7 - f;
@@ -148,19 +154,24 @@ export class Board {
         const piece = this.game.pieceAt(sq);
         if (piece) {
           const sp = speciesFor(piece.color, piece.type, sq);
+          mons.push({ color: piece.color, role: piece.type, sp });
           cell.dataset.piece = `${piece.color}${piece.type}`;
           cell.setAttribute('aria-label', fmt('square.piece', { piece: sp.name, square: sq }));
           // Piece style (§B19 item 3): Pokémon + badge, Big badge (sprite behind the chip), or Classic symbols only.
           if (piece.color === this.mine && (this.groundAll || twins.has(sp.dex)) && pieceStyle !== 'classic') cell.append(Object.assign(document.createElement('span'), { className: `ground ground-${lookOf(piece.color)}` }));
-          if (pieceStyle !== 'classic') cell.append(pieceImg(sp, animate, pieceStyle === 'badge'));
+          if (pieceStyle !== 'classic') cell.append(pieceImg(sp, animate, pieceStyle === 'badge', live));
           if (sp.stars) {
             const star = document.createElement('span');
             star.className = 'star-badge';
             star.textContent = '★'.repeat(sp.stars);
             cell.append(star);
           }
-          if (pieceStyle === 'classic') cell.append(classic(piece.color, piece.type));
-          else if (glyphs || pieceStyle === 'badge') cell.append(chip(piece.color, piece.type, pieceStyle === 'badge'));
+          if (pieceStyle === 'classic') {
+            cell.append(classic(piece.color, piece.type));
+            // No sprite here, but the intro card shows each king's: its still decodes now and the cover waits for it.
+            const still = stillUrl(sp.dex, sp.shiny);
+            if (live && piece.type === 'k' && !decodedSrc(still)) neededAtReveal(decodeImage(still));
+          } else if (glyphs || pieceStyle === 'badge') cell.append(chip(piece.color, piece.type, pieceStyle === 'badge'));
         } else {
           cell.setAttribute('aria-label', sq);
         }
@@ -168,6 +179,8 @@ export class Board {
         this.el.append(cell);
       }
     }
+    // What this board's moves will need next: cries, backs and fronts, after its own images (src/battle/sprites.ts).
+    if (live) warmBoard(mons, this.mine);
     // Reduced motion (pacing R7): the piece is just there, nothing slides.
     if (slide && before && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       const img = this.cells.get(slide.to)?.querySelector('.piece, .classic') as HTMLElement | null;
@@ -205,8 +218,8 @@ export class Board {
   private select(sq: string): void {
     this.selected = sq;
     this.focus = sq;
+    this.hooks.onSelect?.(sq); // the pick up sound and the cry start with the tap, before the redraw (loading fix, 14 Oct)
     this.render();
-    this.hooks.onSelect?.(sq);
     this.cells.get(sq)?.querySelector('.piece')?.classList.add('hop');
   }
 
@@ -298,16 +311,34 @@ export class Board {
 const TRIM = trim as unknown as Record<string, Record<string, [number, number, number, number, number, number]>>;
 
 /** A board sprite cropped to its opaque box and scaled to fill PIECE_FILL of the square, bottom aligned (§B19 item 1).
- * Animate Off (or reduced motion) uses the still frame. */
-function pieceImg(sp: Species, animate: boolean, faded: boolean): HTMLImageElement {
+ * Animate Off (or reduced motion) uses the still frame. On a board on screen (`live`), a piece is never blank once it
+ * shows: its animated sprite when that has decoded, else its 96x96 still (about 0.8 KB, loaded first) until the
+ * animated one decodes, then that, on the same element (nothing is redrawn: a selection or a slide stays). */
+function pieceImg(sp: Species, animate: boolean, faded: boolean, live: boolean): HTMLImageElement {
   const img = document.createElement('img');
   img.className = `piece${faded ? ' faded' : ''}`;
   img.alt = sp.name;
   img.draggable = false;
-  // Lazy: the board is built before it is shown, and its sprites must not hold up the menu's (load fix).
-  img.loading = 'lazy';
-  const set = animate ? (sp.shiny ? 'shiny/front' : 'front') : sp.shiny ? 'static/shiny' : 'static/front';
-  img.src = animate ? spriteUrl(sp.dex, 'front', sp.shiny) : `${ASSET_BASE}static/${sp.shiny ? 'shiny' : 'front'}/${sp.dex}.png`;
+  const front = spriteUrl(sp.dex, 'front', sp.shiny);
+  const ready = animate ? decodedSrc(front) : null;
+  if (ready) return frame(img, sp, ready, true);
+  if (!live) {
+    // Lazy: the board is built before it is shown, and its sprites must not hold up the menu's (load fix).
+    img.loading = 'lazy';
+    return frame(img, sp, animate ? front : stillUrl(sp.dex, sp.shiny), animate);
+  }
+  img.fetchPriority = 'high';
+  const still = stillUrl(sp.dex, sp.shiny);
+  void decodeImage(still); // kept decoded: the intro card and a battle's stand-in use it too
+  frame(img, sp, still, false);
+  if (animate) onDecoded(front, (src) => frame(img, sp, src, true));
+  return img;
+}
+
+/** Shows `src` in a piece, cropped with the trim box of its set (the animated sprites' or the stills'). */
+function frame(img: HTMLImageElement, sp: Species, src: string, animated: boolean): HTMLImageElement {
+  const set = animated ? (sp.shiny ? 'shiny/front' : 'front') : sp.shiny ? 'static/shiny' : 'static/front';
+  img.src = src;
   const b = TRIM[set]?.[String(sp.dex)];
   if (b) {
     const [x, y, w, h, W, H] = b;

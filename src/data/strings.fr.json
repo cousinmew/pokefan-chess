@@ -67,6 +67,7 @@
   "end.wins": "{name} gagne !",
   "promote.cancel": "Annuler",
   "board.label": "Échiquier",
+  "board.loading": "Chargement des Pokémon...",
   "back": "Retour",
   "settings.anim": "Animations",
   "anim.full": "Complètes",

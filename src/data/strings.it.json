@@ -67,6 +67,7 @@
   "end.wins": "Vince {name}!",
   "promote.cancel": "Annulla",
   "board.label": "Scacchiera",
+  "board.loading": "Carico i Pokémon...",
   "back": "Indietro",
   "settings.anim": "Animazioni",
   "anim.full": "Complete",

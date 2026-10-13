@@ -67,6 +67,7 @@
   "end.wins": "{name}获胜！",
   "promote.cancel": "取消",
   "board.label": "棋盘",
+  "board.loading": "正在载入宝可梦……",
   "back": "返回",
   "settings.anim": "动画",
   "anim.full": "完整",

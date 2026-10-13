@@ -67,6 +67,7 @@
   "end.wins": "{name} venceu!",
   "promote.cancel": "Cancelar",
   "board.label": "Tabuleiro de xadrez",
+  "board.loading": "Carregando Pokémon...",
   "back": "Voltar",
   "settings.anim": "Animações",
   "anim.full": "Completas",

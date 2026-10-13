@@ -67,6 +67,7 @@
   "end.wins": "הניצחון של {name}!",
   "promote.cancel": "ביטול",
   "board.label": "לוח שחמט",
+  "board.loading": "טוענים פוקימונים...",
   "back": "חזרה",
   "settings.anim": "אנימציות",
   "anim.full": "מלאות",

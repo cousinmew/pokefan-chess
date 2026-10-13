@@ -67,6 +67,7 @@
   "end.wins": "Победа: {name}!",
   "promote.cancel": "Отмена",
   "board.label": "Шахматная доска",
+  "board.loading": "Загружаем покемонов...",
   "back": "Назад",
   "settings.anim": "Анимации",
   "anim.full": "Полные",
