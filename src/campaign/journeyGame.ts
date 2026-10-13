@@ -185,14 +185,14 @@ export class JourneyGame {
       const t = p.trainers?.[0];
       if (!t) return;
       if (placeCleared(this.campaign, p)) return this.showMap();
-      return this.story((p.story ?? []).map((k) => fmt(k)), () => this.battle(p, t), personSprite('blue'));
+      return this.story((p.story ?? []).map((k) => fmt(k)), () => this.battle(p, t, 'story'), personSprite('blue'));
     }
     const intro = (p.story ?? []).map((k) => fmt(k));
     if (p.kind === 'drill') return this.story(intro, () => this.nextDrill(p));
     if (p.kind === 'champion') return this.story(intro, () => this.champion(p), personSprite('blue-champion'));
     // Gyms, challenges and the Elite Four: the next trainer still standing (or a replay of the first).
     const t = nextTrainer(this.campaign, p) ?? p.trainers?.[0];
-    if (t) this.story(intro, () => this.battle(p, t), this.spriteOf(t) ?? undefined);
+    if (t) this.story(intro, () => this.battle(p, t, 'story'), this.spriteOf(t) ?? undefined);
   }
 
   /** The map's ▶ (W5): straight into the next goal's battle; towns, rivals, gyms and drills open as from the map. */
@@ -243,8 +243,9 @@ export class JourneyGame {
   }
 
   /** A trainer: `puzzles` puzzles on its theme near your level; win by solving `need` of them (§B11).
-   * First time a theme appears, Oak's mini lesson comes first; then the intro card and the goal card (§B14). */
-  battle(p: Place, t: Trainer): void {
+   * First time a theme appears, Oak's mini lesson comes first; then the intro card and the goal card (§B14).
+   * `from`: a tap on a trainer row or ▶ (A4), or a story box or card handing over in the same tap (B2). */
+  battle(p: Place, t: Trainer, from: 'tap' | 'story' = 'tap'): void {
     const theme = this.focus(p, t);
     if (THEMES.includes(theme) && !this.campaign.lessonsSeen.includes(theme)) {
       return void this.lesson(theme, () => {
@@ -262,8 +263,11 @@ export class JourneyGame {
     // Pacing A4 to A6: a "!" over the trainer you tapped, then the dim and "wants to battle!", which waits for a tap
     // (it no longer leaves by itself, so a late tap can never skip the goal card); the goal card waits for one too.
     // Both ignore taps for CARD_GUARD_MS. show() clears the modal, so nothing here acts on a later screen (bugs #8).
-    trainerSpot(modal, document.querySelector('.trainer-row.next') ?? document.querySelector('[data-testid="map-current"]'), () => {
+    // B2 (Fix, 13 Oct): after a story (a gym leader, a lost retry, the Elite Four's next trainer) the card swaps in at
+    // once in the same task, so the dim stays up and a trainer who stood in the story is in the card, not sliding.
+    const intro = () => {
       modal.replaceChildren(trainerIntro(this.campaign, t, this.spriteOf(t)));
+      modal.hidden = false;
       let stage = 0;
       modal.onclick = () => {
         if (stage++ === 0) {
@@ -274,7 +278,9 @@ export class JourneyGame {
         modal.hidden = true;
         this.runBattle(p, t, theme); // the battle bars close over this screen and open on the board
       };
-    });
+    };
+    if (from === 'story') return intro();
+    trainerSpot(modal, document.querySelector('.trainer-row.next') ?? document.querySelector('[data-testid="map-current"]'), intro);
   }
 
   /** Oak's one screen lesson for a theme, with a looping example from a real puzzle (§B14). */
@@ -363,7 +369,7 @@ export class JourneyGame {
     const goal = goalLine(this.campaign);
     const next = () => {
       const more = !now ? nextTrainer(this.campaign, p) : null;
-      if (more && p.kind === 'league') return this.battle(p, more);
+      if (more && p.kind === 'league') return this.battle(p, more, 'story'); // after the quote: the same sequence
       if (p.kind === 'route' && !now) return this.showRoute(p);
       this.showMap(cleared ? p.id : undefined);
     };
@@ -522,7 +528,7 @@ export class JourneyGame {
   }
 
   private lose(p: Place, t: Trainer): void {
-    this.afterBeat(false, () => this.story([fmt('trainer.lost', { class: fmt(t.class), name: fmt(t.name) })], () => this.battle(p, t)));
+    this.afterBeat(false, () => this.story([fmt('trainer.lost', { class: fmt(t.class), name: fmt(t.name) })], () => this.battle(p, t, 'story')));
   }
 
   private walkGrass(p: Place, route: Route): void {

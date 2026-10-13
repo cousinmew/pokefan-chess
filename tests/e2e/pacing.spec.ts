@@ -3,8 +3,8 @@
 // can skip after HOLD_MIN_MS, cards that ignore a double tap, the solve and win beats, the board that never moves,
 // reduced motion and RTL. Real timings, measured in the page (performance.now() and a MutationObserver).
 import { expect, test, type Page } from '@playwright/test';
-import { AREA_IN_MS, BATTLE_IN_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS } from '../../src/config';
-import { noTransition, settled } from './pace';
+import { AREA_IN_MS, BATTLE_IN_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS, TRAINER_SPOT_MS } from '../../src/config';
+import { noTransition, ready, settled } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
@@ -231,6 +231,104 @@ test.describe('the battle cards and the waiting cover', () => {
   });
 });
 
+type Frame = { t: number; alpha: number; spot: boolean; sprites: number; intro: boolean };
+/** Each frame, the modal: its dim (0 when hidden), the "!", the trainer sprites standing in it, "wants to battle!". */
+function modalFrames(): void {
+  const w = window as unknown as { __frames: Frame[] };
+  w.__frames = [];
+  const tick = () => {
+    const o = document.querySelector<HTMLElement>('#app > .overlay');
+    if (o) {
+      const rgba = getComputedStyle(o).backgroundColor.match(/[\d.]+/g) ?? [];
+      w.__frames.push({ t: performance.now(), alpha: o.hidden ? 0 : Number(rgba[3] ?? 1), spot: !!o.querySelector('.trainer-spot'), sprites: o.querySelectorAll('.trainer-sprite').length, intro: !!o.querySelector('[data-testid="trainer-intro"]') });
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/** Puzzles of a battle from "wants to battle!": a quiet mate in 1 each, solved (e2e1) or missed (e2h2), then Continue. */
+async function play(page: Page, moves: string[]) {
+  for (const [i, uci] of moves.entries()) {
+    await kc(page, 'forcePuzzle', QUIET1, 'mateIn1');
+    if (i === 0) {
+      await page.getByTestId('trainer-intro').click();
+      await page.getByTestId('goal-card').click();
+    } else await page.getByTestId('review-continue').click();
+    await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 15_000 }).toBe('player');
+    await move(page, uci);
+    await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 30_000 }).toBe('review');
+  }
+  await page.getByTestId('review-continue').click();
+}
+
+/** Taps the story's lines until "wants to battle!" takes taps; the time of the last tap. */
+async function toIntro(page: Page): Promise<number> {
+  let t0 = 0;
+  while (!(await page.getByTestId('trainer-intro').count())) {
+    await ready(page, 'story');
+    t0 = await now(page);
+    await page.getByTestId('story').click();
+    await page.locator('[data-testid="trainer-intro"], [data-testid="story"]').first().waitFor();
+  }
+  await ready(page, 'trainer-intro');
+  return t0;
+}
+
+/** B2 (Fix, 13 Oct): the tap on a story's last line hands over to "wants to battle!" in the same frame, under the dim
+ * already up: no "!" over the map, the dim never fades out and back, and a trainer who stood in the story never goes. */
+async function handsOver(page: Page, trainerStays: boolean) {
+  const t0 = await toIntro(page);
+  const f = (await page.evaluate(() => (window as unknown as { __frames: Frame[] }).__frames)).filter((x) => x.t >= t0);
+  const l = await log(page);
+  expect(first(l, 'spot', undefined, t0)).toBeUndefined();
+  expect(first(l, 'card', 'trainer-intro', t0)!.t - t0).toBeLessThan(TRAINER_SPOT_MS / 2);
+  expect(f.filter((x) => x.spot)).toEqual([]);
+  expect(Math.min(...f.map((x) => x.alpha))).toBeGreaterThan(0.3); // .overlay's dim is 0.35
+  if (trainerStays) expect(f.filter((x) => x.sprites === 0)).toEqual([]);
+}
+
+test.describe('B2: from a story, "wants to battle!" pops in under the dim, with no "!"', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  const GYM = { ...SAVE, journey: { cleared: ['route-1', 'viridian', 'rival-1', 'viridian-forest'], beaten: [], visited: [] } };
+
+  test('a gym leader\'s story: Brock stays in place', async ({ page }) => {
+    await page.addInitScript(modalFrames);
+    await open(page, { save: GYM });
+    await page.getByTestId('kanto').click();
+    await expect(page.getByTestId('screen-map')).toBeVisible();
+    await noTransition(page);
+    await kc(page, 'enterPlace', 'pewter-gym');
+    await handsOver(page, true);
+    // He stood in the story, so he does not slide in again.
+    await expect(page.locator('[data-testid="trainer-intro"] .trainer-sprite')).not.toHaveClass(/slide-in/);
+  });
+
+  test('a lost gym: the lost line, then "wants to battle!" again', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(modalFrames);
+    await open(page, { save: GYM });
+    await page.getByTestId('kanto').click();
+    await kc(page, 'enterPlace', 'pewter-gym');
+    await toIntro(page);
+    await play(page, ['e2h2', 'e2h2', 'e2h2']); // 3 of 5 needed: three misses lose
+    await handsOver(page, false);
+  });
+
+  test('the Elite Four: a trainer beaten, the next one\'s card follows the quote', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(modalFrames);
+    await open(page, { save: GYM });
+    await page.getByTestId('kanto').click();
+    await kc(page, 'enterPlace', 'indigo-plateau');
+    await toIntro(page);
+    await play(page, ['e2e1', 'e2e1', 'e2e1', 'e2e1']); // 4 of 5
+    await page.getByTestId('win-card').click();
+    await handsOver(page, true); // LORELEI's quote, then BRUNO
+    await expect(page.getByTestId('trainer-intro')).toContainText('BRUNO');
+  });
+});
+
 for (const width of [360, 390]) {
   test(`a quiet solve at ${width} px: the board alone for ${SOLVE_BEAT_MS} ms, the stamp centred on it, the review at 1400 ms`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 360 ? 640 : 844 });
@@ -386,6 +484,43 @@ test.describe('the win, in order, then the map', () => {
     const gone = first(l, 'cover-', undefined, map)!.t;
     expect(first(l, 'map-stamp', undefined, map)!.t).toBeGreaterThanOrEqual(gone);
   });
+
+  // Fix, 13 Oct: the row was built with its stamp showing, so it blinked out and slammed in again at about 520 ms.
+  for (const reduce of [false, true]) {
+    test(`a town just cleared: its CLEARED stamp is hidden until it ${reduce ? 'fades in (reduced motion)' : 'slams in'}`, async ({ page }) => {
+      if (reduce) await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript((testid) => {
+        const w = window as unknown as { __stamp: { shown: boolean; now: boolean; opacity: number }[] };
+        w.__stamp = [];
+        const tick = () => {
+          const row = document.querySelector<HTMLElement>(`[data-testid="${testid}"]`);
+          const s = row?.querySelector<HTMLElement>('.stamp');
+          if (row && s) {
+            const cs = getComputedStyle(s);
+            w.__stamp.push({ opacity: Number(cs.opacity), shown: cs.visibility !== 'hidden' && Number(cs.opacity) > 0, now: row.classList.contains('stamp-now') });
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }, 'place-viridian');
+      await open(page, { save: { ...SAVE, journey: { cleared: ['route-1'], beaten: ['r1-toby'], visited: ['route-1'] } } });
+      await page.getByTestId('kanto').click();
+      await expect(page.getByTestId('screen-map')).toBeVisible();
+      await kc(page, 'enterPlace', 'viridian');
+      for (let i = 0; i < 2; i++) {
+        await ready(page, 'story');
+        await page.getByTestId('story').click();
+      }
+      await page.getByTestId('town-card').click();
+      await page.locator('[data-testid="place-viridian"].stamp-now').waitFor({ state: 'attached' });
+      await settled(page);
+      const f = await page.evaluate(() => (window as unknown as { __stamp: { shown: boolean; now: boolean; opacity: number }[] }).__stamp);
+      const at = f.findIndex((x) => x.now);
+      expect(at).toBeGreaterThan(5); // the reveal's frames, then the stamp
+      expect(f.slice(0, at).filter((x) => x.shown)).toEqual([]);
+      expect(f.at(-1)).toMatchObject({ now: true, opacity: 1, shown: true });
+    });
+  }
 });
 
 test.describe('vs Computer', () => {
@@ -425,7 +560,8 @@ test.describe('vs Computer', () => {
   });
 });
 
-test('reduced motion: every animation is an opacity fade of 120 ms or less, nothing moves', async ({ page }) => {
+// Hebrew too (Fix, 13 Oct): the RTL slide-ins outranked the reduced-motion fade, so trainers still slid in.
+for (const lang of ['en', 'he']) test(`reduced motion${lang === 'he' ? ' in Hebrew (RTL)' : ''}: every animation is an opacity fade of 120 ms or less, nothing moves`, async ({ page }) => {
   test.setTimeout(60_000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -448,7 +584,8 @@ test('reduced motion: every animation is an opacity fade of 120 ms or less, noth
     };
     requestAnimationFrame(tick);
   });
-  await open(page);
+  await open(page, { lang: lang === 'he' ? 'he' : undefined });
+  expect(await page.evaluate(() => document.documentElement.dir || 'ltr')).toBe(lang === 'he' ? 'rtl' : 'ltr');
   await toBattle(page);
   await move(page, 'e2e1');
   await expect.poll(() => kc<string>(page, 'puzzlePhase')).toBe('review');
@@ -463,6 +600,21 @@ test('reduced motion: every animation is an opacity fade of 120 ms or less, noth
   const moving = anims.filter((a) => a.props.some((p) => !['opacity', 'backgroundColor', 'visibility'].includes(p)));
   expect(moving).toEqual([]);
   expect(anims.filter((a) => a.ms > REDUCED_FADE_MS)).toEqual([]);
+  // A story's trainer and the badge's shine are not on this walk: their rules, on elements shown on their own.
+  const names = await page.evaluate(() =>
+    ['trainer-sprite slide-in', 'trainer-sprite story-trainer slide-in', 'badge won boulder badge-big'].map((cls) => {
+      const c = document.createElement('div');
+      c.className = 'panel progress-card badge-card';
+      const e = document.createElement('div');
+      e.className = cls;
+      c.append(e);
+      document.body.append(c);
+      const name = `${getComputedStyle(e).animationName} ${getComputedStyle(e, '::after').animationName}`;
+      c.remove();
+      return name;
+    }),
+  );
+  expect(names).toEqual(['fade-in none', 'fade-in none', 'fade-in none']);
 });
 
 test('Hebrew: the battle bars and the badge shine run mirrored; the board and the dip have no direction', async ({ page }) => {
