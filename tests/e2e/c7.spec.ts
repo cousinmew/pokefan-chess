@@ -122,11 +122,10 @@ test('trainers beside the board follow the computer level, react to captures and
 const twoPlayers = async (page: Page) => {
   await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off', autoFlip: true })));
   await page.goto('./?debug=1&start=two');
+  // Each move once the board takes one again: since the controller's C6 (14 Oct) the board stays locked while the move
+  // lands and the board turns (about 740 ms), and the harness move is refused meanwhile.
   return async (...moves: string[]) => {
-    for (const m of moves) {
-      await page.evaluate((u) => (window as unknown as { __kc: { move(u: string): string } }).__kc.move(u), m);
-      await page.waitForTimeout(80);
-    }
+    for (const m of moves) await expect.poll(() => page.evaluate((u) => (window as unknown as { __kc: { move(u: string): string } }).__kc.move(u), m)).toBeTruthy();
   };
 };
 
