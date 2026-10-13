@@ -7,12 +7,11 @@ import { SPECIES } from '../board/pieces';
 import { DEX, routeSpecies, type Campaign, type Route } from '../campaign/kanto';
 import { nextGoal, nextTrainer, PLACES, placeCleared, placeName, placeUnlocked, progress, routeOf, trainerName, unlockText, type Goal, type Place, type Trainer } from '../campaign/journey';
 import { fmt, type StringKey, type Vars } from '../game/text';
+import { AREA_IN_MS, MAP_STAMP_DELAY_MS, STAMP_PAUSE_MS } from '../config';
 import { button, el, screen } from './dom';
 import { mon, trainerSprite } from './kanto';
 
 const BADGES = ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth'];
-/** How long the map waits after stamping a cleared place before it scrolls on to ▶ (the stamp runs 400 ms). */
-const STAMP_PAUSE_MS = 700;
 
 function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
   const p = el('p', cls);
@@ -79,6 +78,8 @@ export interface MapActions {
   training(): void;
   back(): void;
   hof?(): void;
+  /** The CLEARED stamp lands (the map sting plays with it, pacing §5). */
+  stamped?(): void;
 }
 
 /** The current place: a big card with ▶, its details and the one primary button of the map. */
@@ -98,7 +99,9 @@ function currentCard(c: Campaign, p: Place, i: number, goal: Goal, a: MapActions
   return card;
 }
 
-/** `justCleared`: a place cleared a moment ago; the map scrolls to it, stamps it, then scrolls on to ▶ (W5). */
+/** `justCleared`: a place cleared a moment ago (W5, pacing §5). The map opens with its row in view and stays live; once
+ * the reveal is over the CLEARED stamp slams and the row flashes, and STAMP_PAUSE_MS later the map scrolls to ▶ only
+ * when it is off screen, and ▶ pulses twice. Under reduced motion the stamp fades in and nothing flashes or pulses. */
 export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm = false): HTMLElement {
   const goal = nextGoal(c);
   const list = el('div', 'kanto-map');
@@ -151,8 +154,18 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
     const here = current as HTMLElement | null;
     if (!at) return here?.scrollIntoView({ block: 'center' });
     at.scrollIntoView({ block: 'center' });
-    if (!calm) at.classList.add('stamp-now');
-    window.setTimeout(() => here?.isConnected && here.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' }), calm ? 0 : STAMP_PAUSE_MS);
+    window.setTimeout(() => {
+      if (!at.isConnected) return;
+      at.classList.add('stamp-now');
+      a.stamped?.();
+      window.setTimeout(() => {
+        if (!here?.isConnected) return;
+        const r = here.getBoundingClientRect();
+        const box = here.closest('.menu-body')?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+        if (r.top < box.top || r.bottom > box.bottom) here.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+        if (!calm) here.classList.add('next-pulse');
+      }, STAMP_PAUSE_MS);
+    }, AREA_IN_MS + MAP_STAMP_DELAY_MS);
   });
   return s;
 }
@@ -216,18 +229,28 @@ function card(testid: string, title: string): HTMLElement {
   return p;
 }
 
-/** A trainer beaten (W5): ✓ and the name, the pips, the badge won, how many trainers of the place are beaten. */
-export function winCard(c: Campaign, p: Place, t: Trainer, sprite: string | undefined | null, pips: string, badge?: string): HTMLElement {
+/** A trainer beaten (W5): ✓ and the name, the pips, how many trainers of the place are beaten. The card slams in and
+ * the pips light one by one (pacing §5); a badge has its own card next. */
+export function winCard(c: Campaign, p: Place, t: Trainer, sprite: string | undefined | null, pips: string): HTMLElement {
   const box = card('win-card', fmt('win.title'));
   if (sprite !== null) box.append(trainerSprite(sprite, 'trainer-sprite'));
-  box.append(text('p', `✓ ${trainerName(t)}`, 'win-trainer'), text('p', pips, 'pips'));
-  if (badge) {
-    const b = text('p', `${fmt(`badge.${badge}` as StringKey)} ✓`, 'badge-line won');
-    b.prepend(el('span', `badge won ${badge}`));
-    box.append(b);
-  }
+  const row = el('p', 'pips');
+  row.setAttribute('aria-label', pips);
+  [...pips].forEach((pip, i) => {
+    const s = text('span', pip, 'pip');
+    s.style.setProperty('--i', String(i));
+    row.append(s);
+  });
+  box.append(text('p', `✓ ${trainerName(t)}`, 'win-trainer'), row);
   const all = p.trainers ?? [];
   if (all.length > 1) box.append(line('route.trainers', { beaten: String(all.filter((x) => c.journey.beaten.includes(x.id)).length), total: String(all.length) }, 'small'));
+  return box;
+}
+
+/** A badge won (pacing §5): "You received the …!" and the badge spinning in, then a shine across it. */
+export function badgeCard(badge: string): HTMLElement {
+  const box = card('badge-card', fmt('badge.received', { badge: fmt(`badge.${badge}` as StringKey) }));
+  box.append(el('span', `badge won ${badge} badge-big`));
   return box;
 }
 

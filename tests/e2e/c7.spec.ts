@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // C7 (§B18 items 5 to 8): evolving story teams, the Anime battle style, MEIR, and trainers beside the board.
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 type Kc = { __kc: { bench(a?: string, d?: string, s?: string): { style: string; p95: number; totalMs: number; worstSecond: number; flashes: number }; playFx(id: string): unknown; step(n: number): { phase: string } } };
 const seed = (page: Page, badges: string[], cart = 'blue') =>
@@ -102,6 +103,7 @@ test('MEIR by keyboard on the YELLOW home', async ({ page }) => {
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
+  await noTransition(page); // pacing R2: B is held back while the cover reveals the screen
   for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await page.keyboard.press(k);
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
 });

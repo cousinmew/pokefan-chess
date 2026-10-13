@@ -43,8 +43,8 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     await playAnswer(page);
     moves++;
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('checking');
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('reply');
+    // Pacing: the reply waits OPPONENT_REPLY_MS, and a solve has its beat ('solved') before the review.
+    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply|solved/);
   }
   // The theme is picked at random, so the goal and the praise follow the line just played: a mate in N ends in mate.
   const fen = await page.evaluate(() => (JSON.parse((window as unknown as { __kc: { dumpState(): string } }).__kc.dumpState()) as { fen: string }).fen);

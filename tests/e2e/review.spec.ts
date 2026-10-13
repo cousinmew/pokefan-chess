@@ -2,6 +2,7 @@
 // §B15 gate: the review stays until Continue; ◀ ▶ walk the whole line; the refutation is a legal Stockfish move.
 import { expect, test, type Page } from '@playwright/test';
 import { Chess } from 'chess.js';
+import { noTransition } from './pace';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; openPuzzles(): void; dumpState(): string; refutation(): { fen: string; uci: string; source: string } | null };
 const kc = <T>(page: Page, f: keyof KC) => page.evaluate((name) => (window as unknown as { __kc: Record<string, () => unknown> }).__kc[name]!() as T, f);
@@ -37,6 +38,7 @@ test('solved: the review stays after 10 s, and ◀ ▶ walk the full line', asyn
   const seen = [await fen(page)];
   while (await page.getByTestId('review-prev').isEnabled()) {
     await page.getByTestId('review-prev').click();
+    await noTransition(page); // a step back dips the board; the position comes in at the dip's peak (pacing §2)
     seen.push(await fen(page));
   }
   const steps = seen.length - 1;

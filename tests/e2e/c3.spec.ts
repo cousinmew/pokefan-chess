@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition, skipHold } from './pace';
 
 type Save = { badges: string[]; caught: Record<string, number>; journey: { cleared: string[] }; champion: boolean; hallOfFame: unknown[] };
 const kc = <T>(page: Page, fn: string, arg?: unknown) => page.evaluate(([f, a]) => (window as unknown as { __kc: Record<string, (x?: unknown) => unknown> }).__kc[f as string]!(a) as T, [fn, arg] as const);
@@ -17,12 +18,20 @@ async function open(page: Page, save: object = SAVE) {
   await expect(page.getByTestId('screen-map')).toBeVisible();
 }
 
+/** The drill or Champion game is on the board: the battle bars closed, the game started and the bars opened (pacing). */
+async function onBoard(page: Page) {
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  await noTransition(page);
+}
+
 /** Plays whatever the Journey shows (stories, cards, choices, puzzles) until the map is back with nothing over it. */
 async function playThrough(page: Page) {
   // The Elite Four is four battles in one go, so allow plenty of steps.
   for (let i = 0; i < 1500; i++) {
     const vis = (id: string) => page.getByTestId(id).first().isVisible();
-    if (await vis('story')) await page.getByTestId('story').first().click();
+    // A fast player skips the holds (the "Watch!" set up, replies, the solve beat, the review replay): pacing §6.
+    if (await page.locator('body[data-skippable]').count()) await skipHold(page).catch(() => undefined);
+    else if (await vis('story')) await page.getByTestId('story').first().click();
     else if (await vis('goal-card')) await page.getByTestId('goal-card').click();
     else if (await vis('trainer-intro')) await page.getByTestId('trainer-intro').click();
     else if (await vis('lesson-ok')) await page.getByTestId('lesson-ok').click();
@@ -34,7 +43,7 @@ async function playThrough(page: Page) {
       await page.click(`[data-square="${uci.slice(0, 2)}"]`);
       await page.click(`[data-square="${uci.slice(2, 4)}"]`);
       if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    } else if (await vis('screen-map')) return;
+    } else if ((await vis('screen-map')) && !(await page.locator('#app > .overlay:not([hidden]), [data-testid="screen-cover"]').count())) return; // not under the "!" or the battle bars (pacing)
     await page.waitForTimeout(150);
   }
   const state = await page.evaluate(() => ({ phase: (window as unknown as { __kc: { puzzlePhase(): string } }).__kc.puzzlePhase(), screens: [...document.querySelectorAll('[data-testid^="screen-"]')].map((e) => e.getAttribute('data-testid')), overlay: document.querySelector('.overlay:not([hidden])')?.textContent?.slice(0, 120), text: document.querySelector('[data-testid="text-main"]')?.textContent, banner: document.querySelector('[data-testid="puzzle-banner"]')?.textContent, beaten: (window as unknown as { __kc: { journey(): { journey: { beaten: string[] } } } }).__kc.journey().journey.beaten.filter((b) => b.startsWith('e4')) }));
@@ -69,6 +78,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
   await expect(page.getByTestId('goal-card')).toContainText('QUEEN VS LONE KING');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7Q w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');
@@ -76,6 +86,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   await page.getByTestId('story').click();
   await expect(page.getByTestId('goal-card')).toContainText('ROOK VS LONE KING');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7R w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');
@@ -89,6 +100,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   await page.getByTestId('trainer-intro').click();
   await expect(page.getByTestId('goal-card')).toContainText('He plays at level 1: Easy.');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7Q w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // §B22: Oak on the first intro box, BACK out of NEW GAME, the START button, and PLAY CHESS without a save.
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 const SHOTS = 'docs/start-flow';
 const camp = { v: 2, name: 'JADE', starter: 'charmander', introSeen: true, teamRules: 2, badges: ['boulder'], caught: { charmander: 1 }, playMs: 600_000 };
@@ -60,7 +61,10 @@ test('BACK out of NEW GAME: the shelf, the intro and the name step return to the
       if (!(await page.getByTestId('newgame-back').isVisible())) throw new Error('no BACK on the name step');
       await page.screenshot({ path: `${SHOTS}/newgame-back.png` });
       await page.getByTestId('newgame-back').click();
-    } else await page.keyboard.press(exit === 'escape' ? 'Escape' : 'b');
+    } else {
+      await noTransition(page); // pacing R2: B waits for the screen change to finish
+      await page.keyboard.press(exit === 'escape' ? 'Escape' : 'b');
+    }
     await page.getByTestId('screen-splash').click();
     await expect(page.getByTestId('screen-start')).toBeVisible();
     expect(await storage(page)).toBe(before);

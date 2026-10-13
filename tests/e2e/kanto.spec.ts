@@ -11,7 +11,7 @@ async function solve(page: Page) {
     await page.click(`[data-square="${uci.slice(0, 2)}"]`);
     await page.click(`[data-square="${uci.slice(2, 4)}"]`);
     if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply/);
+    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply|solved/); // pacing: the solve beat ('solved') comes before the review
   }
   // The review moment (§B15) waits for Continue before the encounter.
   await page.getByTestId('review-continue').click();

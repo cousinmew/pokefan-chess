@@ -19,7 +19,8 @@ async function solveOne(page: Page) {
   await page.getByTestId('review-continue').click();
 }
 
-/** A Route 1 trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */
+/** A Route 1 trainer battle: the lesson the first time, intro card, goal card, then puzzles until "You won!" (pacing §5:
+ * the win card comes first, then the defeat story). */
 async function beatTrainer(page: Page, who: string) {
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
@@ -29,12 +30,12 @@ async function beatTrainer(page: Page, who: string) {
   // Route 1's trainers are easy, mate in 1 only (W5).
   await expect(page.getByTestId('puzzle-banner')).toHaveText(`${who} ○○○ need 2`);
   await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solveOne(page);
-    // After a short pause either the next puzzle starts or the defeat story shows.
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    // After a short pause either the next puzzle starts or the win card shows.
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  await expect(page.getByTestId('story')).toBeVisible();
+  await expect(page.getByTestId('win-card')).toBeVisible();
 }
 
 async function readStory(page: Page, boxes: number) {
@@ -74,11 +75,16 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
     }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
     await beatTrainer(page, who);
-    await readStory(page, 1);
-    await expect(page.getByTestId('story-text')).toHaveText(who === 'LASS MINA' ? 'Next: Go to VIRIDIAN CITY' : 'Next: LASS MINA at ROUTE 1');
-    await readStory(page, 1);
-    await page.getByTestId('win-card').click(); // W5: what you won
-    if (who === 'LASS MINA') await page.getByTestId('unlock-card').click(); // W5: what opened
+    await page.getByTestId('win-card').click(); // W5: what you won, first (pacing §5)
+    await readStory(page, 1); // the defeat line
+    // "Next: …" once, last: on the unlock card when the route is cleared, else the story's last line.
+    if (who === 'LASS MINA') {
+      await expect(page.getByTestId('unlock-card')).toContainText('Next: Go to VIRIDIAN CITY');
+      await page.getByTestId('unlock-card').click(); // W5: what opened
+    } else {
+      await expect(page.getByTestId('story-text')).toHaveText('Next: LASS MINA at ROUTE 1');
+      await readStory(page, 1);
+    }
   }
   await expect(page.getByTestId('place-viridian')).toBeEnabled();
   await page.getByTestId('place-viridian').click();
@@ -95,13 +101,14 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await expect(page.getByTestId('goal-card')).toContainText('BLUE leads with CHARMANDER.');
   await expect(page.getByTestId('pips')).toHaveText('○○○○○');
   await page.getByTestId('goal-card').click();
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solveOne(page);
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  // BLUE's defeat line and the next goal, the win and unlock cards, then Oak's reward: the starter neither of you picked (§B12).
-  await readStory(page, 2);
+  // The win card, BLUE's defeat line, the unlock card with the next goal, then Oak's reward: the starter neither of you
+  // picked (§B12).
   await page.getByTestId('win-card').click();
+  await readStory(page, 1);
   await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('story-text')).toContainText('SQUIRTLE wanted to come along!');
   await readStory(page, 1);

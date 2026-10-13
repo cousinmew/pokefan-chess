@@ -103,7 +103,7 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
   await boardIsLtr(page);
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await expect.poll(() => phase(page), { timeout: 10_000 }).toBe('player');
     for (let j = 0; j < 6 && (await phase(page)) === 'player'; j++) {
       const uci = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzleAnswer()))!;
@@ -113,8 +113,10 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
       await expect.poll(() => phase(page), { timeout: 10_000 }).toMatch(/player|review/);
     }
     await page.getByTestId('review-continue').click();
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
+  // Pacing §5: "You won!" first, then the defeat story.
+  await page.getByTestId('win-card').click();
   await expect(page.getByTestId('story')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
 });

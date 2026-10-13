@@ -113,6 +113,6 @@ test('music: title loop on the title screen, board loop in a game, music slider 
   await expect(page.getByTestId('set-music')).toHaveValue('0.3');
   await page.getByTestId('back').click();
   await page.getByTestId('two-players').click();
-  expect(await cue()).toBe('board');
+  await expect.poll(cue).toBe('board'); // once the battle bars have closed (pacing §2)
   expect(errors).toEqual([]);
 });

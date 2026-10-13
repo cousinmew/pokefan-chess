@@ -2,7 +2,8 @@
 // Kanto Journey screens (§B11, §B12): story boxes, name and starter, the journey map, a route with its trainers,
 // trainer intros, the Trainer Card, Training, the 151 Pokédex with candy and stars, My Team, and the encounter panel.
 // The map and a route's screen moved to src/ui/journeyMap.ts (W5).
-import { STAR_STEPS } from '../config';
+import { LINE_GUARD_MS, STAR_STEPS } from '../config';
+import { guard } from './pace';
 import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
 import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution } from '../campaign/kanto';
 import { levelNewVars, stepKey, type ShownLevel } from '../campaign/trainer';
@@ -70,10 +71,17 @@ function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
   return p;
 }
 
-/** Gen 1 style text boxes over the screen, one per tap (§B11); a trainer can slide in beside them (§B14). */
+/** Gen 1 style text boxes over the screen, one per tap (§B11); a trainer can slide in beside them (§B14). Pacing (§3):
+ * the box rises in, each line fades in and ignores taps and keys for LINE_GUARD_MS (then its ▼ shows), and the same
+ * trainer stays where it is from one box to the next (it slides in once per modal sequence, src/ui/cards.ts). */
 export function story(host: HTMLElement, texts: string[], done: () => void, sprite?: string): void {
   const box = el('div', 'panel story');
-  if (sprite) host.append(trainerSprite(sprite, 'trainer-sprite story-trainer slide-in'));
+  host.querySelectorAll<HTMLElement>('.story-trainer').forEach((n) => (!sprite || n.dataset.sprite !== sprite) && n.remove());
+  if (sprite && !host.querySelector('.story-trainer')) {
+    const s = trainerSprite(sprite, 'trainer-sprite story-trainer slide-in');
+    s.dataset.sprite = sprite;
+    host.append(s);
+  }
   box.dataset.testid = 'story';
   const p = el('p', 'story-text');
   p.dataset.testid = 'story-text';
@@ -82,6 +90,10 @@ export function story(host: HTMLElement, texts: string[], done: () => void, spri
   let i = 0;
   const show = () => {
     p.textContent = texts[i] ?? '';
+    p.classList.remove('line-in');
+    void p.offsetWidth; // restart the fade
+    p.classList.add('line-in');
+    guard(box, LINE_GUARD_MS);
   };
   host.onclick = () => {
     i++;
@@ -93,7 +105,6 @@ export function story(host: HTMLElement, texts: string[], done: () => void, spri
   };
   show();
   host.querySelectorAll('.panel').forEach((n) => n.remove());
-  if (!sprite) host.querySelectorAll('.story-trainer').forEach((n) => n.remove());
   host.append(box);
   host.hidden = false;
 }
@@ -410,6 +421,7 @@ export function encounterPanel(id: string, shiny: boolean, throwBall: () => bool
     msg.textContent = fmt(caught ? 'enc.caught' : 'enc.fled', { name: SPECIES[id]!.name });
     if (next) row.replaceChildren(button('review.continue', next, 'enc-next', 'primary'));
     else row.replaceChildren(button('enc.again', again, 'walk-again'), button('route.leave', map, 'to-map'));
+    guard(p); // the buttons that replace Throw sit under the same finger (pacing R4)
   }, 'throw-ball');
   row.append(ball);
   p.append(mon(id, 'menu-sprite', false, shiny), ...(shiny ? [line('enc.shiny', undefined, 'shiny-note')] : []), msg, row);

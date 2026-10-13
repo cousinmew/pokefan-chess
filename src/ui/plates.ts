@@ -128,6 +128,12 @@ export class Plates {
     this.pulse(this.plateOf(by === 'w' ? 'b' : 'w'), 'shake');
   }
 
+  /** A battle decided (pacing §5): the winner hops, the loser shakes and fades. */
+  beat(winner: Color): void {
+    this.capture(winner);
+    this.end(winner);
+  }
+
   /** "!" over the side in check; null clears it. */
   check(side: Color | null): void {
     this.top.classList.toggle('check', !!side && this.plateOf(side) === this.top);
