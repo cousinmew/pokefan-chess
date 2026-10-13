@@ -236,15 +236,15 @@ test.describe('the battle cards and the waiting cover', () => {
 });
 
 type Frame = { t: number; alpha: number; spot: boolean; sprites: number; intro: boolean };
-/** Each frame, the modal: its dim (0 when hidden), the "!", the trainer sprites standing in it, "wants to battle!". */
+/** Each frame, the modal: its dim (0 when hidden), the "!", how visible its trainer is (J13: opacity with ancestors'), "wants to battle!". */
 function modalFrames(): void {
-  const w = window as unknown as { __frames: Frame[] };
-  w.__frames = [];
+  const frames: Frame[] = ((window as unknown as { __frames: Frame[] }).__frames = []);
+  const shown = (s: Element) => { let a = 1; for (let e: Element | null = s; e; e = e.parentElement) a *= Number(getComputedStyle(e).opacity); return a; };
   const tick = () => {
     const o = document.querySelector<HTMLElement>('#app > .overlay');
     if (o) {
       const rgba = getComputedStyle(o).backgroundColor.match(/[\d.]+/g) ?? [];
-      w.__frames.push({ t: performance.now(), alpha: o.hidden ? 0 : Number(rgba[3] ?? 1), spot: !!o.querySelector('.trainer-spot'), sprites: o.querySelectorAll('.trainer-sprite').length, intro: !!o.querySelector('[data-testid="trainer-intro"]') });
+      frames.push({ t: performance.now(), alpha: o.hidden ? 0 : Number(rgba[3] ?? 1), spot: !!o.querySelector('.trainer-spot'), sprites: Math.max(0, ...[...o.querySelectorAll('.trainer-sprite')].map(shown)), intro: !!o.querySelector('[data-testid="trainer-intro"]') });
     }
     requestAnimationFrame(tick);
   };
@@ -289,7 +289,7 @@ async function handsOver(page: Page, trainerStays: boolean) {
   expect(first(l, 'card', 'trainer-intro', t0)!.t - t0).toBeLessThan(TRAINER_SPOT_MS / 2);
   expect(f.filter((x) => x.spot)).toEqual([]);
   expect(Math.min(...f.map((x) => x.alpha))).toBeGreaterThan(0.3); // .overlay's dim is 0.35
-  if (trainerStays) expect(f.filter((x) => x.sprites === 0)).toEqual([]);
+  if (trainerStays) expect(f.filter((x) => x.sprites < 0.5)).toEqual([]); // seen in every frame, not just in the DOM
 }
 
 test.describe('B2: from a story, "wants to battle!" pops in under the dim, with no "!"', () => {

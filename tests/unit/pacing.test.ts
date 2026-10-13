@@ -15,6 +15,8 @@ const SPEC: Record<string, number> = {
   WIN_CARD_IN_MS: 260, WIN_PIP_STEP_MS: 120, BADGE_IN_MS: 500, BADGE_SHINE_MS: 500, MAP_STAMP_DELAY_MS: 200, MAP_STAMP_MS: 400,
   CLEARED_ROW_MS: 600, STAMP_PAUSE_MS: 700, NEXT_PULSE_MS: 800, END_HOLD_MS: 1600, END_ANIM_MS: 1400, CHALLENGE_END_MS: 1600,
   YELLOW_CHEER_MS: 600, PATH_NEXT_DELAY_MS: 350, STICKER_IN_MS: 600, PATH_NEW_MS: 900,
+  // Fix, 13 Oct (journey): the evolved form's hold, the catch's beat, the battle card's sprite wait, My Team's previews.
+  EVOLVE_DONE_MS: 1200, CATCH_BEAT_MS: 1200, CARD_SPRITE_WAIT_MS: 1500, TEAM_PREVIEW_WAIT_MS: 350,
 };
 
 function sources(dir: string): string[] {

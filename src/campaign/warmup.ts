@@ -11,7 +11,7 @@ import type { Rng } from '../game/rng';
 import { encounterPanel, story } from '../ui/kanto';
 import { firstCatchCard, tapCard, warmupIntro } from '../ui/journeyMap';
 import { enforce } from '../../worker/src/team';
-import { DEX, teamBadges, throwBall, type Campaign } from './kanto';
+import { catchGains, DEX, teamBadges, throwBall, type Campaign } from './kanto';
 import { WARMUP_PLACE } from './journey';
 import { WARMUP, type Lesson } from './path';
 import type { WarmupHooks } from './pathGame';
@@ -69,10 +69,11 @@ function firstCatch(h: WarmupHost, then: () => void): void {
       FIRST_CATCH,
       false,
       () => {
-        const res = throwBall(h.campaign(), WARMUP_PLACE, FIRST_SLOT, 'first', h.rng, false, true);
+        // The same beat as tall grass (J3), then what it gave; the panel plays the victory sting after the beat.
+        const before = h.campaign();
+        const res = throwBall(before, WARMUP_PLACE, FIRST_SLOT, 'first', h.rng, false, true);
         h.set(res.campaign);
-        music.play('victory');
-        return res.caught;
+        return { caught: res.caught, gains: catchGains(before, res.campaign, FIRST_CATCH) };
       },
       () => undefined,
       () => undefined,

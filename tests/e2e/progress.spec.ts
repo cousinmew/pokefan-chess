@@ -99,7 +99,11 @@ test('new BLUE save: warm-up, first catch, Pidgey pawns, then an easy first trai
   await expect(page.getByTestId('story-text')).toHaveText('OAK: Rustling in the grass! Try a Poké Ball!');
   await page.getByTestId('story').click();
   await page.getByTestId('throw-ball').click();
+  // J3: the ball's beat first (Throw goes, the line still says what appeared), then the result and what it gave.
+  await expect(page.locator('[data-testid="encounter"].throwing .catch-ball')).toBeVisible();
+  await expect(page.getByTestId('encounter-text')).toHaveText('Wild PIDGEY appeared!');
   await expect(page.getByTestId('encounter-text')).toHaveText('Gotcha! PIDGEY was caught!');
+  await expect(page.getByTestId('enc-gains')).toHaveText(['+3 PIDGEY candy', 'New! Pokédex 2/151']);
   await page.getByTestId('enc-next').click();
   await expect(page.getByTestId('catch-card')).toContainText('Your first catch! Pokédex 2/151');
   await expect(page.getByTestId('catch-card')).toContainText('PIDGEY is your pawn team now. Change it in MY TEAM.');

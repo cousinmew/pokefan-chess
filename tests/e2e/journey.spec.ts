@@ -105,13 +105,15 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
     await solveOne(page);
     await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  // The win card, BLUE's defeat line, the unlock card with the next goal, then Oak's reward: the starter neither of you
-  // picked (§B12).
+  // The win card, BLUE's defeat line, Oak's gift: the starter neither of you picked (§B12), on its own card with the
+  // Pokédex count; then the unlock card with the next goal, said last (J4, Fix 13 Oct: the gift came after "Next:").
   await page.getByTestId('win-card').click();
   await readStory(page, 1);
+  await expect(page.getByTestId('gift-card')).toContainText('SQUIRTLE wanted to come along!');
+  await expect(page.getByTestId('gift-card')).toContainText('Pokédex: 2 of 151 caught');
+  await page.getByTestId('gift-card').click();
+  await expect(page.getByTestId('unlock-card')).toContainText('Next: ');
   await page.getByTestId('unlock-card').click();
-  await expect(page.getByTestId('story-text')).toContainText('SQUIRTLE wanted to come along!');
-  await readStory(page, 1);
   await expect(page.getByTestId('route-viridian-forest')).toBeEnabled();
   const save = await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.journey());
   expect(save.journey.cleared).toEqual(expect.arrayContaining(['route-1', 'viridian', 'rival-1']));

@@ -335,6 +335,34 @@ export function throwBall(c: Campaign, routeId: string, slot: Slot, solve: Solve
   return { campaign: next, caught };
 }
 
+/** What a throw gave (J3): the family's candy, how many of the species you own now, and the Pokédex count when it is new
+ * (null for a duplicate). */
+export interface CatchGains {
+  candy: number;
+  family: string;
+  count: number;
+  dex: number | null;
+}
+export function catchGains(before: Campaign, after: Campaign, id: string): CatchGains {
+  const family = familyOf(id);
+  const dex = before.caught[id] ? null : DEX.filter((s) => after.caught[s]).length;
+  return { candy: (after.candy[family] ?? 0) - (before.candy[family] ?? 0), family, count: after.caught[id] ?? 0, dex };
+}
+
+/** BLUE's team as a rival battle's pieces (J12): the lead is the king, then queen, rooks, knights and bishops in order;
+ * the pawns are the most basic species (the later one on a tie), as his Champion party has PIDGEY pawns. */
+export function rivalSkin(team: string[]): TeamSkin {
+  const skin: TeamSkin = {};
+  team.slice(0, 5).forEach((id, i) => {
+    if (i === 4) skin.bLight = skin.bDark = id;
+    else skin[(['k', 'q', 'r', 'n'] as const)[i]!] = id;
+  });
+  const stage = (id: string) => EVOLUTIONS.find((e) => e.to === id)?.stage ?? 0;
+  const pawn = team.reduce<string | undefined>((best, id) => (best === undefined || stage(id) <= stage(best) ? id : best), undefined);
+  if (pawn) skin.p = pawn;
+  return skin;
+}
+
 /** Distinct species of a route, in table order. */
 export const routeSpecies = (route: Route) => [...new Set([...route.encounters, ...route.blue].map((e) => e.species))];
 /** Every species of the campaign: starters, then each route's new ones. */

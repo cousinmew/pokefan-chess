@@ -934,6 +934,38 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .summary { flex-wrap: wrap; }
 .summary-next { flex-basis: 100%; margin: 0; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .kanto-map .node.current .pointer { animation: none; } }
+/* ===== Fix, 13 Oct (journey group). J3, the catch's beat: the ball flies to the wild Pokémon, which goes into it; the
+   ball wobbles (three times, or twice before it breaks free) and clicks shut, or pops open and the Pokémon comes back
+   out; then the result and what it gave. Straight up and down, so it needs no RTL mirror; under reduced motion the ball
+   fades in and the Pokémon fades out. J1: the Pokédex entry's line and the numbers OAK changed. J4: the gift card. J13:
+   "wants to battle!" after a story pops by scale only, so the trainer in it never fades out (B2). ===== */
+.catch-stage { position: relative; display: flex; justify-content: center; }
+.catch-ball { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; box-sizing: border-box; border: 3px solid var(--ink); border-radius: 50%; background: linear-gradient(#e03030 0 44%, var(--ink) 44% 56%, #fff 56%); pointer-events: none; }
+.catch-ball::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border: 2px solid var(--ink); border-radius: 50%; background: #fff; }
+.encounter.throwing .catch-ball { animation: journey-ball-fly calc(var(--catch-beat) * 0.25) ease-out both, journey-ball-wobble calc(var(--catch-beat) * 0.18) ease-in-out calc(var(--catch-beat) * 0.3) 3 both; }
+.encounter.throwing.fled .catch-ball { animation: journey-ball-fly calc(var(--catch-beat) * 0.25) ease-out both, journey-ball-wobble calc(var(--catch-beat) * 0.18) ease-in-out calc(var(--catch-beat) * 0.3) 2 both, journey-ball-pop calc(var(--catch-beat) * 0.12) ease-out calc(var(--catch-beat) * 0.7) both; }
+.encounter.throwing .catch-stage img { animation: journey-mon-in calc(var(--catch-beat) * 0.1) ease-in calc(var(--catch-beat) * 0.2) both; }
+.encounter.throwing.fled .catch-stage img { animation: journey-mon-in calc(var(--catch-beat) * 0.1) ease-in calc(var(--catch-beat) * 0.2) both, journey-mon-out calc(var(--catch-beat) * 0.15) ease-out calc(var(--catch-beat) * 0.72) forwards; }
+@keyframes journey-ball-fly { from { transform: translateY(200px) rotate(-540deg) scale(0.6); } to { transform: none; } }
+@keyframes journey-ball-wobble { 25% { transform: rotate(-20deg); } 75% { transform: rotate(20deg); } }
+@keyframes journey-ball-pop { to { transform: scale(1.5); opacity: 0; } }
+@keyframes journey-mon-in { to { transform: scale(0.1); opacity: 0; } }
+@keyframes journey-mon-out { from { transform: scale(0.1); opacity: 0; } to { transform: none; opacity: 1; } }
+.enc-gain { margin: 2px 0 0; font-size: 13px; font-weight: 700; }
+.dex-note { margin: 0; font-weight: 700; }
+.dex-detail .changed { border-radius: 4px; animation: journey-changed 1200ms ease-out both; }
+@keyframes journey-changed { from { background-color: rgba(255, 236, 120, 0.95); } to { background-color: rgba(255, 236, 120, 0); } }
+.gift-card .menu-sprite { align-self: center; }
+.overlay > .panel.handover { animation: journey-handover var(--card-in) ease-out both; }
+.overlay > .panel.handover .slide-in { animation: none; }
+@keyframes journey-handover { 0% { transform: scale(0.94); } 70% { transform: scale(1.03); } 100% { transform: none; } }
+@keyframes journey-handover-fade { from { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .encounter.throwing .catch-ball, .encounter.throwing.fled .catch-ball { animation: fade-in var(--reduced-fade) linear both; }
+  .encounter.throwing .catch-stage img, .encounter.throwing.fled .catch-stage img { animation: fade-out var(--reduced-fade) linear forwards; }
+  .dex-detail .changed { animation: none; background-color: rgba(255, 236, 120, 0.6); }
+  .overlay > .panel.handover { animation: journey-handover-fade var(--reduced-fade) linear both; }
+}
 /* Polish, 12 Oct (playtest replay). The ▼ marker sits in the text's own end strip, never over its last line
    (the earlier `right: auto` cancelled its inline end inset, so it fell to the start under the text). */
 .plate .textbox { padding: 0; padding-inline-end: 16px; }

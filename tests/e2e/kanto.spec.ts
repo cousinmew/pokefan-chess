@@ -43,11 +43,15 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   await solve(page);
   await expect(page.getByTestId('encounter-text')).toHaveText(/^Wild (PIDGEY|RATTATA) appeared!$/, { timeout: 5000 });
   await page.getByTestId('throw-ball').click();
+  // J3: the ball's beat (CATCH_BEAT_MS) comes before the result; the way back names the route (J11).
+  await expect(page.locator('[data-testid="encounter"].throwing')).toBeVisible();
   await expect(page.getByTestId('encounter-text')).toHaveText(/^(Gotcha! (PIDGEY|RATTATA) was caught!|Oh no! (PIDGEY|RATTATA) broke free!)$/);
   const caught = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.campaign())).caught;
   const text = (await page.getByTestId('encounter-text').textContent())!;
   if (text.startsWith('Gotcha')) expect((caught.pidgey ?? 0) + (caught.rattata ?? 0)).toBe(1);
+  if (text.startsWith('Gotcha')) await expect(page.getByTestId('enc-gains').last()).toHaveText('New! Pokédex 2/151');
   // My Team: the king is your starter's family (§B14), so Charmander plays king vs Computer.
+  await expect(page.getByTestId('to-map')).toHaveText('Back to ROUTE 1');
   await page.getByTestId('to-map').click();
   await page.getByTestId('back').click();
   await page.getByTestId('open-team').click();

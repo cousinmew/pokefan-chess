@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
-import { ANIME, BATTLE, HOLD_MIN_MS, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
+import { ANIME, ASSET_BASE, BATTLE, HOLD_MIN_MS, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_DONE_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
 import { MOVES, species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
@@ -24,6 +24,37 @@ interface Phase {
 }
 
 export type OverlayKind = 'none' | 'battle' | 'quick' | 'evolve';
+
+/** Evolution sprites (J1, Fix 13 Oct), decoded and kept for the page: the evolution swaps these exact elements, so the
+ * reveal never shows the old Pokémon's bitmap (Chrome keeps it while a new src loads) or an empty box. */
+const evoCache = new Map<string, { img: HTMLImageElement; ok: boolean | null; done: Promise<unknown> }>();
+function decoded(url: string): { img: HTMLImageElement; ok: boolean | null; done: Promise<unknown> } {
+  let e = evoCache.get(url);
+  if (!e) {
+    const img = Object.assign(new Image(), { alt: '', src: url });
+    const entry: { img: HTMLImageElement; ok: boolean | null; done: Promise<unknown> } = { img, ok: null, done: Promise.resolve() };
+    entry.done = img.decode().then(() => (entry.ok = true), () => (entry.ok = false));
+    evoCache.set(url, (e = entry));
+  }
+  return e;
+}
+/** A species' animated front and its still (about 0.8 KB), both started now. */
+const evoSprites = (dex: number) => [decoded(spriteUrl(dex, 'front')), decoded(`${ASSET_BASE}static/front/${dex}.png`)] as const;
+/** The best decoded element: the animation, else the still, else the Gen 1 sprite once both failed, else the animation
+ * still on its way. */
+function bestOf(dex: number): HTMLImageElement {
+  const [anim, still] = evoSprites(dex);
+  if (anim.ok) return anim.img;
+  if (still.ok) return still.img;
+  const retro = anim.ok === false && still.ok === false ? decoded(spriteUrl(dex, 'retro')) : null;
+  return retro?.ok ? retro.img : anim.img;
+}
+
+/** Starts fetching and decoding the sprites of evolutions about to play (J1): a Pokédex entry with Evolve open, a win
+ * whose badge evolves the team. */
+export function prefetchEvolutions(ids: SpeciesId[]): void {
+  for (const id of ids) evoSprites(species(id).dex);
+}
 
 export class Overlay {
   readonly el: HTMLElement;
@@ -76,6 +107,8 @@ export class Overlay {
   private readonly tNear: HTMLElement;
   private cast: { near: string | null; far: string | null; words: { near: string; far: string } } | null = null;
   private readonly tFar: HTMLElement;
+  /** Bumped by skip(): an evolution still decoding its sprites when the player skipped or left never starts. */
+  private evoSeq = 0;
 
   constructor(private readonly rng: Rng) {
     this.el = document.createElement('div');
@@ -363,13 +396,24 @@ export class Overlay {
     ]);
   }
 
-  /** Evolution: silhouette swaps between pawn and target with an accelerating period, then a flash. */
-  evolve(pawn: SpeciesId, into: SpeciesId): Promise<void> {
+  /** Evolution (J1, Fix 13 Oct): both sprites decode first (at most BATTLE.spriteWaitMs; prefetchEvolutions starts them
+   * earlier), then the silhouettes swap between those decoded elements with an accelerating period, a flash reveals the
+   * evolved form, and it stays EVOLVE_DONE_MS with "{pawn} evolved into {piece}!" (it said only "is evolving" before). */
+  async evolve(pawn: SpeciesId, into: SpeciesId): Promise<void> {
     const from = species(pawn);
     const to = species(into);
+    const done: Line = { key: 'evolve.done', vars: { pawn: from.name, piece: to.name } };
+    const seq = ++this.evoSeq;
+    let told = false;
+    const tell = () => {
+      if (!told) this.lines.push(done);
+      told = true;
+    };
+    await Promise.race([Promise.all([evoSprites(from.dex)[0].done, evoSprites(to.dex)[0].done]), new Promise((r) => window.setTimeout(r, BATTLE.spriteWaitMs))]);
+    if (seq !== this.evoSeq) return tell(); // skipped, or the screen changed, while the sprites loaded
     let acc = 0;
     let showTarget = false;
-    return this.start('evolve', [
+    await this.start('evolve', [
       {
         id: 'evolve',
         ms: EVOLVE_MS - EVOLVE_FLASH_MS,
@@ -381,8 +425,9 @@ export class Overlay {
           this.setHp(this.hpNear, -1);
           this.setHp(this.hpFar, -1);
           this.def.className = 'mon def evo';
+          this.def.dataset.stars = '0'; // no aura left from the last battle
           this.def.style.visibility = 'visible';
-          this.setSprite(this.def, spriteUrl(from.dex, 'front'));
+          this.setSprite(this.def, bestOf(from.dex));
           this.place(this.def, { x: W / 2, y: 110 }, 0, 0);
           this.say({ key: 'evolve.start', vars: { pawn: from.name } });
           sound.cry(from.dex);
@@ -393,7 +438,7 @@ export class Overlay {
           if (acc >= period) {
             acc = 0;
             showTarget = !showTarget;
-            this.setSprite(this.def, spriteUrl((showTarget ? to : from).dex, 'front'));
+            this.setSprite(this.def, bestOf((showTarget ? to : from).dex));
           }
         },
       },
@@ -401,7 +446,7 @@ export class Overlay {
         id: 'evolve-flash',
         ms: EVOLVE_FLASH_MS,
         enter: () => {
-          this.setSprite(this.def, spriteUrl(to.dex, 'front'));
+          this.setSprite(this.def, bestOf(to.dex));
           this.def.className = 'mon def';
           sound.shimmer();
           this.typeFlash = !this.calm && this.flashes.allow(this.clock);
@@ -411,9 +456,19 @@ export class Overlay {
           this.flash = this.typeFlash ? 1 - p : 0;
         },
       },
-    ]).then(() => {
-      this.lines.push({ key: 'evolve.done', vars: { pawn: from.name, piece: to.name } });
-    });
+      {
+        id: 'evolve-done',
+        ms: EVOLVE_DONE_MS,
+        enter: () => {
+          this.flash = 0;
+          told = true;
+          this.say(done);
+          sound.cry(to.dex);
+        },
+        tick: () => this.setSprite(this.def, bestOf(to.dex)), // the animation replaces a still once it is in
+      },
+    ]);
+    tell();
   }
 
   /** Advances the timeline by dt ms. The rAF loop and the harness both drive it through here. */
@@ -443,8 +498,9 @@ export class Overlay {
     this.render();
   }
 
-  /** Jumps to the end at once (T-5). */
+  /** Jumps to the end at once (T-5); an evolution still decoding its sprites never starts. */
   skip(): void {
+    this.evoSeq++;
     if (this.running) this.finish();
   }
 
