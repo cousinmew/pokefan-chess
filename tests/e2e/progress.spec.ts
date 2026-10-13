@@ -2,6 +2,7 @@
 // W5 journey progression: Oak's Route 1 warm-up and the first catch, easy first trainers, the next goal everywhere,
 // the map's CLEARED stamps and ▶, the win and unlock cards, and play time that never overwrites a rename (bugs #6).
 import { expect, test, type Page } from '@playwright/test';
+import { COACH_EN, passCoach } from './coach';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
@@ -116,8 +117,10 @@ test('new BLUE save: warm-up, first catch, Pidgey pawns, then an easy first trai
   await expect(page.getByTestId('route-trainers')).toHaveText('0 of 2 trainers beaten');
   await shot(page, 'route-390');
 
-  // The next board: your pawns are PIDGEY (a tall grass puzzle with pawns on both sides).
+  // The next board: your pawns are PIDGEY (a tall grass puzzle with pawns on both sides). The warm-up was not a
+  // puzzle, so this is the save's first: its set up move waits for the coach marks (fix, 14 Oct).
   await page.getByTestId('walk-grass').click();
+  expect(await passCoach(page)).toEqual(COACH_EN);
   await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 10_000 }).toBe('player');
   const pidgeys = await page.locator('.board img[alt="PIDGEY"]').count();
   const mine = await page.evaluate(() => {
@@ -136,6 +139,7 @@ test('new BLUE save: warm-up, first catch, Pidgey pawns, then an easy first trai
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
   await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 10_000 }).toBe('player');
+  await expect(page.getByTestId('coach')).toBeHidden(); // once per save
   expect(await page.locator('.board [data-piece]').count()).toBeLessThanOrEqual(16);
   await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
 });
