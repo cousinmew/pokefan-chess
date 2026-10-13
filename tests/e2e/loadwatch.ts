@@ -9,6 +9,19 @@ export const FAST_4G = { offline: false, latency: 165, downloadThroughput: 1_012
 const ALL_THEMES = ['advancedPawn', 'advantage', 'backRankMate', 'capturingDefender', 'castling', 'deflection', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'fork', 'hangingPiece', 'mateIn1', 'mateIn2', 'pin', 'promotion', 'skewer', 'trappedPiece', 'xRayAttack'];
 /** A BLUE save past the warm-up: PIDGEY pawns (the warm-up's first catch puts them there). */
 export const SAVE = { v: 2, name: 'JADE', starter: 'bulbasaur', introSeen: true, teamRules: 2, caught: { bulbasaur: 1, pidgey: 1 }, team: { p: 'pidgey' }, warmup: true, lessonsSeen: ALL_THEMES, tips: ['puzzle'], puzzlesStarted: 5, journey: { cleared: [], beaten: [], visited: ['route-1'] } };
+/** A late BLUE save (review, 14 Oct): seven badges and every route walked, so the Journey's panel cries (every route's
+ * wild Pokémon, the gifts still to come) are about 30 files; no saves in the other tests had more than two routes. */
+const ROUTES_ALL = ['route-1', 'viridian-forest', 'route-3', 'route-6', 'route-7', 'route-14', 'route-8', 'route-21', 'route-22'];
+export const LATE_SAVE = {
+  ...SAVE,
+  puzzlesStarted: 40,
+  badges: ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano'],
+  journey: {
+    cleared: ['route-1', 'viridian', 'rival-1', 'viridian-forest', 'route-3', 'rival-2', 'route-6', 'route-7', 'route-14', 'route-8', 'route-21', 'route-22'],
+    beaten: ['r1-toby', 'r1-mina', 'rival-1', 'vf-oskar', 'vf-liam', 'vf-pip', 'gym-brock', 'r3-dev', 'r3-rosa', 'r3-finn', 'rival-2', 'gym-misty', 'r6-kai', 'r6-noor', 'gym-ltsurge', 'r7-ines', 'r7-theo', 'gym-erika', 'r14-sasha', 'r14-omar', 'gym-koga', 'r8-june', 'r8-hugo', 'r8-ada', 'gym-sabrina', 'r21-mo', 'r21-lena', 'gym-blaine', 'r22-jun', 'r22-vera'],
+    visited: ROUTES_ALL,
+  },
+};
 /** A mate in 1 for Route 1's trainer (the set up a6-a8, then e2-e1). */
 export const QUIET1 = ['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480];
 
@@ -60,6 +73,8 @@ function recorder(): void {
       L.frames.push({
         t: performance.now(),
         cover: cov ? `${cov.dataset.kind}:${cov.dataset.phase ?? 'up'}` : '',
+        // The cover's wait for its images ran out (src/ui/transitions.ts, ?debug=1 only).
+        capped: cov?.dataset.capped !== undefined,
         trans: document.documentElement.dataset.transition !== undefined || !!document.querySelector('.board-dip'),
         hold: document.body.dataset.hold ?? '',
         board: !!board?.isConnected,
@@ -131,7 +146,7 @@ function recorder(): void {
   window.addEventListener('pointerup', (e) => L.taps.push({ ...tapOf(e), up: true }), true);
 }
 
-export type Frame = { t: number; cover: string; trans: boolean; hold: string; board: boolean; total: number; blanks: string[]; intro: { op: string; ok: boolean } | null; selected: boolean; skip: boolean; label: string; scr: string; tr: number; sil: number };
+export type Frame = { t: number; cover: string; capped: boolean; trans: boolean; hold: string; board: boolean; total: number; blanks: string[]; intro: { op: string; ok: boolean } | null; selected: boolean; skip: boolean; label: string; scr: string; tr: number; sil: number };
 export type Ld = { frames: Frame[]; intros: { t: number; complete: boolean; w: number; opacity: string }[]; battles: { t: number; att: { w: number; complete: boolean; src: string; mirror: boolean }; def: { w: number; complete: boolean; src: string; mirror: boolean }; near: { w: number; src: string }; far: { w: number; src: string } }[]; cries: { t: number; url: string; how: string; called?: number }[]; taps: { t: number; sq: string; id: string; up?: boolean }[]; encounters: { t: number; complete: boolean; w: number }[]; battleOn: boolean };
 export const ld = (page: Page) => page.evaluate(() => (window as unknown as { __ld: Ld }).__ld);
 export const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;

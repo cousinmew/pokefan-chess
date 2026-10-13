@@ -3,12 +3,14 @@
 // the battle sprites last, in idle time, two at a time, only once the first screen's images are in. Loading fix,
 // 14 Oct: idle work waits while a screen's visible images load, and a priority lane (the boards' stills, cries,
 // backs and animated fronts, src/battle/sprites.ts) goes before it, waiting only while a cover or dip holds its
-// screen for its images (src/ui/transitions.ts).
+// screen for its images (src/ui/transitions.ts). Review, 14 Oct: the Journey's panel cries (whenIdleFirst) wait like
+// idle work, ahead of the rest of it, so a board's cries, backs and fronts never queue behind them.
 export const PRIORITY_PARALLEL = 4; // priority lane loads at a time: small files (cries, stills) are round trip bound
 export const PAUSE_MAX_MS = 5000; // longest a screen's loading images hold both queues
 
 const queue: (() => Promise<unknown>)[] = [];
 const lane: (() => Promise<unknown>)[] = [];
+const soon: (() => Promise<unknown>)[] = []; // idle work that goes before the rest (panel cries)
 const kept: HTMLImageElement[] = [];
 let open = false;
 let active = 0;
@@ -37,6 +39,13 @@ export function preloadNow(urls: string[], done?: () => void): void {
 /** Queues a low priority load; it starts once the first screen is ready, in idle time. */
 export function whenIdle(task: () => Promise<unknown>): void {
   queue.push(task);
+  pump();
+}
+
+/** Queues a small load (a panel's cry, a few KB) as idle work, ahead of the rest of it: like idle work it waits for
+ * the first screen, a screen's loading images and the whole priority lane, so a board drawn meanwhile goes first. */
+export function whenIdleFirst(task: () => Promise<unknown>): void {
+  soon.push(task);
   pump();
 }
 
@@ -89,7 +98,7 @@ export const loaderPaused = (): boolean => paused > 0 || lanePaused > 0;
 export function idleDrained(): Promise<void> {
   releaseIdle();
   return new Promise((resolve) => {
-    const check = () => (!queue.length && !active && !lane.length && !laneActive ? resolve() : window.setTimeout(check, 50));
+    const check = () => (!queue.length && !soon.length && !active && !lane.length && !laneActive ? resolve() : window.setTimeout(check, 50));
     check();
   });
 }
@@ -103,14 +112,14 @@ if (typeof window !== 'undefined') window.setTimeout(releaseIdle, OPEN_ANYWAY_MS
 
 /** Starts what may start, in idle time; a pause that began meanwhile is checked again then. */
 function pump(): void {
-  if (scheduled || lanePaused || (!lane.length && (paused || !open || !queue.length))) return;
+  if (scheduled || lanePaused || (!lane.length && (paused || !open || (!queue.length && !soon.length)))) return;
   scheduled = true;
   idle(() => {
     scheduled = false;
     if (lanePaused) return;
     while (laneActive < PRIORITY_PARALLEL && lane.length) run(lane.shift()!, true);
-    // Idle work waits for the whole lane, and for the screen's images.
-    while (open && !paused && !lane.length && !laneActive && active < IDLE_PARALLEL && queue.length) run(queue.shift()!, false);
+    // Idle work waits for the whole lane, and for the screen's images; the panel cries go first.
+    while (open && !paused && !lane.length && !laneActive && active < IDLE_PARALLEL && (soon.length || queue.length)) run((soon.length ? soon : queue).shift()!, false);
   });
 }
 

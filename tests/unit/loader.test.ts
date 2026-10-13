@@ -84,6 +84,38 @@ describe('loader', () => {
     expect(log).toEqual(['still']); // idle work still waits for the screen's images
   });
 
+  it("panel cries go before other idle work but after the whole priority lane, two at a time (review, 14 Oct)", async () => {
+    // They were in the priority lane: about 30 on a late save held a board's select cries and backs back for seconds.
+    const { whenFree, whenIdle, whenIdleFirst, releaseIdle, pauseWhile } = await import('../../src/ui/loader');
+    const { log, task, finish } = loads();
+    releaseIdle();
+    whenIdle(task('front'));
+    for (const id of ['cry1', 'cry2', 'cry3']) whenIdleFirst(task(id));
+    whenFree(task('back'));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log).toEqual(['back']); // the board's lane first; the panel cries wait for it
+    finish('back');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log).toEqual(['back', 'cry1', 'cry2']);
+    whenFree(task('select')); // a board drawn meanwhile goes before the next panel cry
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log.at(-1)).toBe('select');
+    finish('select');
+    finish('cry1');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log.at(-1)).toBe('cry3');
+    // Like idle work they wait while a screen's images load.
+    let drawn: () => void = () => undefined;
+    pauseWhile(new Promise<void>((r) => (drawn = r)));
+    finish('cry2');
+    finish('cry3');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log.at(-1)).toBe('cry3');
+    drawn();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(log.at(-1)).toBe('front');
+  });
+
   it('a cover also waits for what its screen shows right after the reveal, once (review, 14 Oct)', async () => {
     // A Classic style board draws no sprite, but the intro card shows each king's still: the cover waits for those.
     const { neededAtReveal, revealNeeds } = await import('../../src/ui/loader');

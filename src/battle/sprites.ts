@@ -2,8 +2,8 @@
 // Battle sprite preload and the bounded wait before a battle starts. Loading fix, 14 Oct: one cache of decoded images
 // for the board, the battles and the menus. The board warms what stands on it (warmBoard: cries, backs, fronts, in
 // the loader's priority lane), the idle preload follows the cartridge and the save (preloadBattleSprites), the
-// Journey's next panels get their cries ahead (panelCries), and a battle slot never holds an image that has not
-// decoded.
+// Journey's next panels get their cries ahead, in idle time (panelCries), and a battle slot never holds an image that
+// has not decoded.
 import roster from '../data/roster.gen1.json';
 import trainers from '../data/trainers.json';
 import { ASSET_BASE, BATTLE } from '../config';
@@ -12,8 +12,8 @@ import { stageFor, stageSkin } from '../board/stages';
 import { idleDrained, whenFree, whenIdle } from '../ui/loader';
 import { boardCries, preloadCries } from '../audio/audio';
 import { load } from '../store/persist';
-import { loadCampaign, ROUTES, routeSpecies, STARTERS, type Campaign } from '../campaign/kanto';
-import { journeyState, nextGoal, PLACES, placeUnlocked, teamOf, type Trainer } from '../campaign/journey';
+import { loadCampaign, routeSpecies, STARTERS, type Campaign } from '../campaign/kanto';
+import { journeyState, nextGoal, PLACES, placeUnlocked, RIVAL, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
 import { FIRST_CATCH } from '../campaign/warmup';
 import { myTrainer, trainerSpriteId } from '../look';
 import { trainerSrc } from '../ui/kanto';
@@ -96,12 +96,19 @@ let boardSig = '';
 /** The board was drawn with a new set of species: what its moves will need next goes in the loader's priority lane,
  * after the board's own images. `mine` stands near in battles (in Two Players the side that moved, so the other
  * colour's backs come last): its select cries, its backs, every front (the board's animated pieces), then the other
- * colour's cries and backs. */
+ * colour's cries and backs. The Journey's panel cries come after all that, in idle time (review, 14 Oct: queued in
+ * the same lane, about 30 of them on a late save held a board's select cries and backs back for seconds). */
 export function warmBoard(mons: OnBoard[], mine: Color | null): void {
-  panelCries();
   const sig = mons.map((m) => `${m.color}${m.sp.dex}${m.sp.shiny ? 's' : ''}`).sort().join();
-  if (sig === boardSig) return;
-  boardSig = sig;
+  if (sig !== boardSig) {
+    boardSig = sig;
+    warm(mons, mine);
+  }
+  // Then the Journey's next panel cries, in idle time: they never go before what this board's moves need.
+  panelCries();
+}
+
+function warm(mons: OnBoard[], mine: Color | null): void {
   const near: Color = mine ?? 'w';
   const side = (c: Color) => {
     const list: Species[] = [];
@@ -120,25 +127,37 @@ export function warmBoard(mons: OnBoard[], mine: Color | null): void {
 
 let panelAt = -Infinity;
 /** The cries the Journey's next panels play (src/audio/audio.ts lets a panel's cry come late, within limits, but a
- * file not asked for ahead takes a round trip, so on a phone network it was never heard): the starters while the
- * save has none, the wild Pokémon of the next goal's route and of every route walked, and the gift choices still to
- * come. Only fetched (a few KB each), decoded when first heard. From the plan, and as boards are drawn (at most every
- * PANEL_CRIES_EVERY_MS), so a route entered since is covered while its tall grass puzzle is solved. */
+ * file not asked for ahead takes a round trip, so on a phone network it was never heard). Only fetched (a few KB
+ * each) in idle time, ahead of the other idle work, and decoded when first heard. From the plan, and as boards are
+ * drawn (at most every PANEL_CRIES_EVERY_MS), so a route entered since is covered while its tall grass puzzle is
+ * solved. */
 function panelCries(c?: Campaign): void {
   const at = performance.now();
   if (!c && at - panelAt < PANEL_CRIES_EVERY_MS) return;
   panelAt = at;
   if (!c && load<string>('cartridge') !== 'blue') return;
-  const save = c ?? loadCampaign();
-  const state = journeyState(save);
-  const goal = nextGoal(state);
-  const names: string[] = save.starter ? [] : [...STARTERS];
+  preloadCries(ids(panelSpecies(c ?? loadCampaign())).map((s) => s.dex), true);
+}
+
+/** The species whose cries the Journey's next panels play, the nearest first: the starters while the save has none,
+ * the wild Pokémon of the next goal's route, the gifts and gift choices still to come at the places open now (each
+ * gift shows a card with its cry; '@starter-other' and '@starter-rival' resolved as journeyGame.ts reward() does),
+ * then the wild Pokémon of every route walked, the latest first. */
+export function panelSpecies(c: Campaign): string[] {
+  const state = journeyState(c);
+  const counter = RIVAL.counter[c.starter ?? ''] ?? 'squirtle';
+  const gift = (g: string) => (g === '@starter-other' ? (STARTERS.find((s) => s !== c.starter && s !== counter) ?? 'bulbasaur') : g === '@starter-rival' ? counter : g);
+  const wild = (p: Place | undefined) => {
+    const route = p && routeOf(p);
+    return route ? routeSpecies(route) : [];
+  };
+  const names: string[] = c.starter ? [] : [...STARTERS];
+  names.push(...wild(nextGoal(state)?.place));
   PLACES.forEach((p, i) => {
-    const route = p.route && (p === goal?.place || save.journey.visited.includes(p.id)) ? ROUTES.find((r) => r.id === p.route) : undefined;
-    if (route) names.push(...routeSpecies(route));
-    if (p.reward?.choice && !save.rewards.includes(p.id) && placeUnlocked(state, i)) names.push(...p.reward.choice);
+    if (p.reward && !c.rewards.includes(p.id) && placeUnlocked(state, i)) names.push(...(p.reward.gift ?? []).map(gift), ...(p.reward.choice ?? []));
   });
-  preloadCries(ids(names).map((s) => s.dex), true);
+  for (const id of [...c.journey.visited].reverse()) names.push(...wild(PLACES.find((p) => p.id === id)));
+  return [...new Set(names)];
 }
 
 const PEOPLE = trainers.people as Record<string, string>;

@@ -676,8 +676,14 @@ html.fit-wide .plate { height: auto; min-height: 72px; }
 .loadout-still > img { position: absolute; width: 100%; height: 100%; image-rendering: pixelated; }
 @media (prefers-reduced-motion: reduce) {
   .sq.strike { animation: loading-strike-fade var(--reduced-fade) ease-out both; }
-  .sq.light.strike { --loading-strike: color-mix(in srgb, var(--light) 70%, rgb(224, 48, 48)); }
-  .sq.dark.strike { --loading-strike: color-mix(in srgb, var(--dark) 70%, rgb(224, 48, 48)); }
+  /* The square's colour 70% with rgb(224, 48, 48), as plain colours first: before Safari 16.2 color-mix() is kept in a
+     custom property but makes the keyframe's colour invalid, so the square would fade to transparent (review, 14 Oct). */
+  .sq.light.strike { --loading-strike: #e6b6a0; }
+  .sq.dark.strike { --loading-strike: #9c834d; }
+  @supports (color: color-mix(in srgb, red, blue)) {
+    .sq.light.strike { --loading-strike: color-mix(in srgb, var(--light) 70%, rgb(224, 48, 48)); }
+    .sq.dark.strike { --loading-strike: color-mix(in srgb, var(--dark) 70%, rgb(224, 48, 48)); }
+  }
 }
 
 /* §B22 item 3: START, Gen 1 style, in the top bar (never costing board space) or the top corner. */

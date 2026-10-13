@@ -13,13 +13,16 @@
 // While a cover or dip is up it takes the pointer and html[data-transition] is set (pace.ts drops keys then).
 // Loading fix, 14 Oct: a cover opens, and a dip fades down, on a drawn screen. They first wait (capped) until every
 // image the player would see has decoded or failed, and the idle loads wait with them (src/ui/loader.ts); a wait
-// past COVER_LABEL_MS says "Loading Pokémon…" on the cover.
+// past COVER_LABEL_MS says "Loading Pokémon…" on the cover. Review, 14 Oct (round 3): COVER_LABEL_MS counts from the
+// cover going up (the tap), a line already up changes straight to the new one (no blank gap between two lines), and a
+// line, once shown, changes or goes only after LABEL_MIN_MS, so it never blinks for a frame or two.
 import { AREA_IN_MS, BATTLE_CLOSE_MS, BATTLE_IN_MS, BATTLE_STAGGER_MS, BOARD_DIP_MS, COVER_LABEL_MS, COVER_MAX_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SPLASH_IN_MS } from '../config';
 import { fmt } from '../game/text';
 import { pauseWhile, revealNeeds } from './loader';
 
 export const BATTLE_READY_MS = 2500; // longest a battle cover or a board dip stays shut waiting for the board's images (Slow 4G on HTTP/1.1: three round trips of stills)
 export const SCREEN_READY_MS = 300; // longest a screen, area or splash cover waits for the screen's visible images
+export const LABEL_MIN_MS = 250; // a cover's or dip's line, once shown, stays at least this long before it changes or the cover opens
 
 export type CoverKind = 'screen' | 'area' | 'battle' | 'first';
 
@@ -47,6 +50,64 @@ export interface CoverFx {
   ready?(kind: CoverKind): Promise<void>;
   /** Whether the screen under it shows a board with pieces (it then waits as long as a battle cover). */
   board?(): boolean;
+  /** The wait for its images ran out (BATTLE_READY_MS or SCREEN_READY_MS): it opens on what is drawn by then. */
+  capped?(kind: CoverKind): void;
+}
+
+/** What a cover's line says: the waiting cover's (a puzzle being found), or the images' ("Loading Pokémon…"). */
+type LineKind = 'wait' | 'drawing';
+
+/** A cover's line: shown at once, changed or dropped only once it has been up LABEL_MIN_MS. */
+class Line {
+  private kind: LineKind | null = null;
+  private at = 0;
+  private later = 0;
+  private hushed: (() => void) | null = null;
+  constructor(private readonly put: (kind: LineKind | null) => void) {}
+
+  get up(): boolean {
+    return this.kind !== null;
+  }
+
+  /** Shows `kind` now, or once the line up now has been read. */
+  say(kind: LineKind): void {
+    window.clearTimeout(this.later);
+    if (this.kind === kind) return;
+    const left = this.kind ? this.at + LABEL_MIN_MS - performance.now() : 0;
+    if (left > 0) {
+      this.later = window.setTimeout(() => this.say(kind), left);
+      return;
+    }
+    this.kind = kind;
+    this.at = performance.now();
+    this.put(kind);
+  }
+
+  /** Drops the line once it has been up LABEL_MIN_MS; resolves then (at once with none). */
+  hush(): Promise<void> {
+    window.clearTimeout(this.later);
+    if (!this.kind) return Promise.resolve();
+    const left = this.at + LABEL_MIN_MS - performance.now();
+    return new Promise((resolve) => {
+      this.hushed = resolve;
+      const off = () => {
+        this.kind = null;
+        this.hushed = null;
+        this.put(null);
+        resolve();
+      };
+      if (left > 0) this.later = window.setTimeout(off, left);
+      else off();
+    });
+  }
+
+  /** A new cover: its own line starts empty (the old one went with its element); a wait to drop the old one ends. */
+  reset(): void {
+    window.clearTimeout(this.later);
+    this.kind = null;
+    this.hushed?.();
+    this.hushed = null;
+  }
 }
 
 /** The cover queue: cover() on a tap, reveal() from show(), revealed() for what starts after the reveal. */
@@ -58,8 +119,12 @@ export class Covers {
   private timers: number[] = [];
   private busy = 0;
   private idle: (() => void)[] = [];
+  private upAt = 0;
+  private readonly line: Line;
 
-  constructor(private readonly fx: CoverFx, private readonly onBusy: (busy: boolean) => void = () => undefined) {}
+  constructor(private readonly fx: CoverFx, private readonly onBusy: (busy: boolean) => void = () => undefined) {
+    this.line = new Line((kind) => fx.label(kind !== null, kind === 'drawing'));
+  }
 
   /** Up, waiting for the next screen: the bars close, a paper or white cover goes up at its peak. Resolves when shut. */
   cover(kind: CoverKind): Promise<void> {
@@ -67,7 +132,7 @@ export class Covers {
     const s = this.raise(kind);
     this.waiting = true;
     this.shut = kind === 'battle' ? this.fx.close(kind) : (this.fx.up(kind), Promise.resolve());
-    this.timers.push(window.setTimeout(() => s === this.seq && this.waiting && this.fx.label(true), COVER_LABEL_MS));
+    this.timers.push(window.setTimeout(() => s === this.seq && this.waiting && this.line.say('wait'), COVER_LABEL_MS));
     this.timers.push(window.setTimeout(() => s === this.seq && this.reveal(), COVER_MAX_MS));
     return this.shut;
   }
@@ -85,7 +150,7 @@ export class Covers {
     const k = this.kind!;
     this.waiting = false;
     this.clearTimers();
-    this.fx.label(false);
+    if (!this.line.up) this.fx.label(false); // a line up stays until the screen is drawn (drawn())
     void this.shut
       .then(() => (s === this.seq ? this.drawn(k) : undefined))
       .then(() => (s === this.seq ? this.fx.open(k) : undefined))
@@ -114,26 +179,31 @@ export class Covers {
   }
 
   /** The screen's images, at most BATTLE_READY_MS (a board: a new game, a lesson) or SCREEN_READY_MS (anything else).
-   * A wait past COVER_LABEL_MS shows the cover's line (bars held with no word read as a hang), gone before it opens. */
-  private drawn(kind: CoverKind): Promise<void> | undefined {
-    const ready = this.fx.ready?.(kind);
-    if (!ready) return undefined;
+   * A cover up past COVER_LABEL_MS (from its tap) says so while it waits (bars held with no word read as a hang): a
+   * line already up changes straight to "Loading Pokémon…". The line goes before the cover opens. */
+  private drawn(kind: CoverKind): Promise<void> {
     const s = this.seq;
+    const ready = this.fx.ready?.(kind);
+    if (!ready) return this.line.hush();
     let cap = 0;
-    let said = false;
-    const slow = window.setTimeout(() => s === this.seq && ((said = true), this.fx.label(true, true)), COVER_LABEL_MS);
+    // A zero delay still waits a task: a screen already drawn opens without a word.
+    const slow = window.setTimeout(() => s === this.seq && this.line.say('drawing'), Math.max(0, this.upAt + COVER_LABEL_MS - performance.now()));
     const ms = kind === 'battle' || this.fx.board?.() ? BATTLE_READY_MS : SCREEN_READY_MS;
-    return Promise.race([ready.catch(() => undefined), new Promise<void>((r) => (cap = window.setTimeout(r, ms)))]).finally(() => {
-      window.clearTimeout(cap);
-      window.clearTimeout(slow);
-      if (said && s === this.seq) this.fx.label(false);
-    });
+    const capped = new Promise<void>((r) => (cap = window.setTimeout(() => (s === this.seq && this.fx.capped?.(kind), r()), ms)));
+    return Promise.race([ready.catch(() => undefined), capped])
+      .finally(() => {
+        window.clearTimeout(cap);
+        window.clearTimeout(slow);
+      })
+      .then(() => (s === this.seq ? this.line.hush() : undefined));
   }
 
   private raise(kind: CoverKind): number {
     if (!this.kind) this.enter();
     this.clearTimers();
+    this.line.reset();
     this.kind = kind;
+    this.upAt = performance.now();
     return ++this.seq;
   }
 
@@ -182,6 +252,7 @@ const PEAK: Record<CoverKind, number> = { screen: 0.8, area: 1, battle: 1, first
 
 /** The cover over #app (z 49: over the battle, the coach and the intro card; under the modal and START). */
 export function domCovers(root: HTMLElement, label: () => string): CoverFx {
+  const debug = new URLSearchParams(location.search).has('debug');
   let el: HTMLElement | null = null;
   let text: HTMLElement | null = null;
   const bars = () => [...(el?.querySelectorAll<HTMLElement>('.cover-bar') ?? [])];
@@ -230,6 +301,10 @@ export function domCovers(root: HTMLElement, label: () => string): CoverFx {
       return Promise.all([imagesDrawn(root, el, kind === 'battle' || onBoard() ? BATTLE_READY_MS : SCREEN_READY_MS), revealNeeds()]).then(() => undefined);
     },
     board: () => onBoard(),
+    capped() {
+      // Tests (?debug=1) tell a cover that opened at its cap from one whose images were all in.
+      if (debug && el) el.dataset.capped = '';
+    },
     label(on, drawing) {
       if (!text) return;
       text.textContent = drawing ? fmt('board.loading') : label();
@@ -242,8 +317,9 @@ export function domCovers(root: HTMLElement, label: () => string): CoverFx {
   };
 }
 
-/** A paper dip over the board only (R1, §2): up to .85, `swap` at the peak (held there while it loads, with the label
- * after COVER_LABEL_MS, at most COVER_MAX_MS), back down. The board never moves: the swap happens unseen. */
+/** A paper dip over the board only (R1, §2): up to .85, `swap` at the peak (held there while it loads, at most
+ * COVER_MAX_MS), back down. The board never moves: the swap happens unseen. A dip down past COVER_LABEL_MS says why,
+ * as a cover does (the load's line, then "Loading Pokémon…" while the new position's images come). */
 export async function dip(wrap: HTMLElement, swap: () => void | Promise<void>, label: () => string): Promise<void> {
   const d = document.createElement('div');
   d.className = 'board-dip';
@@ -251,9 +327,15 @@ export async function dip(wrap: HTMLElement, swap: () => void | Promise<void>, l
   const text = Object.assign(document.createElement('p'), { className: 'cover-label', hidden: true });
   d.append(text);
   wrap.append(d);
+  const start = performance.now();
+  const after = () => Math.max(0, start + COVER_LABEL_MS - performance.now());
+  const line = new Line((kind) => {
+    if (kind) text.textContent = kind === 'drawing' ? fmt('board.loading') : label();
+    text.hidden = !kind;
+  });
   const half = BOARD_DIP_MS / 2;
   await finished(d.animate([{ opacity: 0 }, { opacity: 0.85 }], { duration: half, easing: 'ease-out', fill: 'forwards' }));
-  const slow = window.setTimeout(() => ((text.textContent = label()), (text.hidden = false)), COVER_LABEL_MS);
+  const slow = window.setTimeout(() => line.say('wait'), after());
   let cap = 0;
   try {
     await Promise.race([swap(), new Promise<void>((r) => (cap = window.setTimeout(r, COVER_MAX_MS)))]);
@@ -262,15 +344,14 @@ export async function dip(wrap: HTMLElement, swap: () => void | Promise<void>, l
   } finally {
     window.clearTimeout(slow);
     window.clearTimeout(cap);
-    text.hidden = true;
     wrap.append(d); // still on top of whatever the swap added
     // The new position is drawn before the dip lifts (loading fix, 14 Oct), saying so past COVER_LABEL_MS.
     let wait = 0;
-    const drawing = window.setTimeout(() => ((text.textContent = fmt('board.loading')), (text.hidden = false)), COVER_LABEL_MS);
+    const drawing = window.setTimeout(() => line.say('drawing'), after());
     await Promise.race([imagesDrawn(wrap, d, BATTLE_READY_MS), new Promise<void>((r) => (wait = window.setTimeout(r, BATTLE_READY_MS)))]);
     window.clearTimeout(wait);
     window.clearTimeout(drawing);
-    text.hidden = true;
+    await line.hush();
     await finished(d.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: half, easing: 'ease-in', fill: 'forwards' }));
     d.remove();
   }

@@ -4,7 +4,7 @@
 // ahead of them), so a ready cry starts with its event. A board event's cry not ready within CRY_LATE_MS is skipped,
 // never heard late; a panel's (the starter pick, a wild encounter, a gift choice) may come up to CRY_PANEL_LATE_MS late.
 import { ASSET_BASE, CRY_VOLUME, SFX_VOLUME } from '../config';
-import { whenFree } from '../ui/loader';
+import { whenFree, whenIdleFirst } from '../ui/loader';
 
 export const CRY_LATE_MS = 150; // a board event's cry (a select, a check, a faint) not ready this long after its event is skipped; its file is kept for next time
 export const CRY_PANEL_LATE_MS = 1000; // any other cry belongs to a panel that stays up (the starter pick, a wild encounter, a gift choice): it may start this late, never later
@@ -100,13 +100,26 @@ function loadCry(dex: number): Promise<void> {
   return e.decoded;
 }
 
-/** Loads these species' cries ahead of their events, in the loader's priority lane: decoded at once (the board's, the
- * warm-up's first catch), or with `later` only fetched (a few KB each) and decoded when first heard (the starters,
- * the next wild encounters, a gift choice: a panel waits a few milliseconds for that). */
+/** Cries queued in the loader that have not started yet: to decode (the priority lane), and only to fetch (idle). */
+const toDecode = new Set<number>();
+const toFetch = new Set<number>();
+
+/** Loads these species' cries ahead of their events: decoded at once, in the loader's priority lane (the board's, the
+ * warm-up's first catch), or with `later` only fetched (a few KB each) in idle time, ahead of the other idle work but
+ * after everything a board asked for, and decoded when first heard (the starters, the next wild encounters, the gifts:
+ * a panel waits a few milliseconds for that). A cry already loading or queued is not queued again (review, 14 Oct). */
 export function preloadCries(dexes: number[], later = false): void {
   for (const dex of new Set(dexes)) {
     const e = cries.get(dex);
-    if (later ? !e : !e?.decoded) whenFree(() => (later ? fetchCry(dex).data : loadCry(dex)));
+    if (later) {
+      if (e || toFetch.has(dex) || toDecode.has(dex)) continue;
+      toFetch.add(dex);
+      whenIdleFirst(() => (toFetch.delete(dex), fetchCry(dex).data));
+    } else {
+      if (e?.decoded || toDecode.has(dex)) continue;
+      toDecode.add(dex);
+      whenFree(() => (toDecode.delete(dex), loadCry(dex)));
+    }
   }
 }
 

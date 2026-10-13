@@ -3,18 +3,19 @@
 // sprites and cries arrive before they are needed. Slow 4G and Fast 4G are the CDP profiles of the brief, in a fresh
 // context (empty HTTP cache) with the service worker blocked. Real timings: no sleeps to wait out a guard.
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { BATTLE_CLOSE_MS } from '../../src/config';
 import { arm, battleOver, blankFrames, blueSave, boot, cartBlue, FAST_4G, FEN_D5, firstFrame, fresh, kc, ld, median, now, QUIET1, SLOW_4G, type Frame, type Ld } from './loadwatch';
 
 const BATTLE_READY_MS = 2500; // src/ui/transitions.ts: the longest a battle cover waits for its board's images
 
-/** No blank piece from the cover's open on. A cover that opened at its cap (BATTLE_READY_MS after the bars shut) did
- * so on images still in flight, as a busy runner on HTTP/1.1 can make it: blanks then are noted, not failed, except
- * under `strict` (@perf). The wait is logged either way (review, 14 Oct). */
+/** No blank piece from the cover's open on. A cover that opened at its cap (its wait for the board's images ran out
+ * after BATTLE_READY_MS: data-capped, set by src/ui/transitions.ts under ?debug=1) did so on images still in flight,
+ * as a busy runner on HTTP/1.1 can make it: blanks then are noted, not failed, except under `strict` (@perf). A cover
+ * that opened before its cap with a blank piece missed an image, and fails however late it opened (review, 14 Oct,
+ * round 3: the cap was guessed from the tap, so a wait that began late counted as capped). Logged either way. */
 function drawnWhenOpen(frames: Frame[], t0: number, open: Frame, what: string, strict: boolean): void {
   const later = blankFrames(frames, open.t).map((f) => `${Math.round(f.t - t0)}:${f.blanks.join(',')}`);
-  const capped = open.t - t0 >= BATTLE_CLOSE_MS + BATTLE_READY_MS - 50;
-  console.log(`${what}: cover open ${Math.round(open.t - t0)} ms after the tap${capped ? ' (at its cap)' : ''}, blank at open ${open.blanks.length}/${open.total}`);
+  const capped = open.capped;
+  console.log(`${what}: cover open ${Math.round(open.t - t0)} ms after the tap${capped ? ` (at its ${BATTLE_READY_MS} ms cap)` : ''}, blank at open ${open.blanks.length}/${open.total}`);
   if (capped && !strict && (open.blanks.length || later.length)) {
     test.info().annotations.push({ type: 'capped', description: `${what}: the cover opened at its ${BATTLE_READY_MS} ms cap with ${open.blanks.length} of ${open.total} pieces still loading` });
     return;

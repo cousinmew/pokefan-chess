@@ -3,8 +3,8 @@
 // cries (the starter pick, a wild encounter) are fetched ahead and heard with their panel; a battle cover held for its
 // board's images says so; and under reduced motion the capture tap's flash is a colour fade. Real timings, as in
 // loading.spec.ts.
-import { expect, test, type Page } from '@playwright/test';
-import { arm, boot, cartBlue, FAST_4G, FEN_D5, firstFrame, fresh, kc, ld, now, SAVE } from './loadwatch';
+import { expect, test, type Page, type Route } from '@playwright/test';
+import { arm, battleOver, blueSave, boot, cartBlue, FAST_4G, FEN_D5, firstFrame, fresh, kc, LATE_SAVE, ld, median, now, SAVE, SLOW_4G } from './loadwatch';
 
 // Review, 14 Oct: a battle cover held for its images said nothing (up to BATTLE_READY_MS of black bars), and under
 // reduced motion the capture tap's flash animated a box shadow (a white flash) instead of a colour fade (R8).
@@ -31,6 +31,55 @@ test.describe('what a wait and a capture tap say', () => {
     expect(said[0]!.label).toBe('Loading Pokémon...');
     expect(open, 'the cover opened').toBeTruthy();
     expect(open!.label, 'the line is gone when the bars open').toBe('');
+    await context.close();
+  });
+
+  test("a cover that waited for a puzzle, then for its board's images, says so with no blank between and no blink", async ({ browser }) => {
+    // Review, 14 Oct (round 3): "Finding a puzzle...", gone for 400 ms once the puzzle came, then "Loading Pokémon...".
+    test.setTimeout(120_000);
+    const { context, page } = await fresh(browser, { ...blueSave, 'kc:v1:settings': { v: 2, anim: 'off' } }, null);
+    const late = async (route: Route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.continue().catch(() => undefined);
+    };
+    // The puzzle comes only once the cover has said "Finding a puzzle..." for 300 ms; the board's images 1.5 s late.
+    let release: () => void = () => undefined;
+    const found = new Promise<void>((r) => (release = r));
+    await context.route(/\/assets\/mateIn1-.*\.js$/, async (route) => {
+      await found;
+      await route.continue().catch(() => undefined);
+    });
+    await context.route(/\/assets\/(static|front)\//, late);
+    await boot(page);
+    await page.getByTestId('kanto').click({ timeout: 60_000 });
+    await page.getByTestId('route-route-1').click({ timeout: 60_000 });
+    await page.getByTestId('battle-trainer').click({ timeout: 60_000 });
+    await page.getByTestId('trainer-intro').click({ timeout: 60_000 });
+    await arm(page);
+    const t0 = await now(page);
+    await page.getByTestId('goal-card').click({ timeout: 60_000 });
+    await page.locator('.screen-cover .cover-label:not([hidden])', { hasText: 'Finding a puzzle...' }).waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(300);
+    release();
+    await page.getByTestId('screen-game').waitFor({ timeout: 60_000 });
+    await page.waitForFunction(() => !document.querySelector('.screen-cover'), null, { timeout: 60_000 });
+    const l = await ld(page);
+    const open = firstFrame(l.frames, t0, (f) => f.cover === 'battle:open')!;
+    const first = firstFrame(l.frames, t0, (f) => f.cover === 'battle:up' && !!f.label);
+    const shut = l.frames.filter((f) => f.t >= (first?.t ?? Infinity) && f.t < open.t);
+    // Each line as long as it showed, in order.
+    const runs: { label: string; from: number; to: number }[] = [];
+    for (const f of shut) {
+      const last = runs.at(-1);
+      if (last && last.label === f.label) last.to = f.t;
+      else runs.push({ label: f.label, from: f.t, to: f.t });
+    }
+    console.log(`cover lines: ${runs.map((r) => `${Math.round(r.from - t0)}-${Math.round(r.to - t0)} '${r.label}'`).join(', ')}; open ${Math.round(open.t - t0)} ms`);
+    expect(first, 'the held cover said why').toBeTruthy();
+    expect(runs.filter((r) => !r.label), 'blank between two lines').toEqual([]);
+    expect(runs.map((r) => r.label)).toEqual(['Finding a puzzle...', 'Loading Pokémon...']);
+    // Each line stays up LABEL_MIN_MS (250), measured frame to frame (two frames of slack).
+    expect(runs.filter((r) => r.to - r.from < 250 - 40)).toEqual([]);
     await context.close();
   });
 
@@ -161,6 +210,64 @@ test.describe('panel cries: the starter pick and a wild encounter, Fast 4G cold'
     expect(ms, 'heard, late').not.toBeNull();
     expect(ms!).toBeGreaterThanOrEqual(400);
     expect(ms!).toBeLessThanOrEqual(1000); // CRY_PANEL_LATE_MS: never later
+    await context.close();
+  });
+});
+
+// Review, 14 Oct (round 3): the panel cries went in the board's priority lane, ahead of it. On a late save (every route
+// walked: about 30 cries) a Two Players board's select cries were requested only by the tap, and a vs Computer
+// capture after 2.5 s on the board showed a mirrored still because PIDGEY's back had not been asked for yet.
+test.describe("a late save (every route walked): the board goes before the Journey's panel cries, Slow 4G cold", () => {
+  test('Two Players: after 2 s on the board each select cry starts within 50 ms of its tap', async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { context, page } = await fresh(browser, { ...cartBlue, 'kc:v1:campaign': LATE_SAVE }, SLOW_4G);
+    await boot(page);
+    await page.getByTestId('two-players').click({ timeout: 60_000 });
+    await page.getByTestId('intro').waitFor({ timeout: 60_000 });
+    await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
+    await page.waitForTimeout(2000); // a player looks at the board for 2 s
+    const lags: (number | null)[] = [];
+    for (const sq of ['e2', 'b1', 'g1']) {
+      const cries = async () => (await ld(page)).cries.filter((c) => c.url.startsWith('cries/'));
+      const before = (await cries()).length;
+      await page.click(`[data-square="${sq}"]`);
+      // A skipped cry never starts: wait well past CRY_LATE_MS for it, then note it as missing.
+      await expect.poll(async () => (await cries()).length, { timeout: 1500 }).toBeGreaterThan(before).catch(() => undefined);
+      const l = await ld(page);
+      const tap = l.taps.filter((x) => x.sq === sq && !x.up).at(-1)!;
+      const cry = (await cries())[before];
+      console.log(`late save, select cry ${sq}: ${cry ? `${cry.url} ${Math.round(cry.t - tap.t)} ms after the tap` : 'skipped'}; cry files requested ${await page.evaluate(() => performance.getEntriesByType('resource').filter((r) => /\/cries\//.test(r.name)).length)}`);
+      lags.push(cry ? cry.t - tap.t : null);
+      await page.click('[data-square="e5"]');
+    }
+    expect(lags.filter((x) => x === null).length, 'select cries skipped').toBe(0);
+    expect(median(lags as number[])).toBeLessThanOrEqual(50);
+    await context.close();
+  });
+
+  test("vs Computer L1: after 2.5 s on the board the near Pokémon is PIDGEY's back and the battle starts within 100 ms", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { context, page } = await fresh(browser, { ...cartBlue, 'kc:v1:campaign': LATE_SAVE }, SLOW_4G);
+    await boot(page);
+    await page.getByTestId('vs-computer').click({ timeout: 60_000 });
+    await page.getByTestId('team-red').click({ timeout: 60_000 });
+    await page.getByTestId('level-1').click({ timeout: 60_000 });
+    await page.getByTestId('intro').waitFor({ timeout: 60_000 });
+    await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
+    await kc(page, 'loadFen', FEN_D5);
+    await page.waitForTimeout(2500);
+    await arm(page);
+    await page.click('[data-square="e4"]');
+    await page.click('[data-square="d5"]');
+    await battleOver(page, 0);
+    const l = await ld(page);
+    const tap = l.taps.filter((x) => x.sq === 'd5' && x.up).at(-1)!; // a capture moves on the release
+    const b = l.battles[0]!;
+    console.log(`late save, capture after 2.5 s: att ${b.att.src} ${b.att.w}px${b.att.mirror ? ' mirrored' : ''}, the battle ${Math.round(b.t - tap.t)} ms after the tap`);
+    expect(b.att.src).toMatch(/^back\/16\.(gif|webp)$/);
+    expect(b.att.mirror).toBe(false);
+    expect(b.def.w).toBeGreaterThan(0);
+    expect(b.t - tap.t).toBeLessThanOrEqual(100);
     await context.close();
   });
 });
