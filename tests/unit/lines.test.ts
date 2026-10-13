@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // What the game says about a turn (controller, 14 Oct): lines name the people on the plates (C8), Take back says what
 // it undid (C2), YELLOW's one line keeps the check (C4), and a Journey game names who you face (C9).
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { introLine, oneLine, tookBack, turnLine } from '../../src/game/lines';
 import { standing } from '../../src/look';
@@ -47,5 +48,20 @@ describe('a Journey game names who you face (C9)', () => {
     expect(sides.w.name).toBe('JADE');
     const story = standing({ mode: 'challenge', level: 3, human: 'w', stage: 0, myName: 'JADE' }, (k) => fmt(k as StringKey))!;
     expect(story.b.name).not.toBe('PROF. OAK');
+  });
+});
+
+describe('the new lines YELLOW shows stay short (R3, review 14 Oct)', () => {
+  // YELLOW Play and Friend show these too: START → VS FRIEND or VS COMPUTER asks quit.leave, Friend's auto flip says
+  // turn.next, Take back is always on. i18n.test checks only yellow.* and path.* keys.
+  const KEYS = ['intro.named', 'turn.named', 'turn.next', 'takeback.one', 'takeback.two', 'end.wins', 'quit.leave'];
+  it.each(['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans', 'ru'])('%s: at most 8 words, or 16 characters in Japanese and Chinese', (l) => {
+    const t = JSON.parse(readFileSync(`src/data/strings.${l}.json`, 'utf8')) as Record<string, string>;
+    const cjk = l === 'ja' || l === 'zh-Hans';
+    for (const k of KEYS) {
+      const s = t[k]!;
+      if (cjk) expect([...s.replace(/\{\w+\}/g, '')].length, `${l} ${k}: ${s}`).toBeLessThanOrEqual(16);
+      else expect(s.split(/\s+/).length, `${l} ${k}: ${s}`).toBeLessThanOrEqual(8);
+    }
   });
 });

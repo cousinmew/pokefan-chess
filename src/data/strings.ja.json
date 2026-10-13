@@ -924,7 +924,7 @@
   "startmenu.quit": "セーブして おわる",
   "startmenu.quitGuest": "おわる",
   "quit.ask": "このたいきょくを やめる？ ゲストのたいきょくは セーブされないよ。",
-  "quit.leave": "このたいきょくを やめる？ ここで おわりだよ。",
+  "quit.leave": "やめる？ ここで おわりだよ。",
   "quit.yes": "やめる",
   "quit.no": "つづける",
   "startmenu.close": "とじる",

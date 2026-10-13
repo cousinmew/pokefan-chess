@@ -158,6 +158,8 @@ function boot(): App {
   /** A new position on the game screen (§2 dip): the board dips, `swap` runs at the peak, the board refits there only. A dip behind OPTION (a review going on) is no transition: OPTION keeps its keys (fix, 13 Oct). */
   const boardDip = (swap: () => void | Promise<void>): Promise<void> => { const d = dip(boardWrap, swap, () => fmt('puzzle.loading')); return boardWrap.isConnected ? covers.track(d) : d; };
   const onBoard = () => stage.firstElementChild === gameView;
+  /** A check made now, true until another screen shows or another game starts: a game that starts under a cover or a dip asks it first (C14). */
+  const stay = (): (() => boolean) => { const g = gen, from = stage.firstElementChild; return () => g === gen && stage.firstElementChild === from; };
   /** The opponent's moves slide slower than yours (pacing, the owner's "when moves happen"). */
   const slideOf = (c?: Color) => (c && c !== app.human && app.mode !== 'two-players' ? THEIR_SLIDE_MS : MOVE_SLIDE_MS);
 
@@ -200,6 +202,7 @@ function boot(): App {
     endWith: (key) => {
       app.ended = true;
       board.locked = true;
+      updateTurn(); // no "{name} to move" over the end panel (review, 14 Oct)
       text.show([{ key }]);
       music.stop();
       const won = key.endsWith('Win');
@@ -442,10 +445,9 @@ function boot(): App {
    * change, and the harness (no intro) starts at once. */
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
     if (resume || !withIntro) return begin(setup, resume, withIntro);
-    const g = gen; // at the dip's peak, only if no other screen or game took over meanwhile (fix, 13 Oct)
-    if (onBoard()) return void boardDip(() => (g === gen && onBoard() ? begin(setup, resume, withIntro) : undefined));
-    const from = stage.firstElementChild; // once the bars are shut, the same (C14: START → OPTION while they close)
-    void covers.cover('battle').then(() => (g === gen && stage.firstElementChild === from ? begin(setup, resume, withIntro) : undefined));
+    const here = stay(); // at the dip's peak, only if no other screen or game took over meanwhile (fix, 13 Oct)
+    if (onBoard()) return void boardDip(() => (here() ? begin(setup, resume, withIntro) : undefined));
+    void covers.cover('battle').then(() => (here() ? begin(setup, resume, withIntro) : undefined)); // C14: START → OPTION while the bars close
   }
 
   function begin(setup: Setup, resume?: SavedGame, withIntro = true): void {
@@ -466,7 +468,7 @@ function boot(): App {
   }
 
   /** By the plate's name where plates show (C8), else by the team the colour wears (W3). */
-  const turnLine = (c: Color) => lineFor(plates.top.hidden ? undefined : plates.nameOf(c), lookOf(c) === 'w' ? 'red' : 'rocket');
+  const turnLine = (c: Color) => lineFor(plates.named(c), lookOf(c) === 'w' ? 'red' : 'rocket');
   function updateTurn(): void {
     // W3: a puzzle's goal always (design C); the Path never says "TEAM ROCKET to move" after a solve (ux #11).
     const left = challenges.movesLeft(); // a drill counts down (C9)
@@ -527,7 +529,7 @@ function boot(): App {
       lockForTurn();
       online.drain();
     }
-    if (flip) flipAfter({ app, away, wrap: boardWrap, plates, reduced: reducedMotion, done: updateTurn }, said);
+    if (flip) flipAfter({ app, away, wrap: boardWrap, plates, reduced: reducedMotion, done: updateTurn, turnLine }, said);
     warmPromotions();
     if (app.mode === 'puzzle') puzzle.settled(slide);
     if (app.mode === 'path') path.settled(slide);
@@ -568,7 +570,7 @@ function boot(): App {
     board.locked = app.ended || app.busy || (app.mode === 'online' && game.turn() !== app.human);
   }
 
-  const challenges = new Challenges({ app, away, cover: () => covers.cover('battle'), configure, begin: (fen) => (show(gameView), restart(fen)) });
+  const challenges = new Challenges({ app, away, cover: () => covers.cover('battle'), stay, configure, begin: (fen) => (show(gameView), restart(fen)) });
 
   function submit(from: string, to: string, promotion?: Role): void {
     if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
@@ -625,7 +627,7 @@ function boot(): App {
     // The intro is the opponent's line by their plate's name (C8), in their bar when they have one (change A). A puzzle
     // and the Path say their own (W3; playtest, 12 Oct: a wrong Path move restarts the board, which said "TEAM ROCKET
     // wants to battle!"); in a drill PROF. OAK only watches, so your bar says whose move it is (C9).
-    const said = introLine(plates.top.hidden ? undefined : plates.nameOf(opponent), introKey);
+    const said = introLine(plates.named(opponent), introKey);
     if (app.mode === 'challenge' && challenges.drill) text.plain(turnLine(game.turn()));
     else text.plain(app.mode === 'puzzle' || app.mode === 'path' || plates.message(opponent, said) ? '' : said);
     persistGame();

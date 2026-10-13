@@ -339,10 +339,7 @@ test.describe('C5: YELLOW stickers and online trade evolutions are told with the
 
   test('an online win with a Kadabra, then START → SAVE & QUIT in the end hold: one "evolved" toast on the next screen', async ({ browser }) => {
     test.setTimeout(90_000);
-    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
-    await ctx.addInitScript(recorder);
-    await ctx.addInitScript(() => localStorage.getItem('kc:v1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', introSeen: true, teamRules: 2, caught: { squirtle: 1, kadabra: 1 }, team: { n: 'kadabra' } })));
-    const a = await ctx.newPage();
+    const a = await device(browser, () => localStorage.getItem('kc:v1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, starter: 'squirtle', introSeen: true, teamRules: 2, caught: { squirtle: 1, kadabra: 1 }, team: { n: 'kadabra' } })));
     const { b } = await room(browser, a);
     await scholars(a, b);
     await a.locator('body[data-hold="end"]').waitFor({ state: 'attached', timeout: 10_000 });
@@ -458,13 +455,29 @@ test.describe('C8: lines name the people on the plates', () => {
     await page.getByTestId('intro').click();
     await expect(page.getByTestId('turn')).toHaveText('JADE to move');
   });
+
+  // Review, 14 Oct: a MEIR save stands on both plates (§B18 item 8), so its name tells no one whose move it is.
+  test('Two Players on one MEIR save: both plates read JADE, so the lines name the teams', async ({ page }) => {
+    await two(page, { settings: { autoFlip: true }, extra: { 'kc:v1:playerTrainer': 'meir' } });
+    for (const id of ['plate-top', 'plate-bottom']) await expect(page.getByTestId(id)).toContainText('JADE');
+    await expect(page.getByTestId('turn')).toHaveText('RED to move');
+    expect(await kc(page, 'move', 'f2f3')).toBeTruthy();
+    await expect(page.getByTestId('text-main')).toHaveText('TEAM ROCKET to move'); // once the board turns, not "JADE's turn!"
+    await expect(page.getByTestId('turn')).toHaveText('TEAM ROCKET to move');
+    for (const uci of ['e7e5', 'g2g4', 'd8h4']) await expect.poll(() => kc(page, 'move', uci), { timeout: 5000 }).toBeTruthy(); // each after its flip
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId('end-text')).toHaveText('PIKACHU fainted! RED blacked out!');
+    await expect(page.getByTestId('end-winner')).toBeHidden(); // no "JADE wins!" for either side
+  });
 });
 
-/** Victory Road's first drill (queen and king against the lone king, 15 moves), on the board. */
-async function drill(page: Page) {
+/** Victory Road's first drill (queen and king against the lone king, 15 moves), on the board; `tap` false stops at
+ * its goal card. */
+async function drill(page: Page, tap = true) {
   await open(page);
   await kc(page, 'enterPlace', 'victory-road');
   for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
+  if (!tap) return ready(page, 'goal-card');
   await page.getByTestId('goal-card').click();
   await expect(page.getByTestId('screen-game')).toBeVisible();
   await noTransition(page);
@@ -484,16 +497,19 @@ function quietMove(fen: string, seen: Set<string>): string {
   throw new Error(`no quiet move in ${fen}`);
 }
 
+/** Champion BLUE from the Journey (Trainer Level above 1400: level 4), on the board. */
+async function champion(page: Page) {
+  await open(page, { extra: { 'kc:v1:trainer': { rating: { r: 1500, rd: 60, vol: 0.06 }, solved: 30, missed: 5, assisted: 0, seen: [] } } });
+  await kc(page, 'enterPlace', 'champion');
+  for (const id of ['story', 'story', 'trainer-intro', 'goal-card']) await page.getByTestId(id).click();
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  await noTransition(page);
+}
+
 test.describe('C9: the Journey\'s challenges show who you face; drills count down', () => {
   test('Champion BLUE: his plate and sprite, his team answering your starter, his thinking line', async ({ page }) => {
     test.setTimeout(60_000);
-    await open(page, { extra: { 'kc:v1:trainer': { rating: { r: 1500, rd: 60, vol: 0.06 }, solved: 30, missed: 5, assisted: 0, seen: [] } } });
-    await kc(page, 'enterPlace', 'champion');
-    for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
-    await page.getByTestId('trainer-intro').click();
-    await page.getByTestId('goal-card').click();
-    await expect(page.getByTestId('screen-game')).toBeVisible();
-    await noTransition(page);
+    await champion(page);
     await expect(page.getByTestId('plate-top')).toContainText('BLUE');
     expect(await page.locator('[data-testid="plate-top"] .plate-sprite img').getAttribute('src')).toMatch(/blue-gen1champion\.png$/);
     await expect(page.locator('[data-square="e8"]')).toHaveAttribute('aria-label', /CHARIZARD/); // bulbasaur → his charmander, fully evolved
@@ -521,6 +537,28 @@ test.describe('C9: the Journey\'s challenges show who you face; drills count dow
     await expect(page.getByTestId('turn')).toHaveClass(/moves-low/);
     expect((await rec(page)).filter((e) => /TEAM ROCKET/.test(e.v))).toEqual([]);
   });
+
+  // Review, 14 Oct: your default queen of BLUE's CHARMANDER line read as his (a stand in now, as vs Computer).
+  test("Champion BLUE: his starter's line stands on his side only", async ({ page }) => {
+    test.setTimeout(60_000);
+    await champion(page);
+    await expect(page.locator('[data-square="e8"]')).toHaveAttribute('aria-label', /CHARIZARD/);
+    const mine = await page.locator('#board [data-square][data-piece^="w"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+    expect(mine).toHaveLength(16);
+    expect(mine.filter((l) => /CHARMANDER|CHARMELEON|CHARIZARD/.test(l))).toEqual([]);
+  });
+
+  // Review, 14 Oct: the race C14 closed in startGame, for the Journey's games (Champion BLUE, the drills).
+  test('a drill: START → OPTION while the battle bars close keeps OPTION; the drill never starts behind it', async ({ page }) => {
+    await drill(page, false);
+    await noTransition(page);
+    await page.evaluate(() => ['goal-card', 'start-button-corner', 'start-menu-option'].forEach((id) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`)!.click()));
+    await expect(page.getByTestId('screen-settings')).toBeVisible();
+    await page.waitForTimeout(BATTLE_CLOSE_MS + 400); // the bars are shut by now: a challenge that ignored OPTION starts here
+    await noTransition(page);
+    await expect(page.getByTestId('screen-settings')).toBeVisible();
+    await expect(page.getByTestId('screen-game')).toHaveCount(0);
+  });
 });
 
 test('C10: a puzzle opponent with its own team plays it on its side', async ({ page }) => {
@@ -532,17 +570,23 @@ test('C10: a puzzle opponent with its own team plays it on its side', async ({ p
   await expect(page.locator('[data-square="d5"]')).not.toHaveAttribute('aria-label', /BULBASAUR/); // yours is not
 });
 
-// Online (the local relay, as online.spec.ts uses it).
-const RELAY = '&relay=http://localhost:8788';
-async function room(browser: Browser, a: Page): Promise<{ b: Page; code: string }> {
-  await a.goto(`./?debug=1${RELAY}`);
-  await a.getByTestId('screen-splash').click();
-  await a.getByTestId('play-online').click();
-  await a.getByTestId('create-room').click();
-  const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
+// Online (the local relay, as online.spec.ts uses it; RELAY_PORT runs these against another one).
+const RELAY = `&relay=http://localhost:${process.env.RELAY_PORT ?? '8788'}`;
+/** A phone that records what it shows (`init`: its storage before boot). */
+async function device(browser: Browser, init?: () => void): Promise<Page> {
   const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
   await ctx.addInitScript(recorder);
-  const b = await ctx.newPage();
+  if (init) await ctx.addInitScript(init);
+  return ctx.newPage();
+}
+/** `a` makes a room (from the hub, or a guest from PLAY CHESS) and a second phone joins it. */
+async function room(browser: Browser, a: Page, guest = false): Promise<{ b: Page; code: string }> {
+  await a.goto(`./?debug=1${guest ? '&menu=1' : ''}${RELAY}`);
+  await a.getByTestId('screen-splash').click();
+  for (const id of guest ? ['start-play', 'quick-online'] : ['play-online']) await a.getByTestId(id).click();
+  await a.getByTestId('create-room').click();
+  const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
+  const b = await device(browser);
   await b.goto(`./?debug=1${RELAY}&room=${code}`);
   for (const p of [a, b]) await expect(p.locator('#board')).toBeVisible({ timeout: 10_000 });
   for (const p of [a, b]) await noTransition(p);
@@ -564,9 +608,7 @@ test.describe('C11: online rematch and resume', () => {
 
   test('a swap rematch dips the board and shows the intro card with the swap line on both screens', async ({ browser }) => {
     test.setTimeout(90_000);
-    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
-    await ctx.addInitScript(recorder);
-    const a = await ctx.newPage();
+    const a = await device(browser);
     const { b } = await room(browser, a);
     await scholars(a, b);
     for (const p of [a, b]) await ready(p, 'end-screen');
@@ -587,9 +629,7 @@ test.describe('C11: online rematch and resume', () => {
 
   test('a tab reopened mid-game: "Welcome back!" with the turn, and the last move still lit', async ({ browser }) => {
     test.setTimeout(60_000);
-    const ctx = await browser.newContext({ viewport: { width: 360, height: 640 } });
-    await ctx.addInitScript(recorder);
-    const a = await ctx.newPage();
+    const a = await device(browser);
     const { b, code } = await room(browser, a);
     for (const [i, uci] of ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4'].entries()) await play(i % 2 ? b : a, i % 2 ? a : b, uci);
     const bctx = b.context();
@@ -600,6 +640,31 @@ test.describe('C11: online rematch and resume', () => {
     await expect(b2.getByTestId('text-main')).toContainText('Welcome back!');
     await expect(b2.locator('.sq.last')).toHaveCount(2);
     expect(await b2.locator('.sq.last').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square).sort())).toEqual(['c4', 'f1']);
+  });
+});
+
+test.describe('Review, 14 Oct: an online end that comes another way', () => {
+  // The QUIT question was a flag that only its own buttons cleared: under the friend's give up it stayed, and every
+  // later game in the tab waited for its answer (the intro card never let go of the board). Now read from the screen.
+  test("a guest's QUIT question that the friend's give up closes: the header clears, the next game still plays", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const a = await device(browser);
+    const { b } = await room(browser, a, true);
+    await play(a, b, 'e2e4');
+    await settled(a);
+    await expect(a.getByTestId('turn')).not.toHaveText('');
+    for (const id of ['start-button', 'start-menu-quit']) await a.getByTestId(id).click();
+    await expect(a.getByTestId('quit-confirm')).toBeVisible();
+    await b.getByTestId('resign').click();
+    if (await b.getByTestId('resign-yes').count()) await b.getByTestId('resign-yes').click(); // where Give up asks first
+    await expect(a.getByTestId('end-screen')).toBeVisible({ timeout: 10_000 });
+    await expect(a.getByTestId('end-winner')).toHaveText('Guest wins!');
+    await expect(a.getByTestId('turn')).toHaveText(''); // no "BLUE to move" over the end (it stayed there)
+    await expect(a.getByTestId('takeback')).toBeHidden();
+    for (const id of ['end-menu', 'start-play', 'quick-computer', 'team-red', 'level-1', 'intro']) await a.getByTestId(id).click();
+    await noTransition(a);
+    await move(a, 'e2', 'e4');
+    await expect.poll(async () => (await state(a)).fen.split(' ').slice(1).join(' '), { timeout: 10_000 }).toMatch(/^w .* 2$/); // your move and the reply
   });
 });
 

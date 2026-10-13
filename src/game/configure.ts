@@ -44,7 +44,7 @@ export function configure(h: ConfigureHost, setup: Setup): Color {
   else if (setup.mode === 'puzzle' || setup.mode === 'path') {
     const them = setup.mode === 'puzzle' ? h.puzzleOpponent()?.team : null; // a rival brings their own team (C10)
     setSkins({ ...(them ? { [cpu]: them } : {}), ...(h.guest() || !c.starter ? {} : { [setup.human]: mine(puzzleTeam(c.team, c.starter, h.look().stage ?? 2)) }) }); // W3, design D; BLUE's warm-up (W5)
-  } else if (setup.mode === 'challenge') setSkins(h.challengeTeam(cpu)); // your default team; Champion BLUE his party (§B14, C9)
+  } else if (setup.mode === 'challenge') setSkins({ ...h.challengeTeam(cpu), [setup.human]: mine({}) }); // your default team, no rival's starter in it (review, 14 Oct); Champion BLUE his party (§B14, C9)
   else if (setup.mode !== 'online') setSkins({});
   if (setup.mode !== 'online') applyLooks({ w: h.look(), b: h.look() });
   app.mode = setup.mode;

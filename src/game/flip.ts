@@ -23,6 +23,8 @@ export interface FlipHost {
   reduced(): boolean;
   /** The turn is over: the header and Take back follow. */
   done(): void;
+  /** "RED to move" or "TEAM ROCKET to move": the line when the plates' names don't tell the sides apart. */
+  turnLine(c: Color): string;
 }
 
 const finished = (a: Animation) => a.finished.then(() => undefined, () => undefined);
@@ -50,7 +52,8 @@ async function turn(h: FlipHost, said: string, r: number): Promise<void> {
   plates.check(app.game.checkedKing() ? next : null);
   app.board.render();
   plates.message(next === 'w' ? 'b' : 'w', said); // the mover's line, now on the top plate
-  const line = fmt('turn.next', { name: plates.nameOf(next) ?? '' });
+  const name = plates.named(next); // one MEIR save stands on both plates: the team's line (review, 14 Oct)
+  const line = name ? fmt('turn.next', { name }) : h.turnLine(next);
   if (!plates.message(next, line)) app.text.plain(line);
   const open = h.wrap.animate([...shut].reverse(), { duration: half, easing: 'ease-out' });
   fold.cancel();

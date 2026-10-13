@@ -22,6 +22,8 @@ export interface ChallengeHost {
   away: Away;
   /** The battle bars close; resolves when shut. */
   cover(): Promise<void>;
+  /** A check that stays true until another screen shows or another game starts (C14). */
+  stay(): () => boolean;
   configure(setup: Setup): void;
   /** Shows the game screen and starts the position (no intro card). */
   begin(fen?: string): void;
@@ -34,7 +36,9 @@ export class Challenges {
   constructor(private readonly h: ChallengeHost) {}
 
   start(ch: Challenge): void {
+    const here = this.h.stay(); // START → OPTION while the bars close: OPTION stays, no game behind it (review, 14 Oct)
     void this.h.cover().then(() => {
+      if (!here()) return;
       this.current = { ...ch, made: 0 }; // before configure: the Champion's team is set there
       this.h.configure({ mode: 'challenge', human: 'w', level: ch.level });
       this.h.begin(ch.fen);

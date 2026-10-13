@@ -61,13 +61,19 @@ interface News {
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
 export class EndGame {
-  /** A question over the board (QUIT, or a START item that ends the game): the game waits for the answer (C1, C7). */
-  asking = false;
   private undoing = false;
   private news: News | null = null;
   private warmed = new Set<string>();
 
   constructor(private readonly h: EndHost) {}
+
+  /** A question over the board (QUIT, or a START item that ends the game): the game waits for the answer (C1, C7).
+   * Read from the screen, not kept as a flag (review, 14 Oct): whatever else closes the question (the friend's give
+   * up putting the end panel over it, a new game, another screen) ends the wait too, so no later game waits for it. */
+  get asking(): boolean {
+    const { modal } = this.h;
+    return !modal.hidden && !!modal.querySelector('[data-testid="quit-confirm"]');
+  }
 
   canTakeBack(): boolean {
     const { app } = this.h;
@@ -167,7 +173,7 @@ export class EndGame {
   showEnd(line: Line, winner?: Color | null, evolved: [string, string][] = []): void {
     const news = this.news ?? { stickers: [], evolved: [] };
     this.news = null;
-    const name = winner ? this.h.plates.nameOf(winner) : undefined;
+    const name = winner ? this.h.plates.named(winner) : undefined;
     this.panel(line, name ? fmt('end.wins', { name }) : undefined, news.stickers);
     for (const [from, to] of [...news.evolved, ...evolved]) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
   }
@@ -233,11 +239,10 @@ export class EndGame {
    * waits meanwhile; Keep playing goes on with it. */
   askQuit(then: () => void = () => this.h.quit(), ask: StringKey = 'quit.ask'): void {
     const { away, modal } = this.h;
-    const close = () => ((modal.hidden = true), modal.replaceChildren(), (away.panel = null), (this.asking = false));
+    const close = () => ((modal.hidden = true), modal.replaceChildren(), (away.panel = null));
     modal.onclick = null;
     modal.replaceChildren(quitPanel(() => (close(), then()), () => (close(), away.back(false)), ask));
     modal.hidden = false;
-    this.asking = true;
     away.panel = () => this.askQuit(then, ask);
   }
 }
