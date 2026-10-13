@@ -930,5 +930,7 @@
   "install.ios2": "2. Toque em \"Adicionar à Tela de Início\"",
   "install.ios3": "3. Abra o jogo pela tela de início",
   "install.warming": "Preparando para jogar offline… {n}%",
-  "install.ready": "Pronto para jogar offline"
+  "install.ready": "Pronto para jogar offline",
+  "install.held": "Arquivos offline aguardando: economia de dados ou rede lenta.",
+  "install.warmNow": "PREPARAR PARA OFFLINE AGORA"
 }

@@ -930,5 +930,7 @@
   "install.ios2": "2. Toca «Añadir a pantalla de inicio»",
   "install.ios3": "3. Abre el juego desde la pantalla de inicio",
   "install.warming": "Preparando para jugar sin conexión… {n}%",
-  "install.ready": "Listo para jugar sin conexión"
+  "install.ready": "Listo para jugar sin conexión",
+  "install.held": "Los archivos sin conexión esperan: ahorro de datos o red lenta.",
+  "install.warmNow": "PREPARAR SIN CONEXIÓN AHORA"
 }
