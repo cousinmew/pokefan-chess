@@ -54,6 +54,11 @@ const connection = () => (navigator as Navigator & { connection?: Connection }).
 /** Ready here from an earlier launch: null until the check answers (once per worker), or while it cannot be asked. */
 let readyHere: boolean | null = null;
 let checking: Promise<boolean | null> | null = null;
+/** Where the last check stands (OPTION's install row shows it as data-check): asking, answered, or 'unknown' when no
+ * worker controls the page (asked again later); null before the first. */
+export type CheckState = 'asking' | 'answered' | typeof UNKNOWN | null;
+let check: CheckState = null;
+export const checkState = (): CheckState => check;
 /** The build whose worker last said ready (a complete run, or the check): a 'ready' belongs to that build only. */
 let readyFrom: string | null = null;
 /** A complete warm up noted on this device is ready only while the newest worker still has it in its build's cache (fix,
@@ -63,12 +68,17 @@ let readyFrom: string | null = null;
  * hard reload): no answer, so nothing is held or failed, and the next check (OPTION, a new controller) asks again (N4,
  * 14 Oct). A 'ready' from another build's worker goes once a newer worker says it is not ready. */
 function checkReady(): Promise<boolean | null> {
-  checking ??= (readDevice<string>(OFFLINE_BUILD) !== null && warmable() ? readyBuild() : Promise.resolve(null)).then((build) => {
+  if (checking) return checking;
+  check = 'asking';
+  checking = (readDevice<string>(OFFLINE_BUILD) !== null && warmable() ? readyBuild() : Promise.resolve(null)).then((build) => {
     if (build === UNKNOWN) {
       checking = null;
       readyHere = null;
+      check = UNKNOWN;
+      changed();
       return null;
     }
+    check = 'answered';
     readyHere = build !== null;
     if (build) {
       writeDevice(OFFLINE_BUILD, build);

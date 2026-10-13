@@ -25,7 +25,7 @@ describe('sparing: no automatic warm up', () => {
 // N4 (14 Oct): the ready check after a deploy, after a hard reload, and before it answers. Browser globals are
 // stand-ins here; the e2e side is in tests/e2e/install.spec.ts.
 type Listener = () => void;
-function browser(o: { controller: object | null; standalone?: boolean; saveData?: boolean; note?: string }) {
+function browser(o: { controller: object | null; standalone?: boolean; saveData?: boolean; note?: string; active?: object }) {
   const swListeners: Record<string, Listener[]> = {};
   const store = new Map<string, string>(o.note ? [['kc:v1:dev:offlineBuild', JSON.stringify(o.note)]] : []);
   vi.stubGlobal('location', { search: '' });
@@ -45,7 +45,7 @@ function browser(o: { controller: object | null; standalone?: boolean; saveData?
     serviceWorker: {
       controller: o.controller,
       register: () => Promise.resolve({}),
-      getRegistration: () => Promise.resolve({ installing: null, waiting: null, active: o.controller ?? {} }),
+      getRegistration: () => Promise.resolve({ installing: null, waiting: null, active: o.active ?? o.controller ?? {} }),
       addEventListener: (type: string, f: Listener) => (swListeners[type] ??= []).push(f),
       removeEventListener: () => undefined,
     },
@@ -63,6 +63,35 @@ describe('readyBuild: no controller is no answer', () => {
     const answer = readyBuild();
     await vi.advanceTimersByTimeAsync(20_000);
     expect(await answer).toBe('unknown');
+  });
+
+  it("a worker done activating that controls nothing answers 'unknown' at once: its claim is over (review, 14 Oct)", async () => {
+    browser({ controller: null, active: { state: 'activated' } });
+    const { readyBuild } = await import('../../src/net/offline');
+    let answer: string | null | undefined;
+    void readyBuild().then((a) => (answer = a));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(answer).toBe('unknown');
+  });
+
+  it('a worker still activating: the check waits for the claim, and a warm up asked for always waits', async () => {
+    browser({ controller: null, active: { state: 'activating' } });
+    const { readyBuild } = await import('../../src/net/offline');
+    let answer: string | null | undefined;
+    void readyBuild().then((a) => (answer = a));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(answer).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(answer).toBe('unknown');
+    vi.resetModules();
+    browser({ controller: null, active: { state: 'activated' } });
+    const { warmUp } = await import('../../src/net/offline');
+    let warmed: string | null | undefined;
+    void warmUp(() => undefined).then((b) => (warmed = b));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(warmed).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(warmed).toBeNull();
   });
 });
 
@@ -88,6 +117,21 @@ describe('pwa: what the ready check claims', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(readyBuild).toHaveBeenCalledTimes(2);
     expect(pwa.warmState()).toBe('ready');
+  });
+
+  it("the check's state for OPTION: asking, then 'unknown' with a re-render, then answered on the next ask", async () => {
+    browser({ controller: null, standalone: true, saveData: true, note: 'b1' });
+    const { pwa } = await withWorker(['unknown', 'b1']);
+    expect(pwa.checkState()).toBeNull();
+    const renders: unknown[] = [];
+    pwa.onInstallChange(() => renders.push(pwa.checkState()));
+    pwa.autoWarm();
+    expect(pwa.checkState()).toBe('asking');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(renders).toEqual(['unknown']);
+    pwa.autoWarm();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pwa.checkState()).toBe('answered');
   });
 
   it('a new worker taking over: a ready answer from the one before is asked again, and the new build gets ready once', async () => {

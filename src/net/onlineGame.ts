@@ -111,13 +111,14 @@ export class OnlineGame {
     this.host.say('online.reconnecting');
   }
 
-  /** Asks for a rematch. When your friend asked first the relay starts it at once: no waiting line (N5). */
+  /** Asks for a rematch. When your friend asked first the relay starts it at once: no waiting line (N5). When your
+   * friend has left, that stays said (the request still goes, for when they come back), with the Menu to leave. */
   rematch(swap: boolean): void {
     const s = this.last;
     this.client?.send({ type: 'rematch', swap });
     if (s?.result && s.rematch.includes(other(s.you))) return;
     this.waiting = true;
-    this.host.say('online.rematchWait');
+    this.host.say(s && !s.seats[other(s.you)].online ? 'online.left' : 'online.rematchWait');
     this.barMode('wait');
   }
 
@@ -181,6 +182,7 @@ export class OnlineGame {
     if (gone) this.host.say('online.left');
     else if (back && this.waiting) this.friendBack('online.rematchWait');
     else if (!this.waiting && s.rematch.includes(them) && !s.rematch.includes(s.you)) this.friendAsks(s);
+    else if (back) this.host.say('online.back'); // back at the end screen: "Your friend left." would be stale
   }
 
   /** Your friend is back (N6): said at once, then `then` (the turn prompt, or the rematch wait) unless something else
@@ -208,11 +210,15 @@ export class OnlineGame {
   }
 
   /** Built again when the mode or the language changes; a button that had the focus hands it to the new row (Give up's
-   * question to No, the safe answer). */
+   * question to No, the safe answer). Give up's question and the rematch wait are one row where the play row can be
+   * two: the bar keeps the play row's height, so the fitter does not lay the screen out again (on a short phone the
+   * board grew and shrank at each Give up, No and Rematch). */
   private barMode(mode: BarMode): void {
     this.bar.classList.toggle('net-over', mode === 'over');
     const shown = mode === 'over' ? 'play' : mode;
     if (shown === this.mode && this.bar.dataset.lang === currentLang() && this.bar.childElementCount) return;
+    if (shown === 'play') this.bar.style.minHeight = '';
+    else if (this.mode === 'play') this.bar.style.minHeight = `${this.bar.offsetHeight}px`;
     this.mode = shown;
     this.bar.dataset.lang = currentLang();
     const had = this.bar.contains(document.activeElement);

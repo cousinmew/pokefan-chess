@@ -328,7 +328,6 @@ test.describe('getting ready for offline', () => {
   // N4 (14 Oct): a hard reload leaves the page without a controller, so nothing can be asked: that is no answer, not
   // "not ready", and a ready device shows neither the held line nor the failure line.
   test('a hard reload on a ready device: no held or failure line while no worker controls the page', async ({ page, context }) => {
-    test.slow(); // the check waits 10 s for a controller
     await asApp(context, { saveData: true });
     await page.goto('./');
     await controlled(page);
@@ -348,9 +347,16 @@ test.describe('getting ready for offline', () => {
     expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
     await page.getByTestId('screen-splash').click();
     await page.getByRole('menuitem', { name: 'OPTION' }).click();
-    await page.waitForTimeout(13000); // past the check's 10 s wait for a controller (it ends 'unknown')
+    // The check ends at once with no answer: the active worker already claimed the pages it will (sw.js
+    // clients.claim), so no controller is coming for this one; it used to wait 10 s for one.
+    await expect(page.getByTestId('install-box')).toHaveAttribute('data-check', 'unknown', { timeout: 3000 });
     expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
     await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓');
+    // Opening OPTION again asks again, with the same answer and still no held or failure line.
+    await page.getByTestId('screen-settings').getByTestId('back').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    await expect(page.getByTestId('install-box')).toHaveAttribute('data-check', 'unknown', { timeout: 3000 });
+    expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
   });
 
   // N4 (14 Oct): before the check answers, the status line claims nothing it cannot know yet.

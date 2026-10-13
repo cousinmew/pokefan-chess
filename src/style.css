@@ -284,11 +284,14 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .tile { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 8px 44px 8px 10px; font: inherit; text-align: left; color: var(--ink);
   background: #fff; border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; transition: filter 120ms ease-out; }
 /* netboot (14 Oct): every plain button shows its press (N8: a reaction looked the same pressed and not); Online, your
-   move shows as sent until the relay lands it (N7); Give up asks inside the online bar, and once the game is over the
-   bar empties but keeps its place, so the board does not jump (N8); a friend's rematch request lights the end panel's
-   Rematch (N5), with a slow glow only where motion is welcome. */
+   move shows as sent until the relay lands it (N7); Give up asks inside the online bar, in the play row's height as
+   the rematch wait does, and once the game is over the bar empties but keeps its place, so the board does not jump
+   (N8); a friend's rematch request lights the end panel's Rematch (N5), with a slow glow only where motion is welcome.
+   A language still loading dims a little after 300 ms, so a slow network reads as working (N1). */
 button:active:not(:disabled) { filter: brightness(0.9); }
+.lang-btn[aria-busy='true'] { opacity: 0.6; cursor: progress; transition: opacity 120ms ease-out 300ms; }
 .sq .pending { opacity: 0.5; }
+.reactions { align-content: center; } /* a one row question or wait in the play row's height (N8) */
 .reactions.net-over { visibility: hidden; }
 .reactions .net-ask { align-self: center; font-weight: bold; padding: 0 4px; }
 .end-buttons button.asked { background: var(--sel); box-shadow: 0 0 0 3px var(--ink); }

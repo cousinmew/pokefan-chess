@@ -46,7 +46,9 @@ function cartridge(kind: Cartridge, pick: () => void, secret?: () => void, dots?
 let asked = 0;
 
 /** Every language choice goes through here (the shelf, OPTION, the language button). Only English is in the entry
- * bundle (N1, 14 Oct): the tapped language shows as chosen at once, its table is fetched, then `pick` applies it. */
+ * bundle (N1, 14 Oct): the tapped language shows as chosen at once (busy while its table is fetched), then `pick`
+ * applies it. Every `pick` also navigates (the shelf again, OPTION again, the home), so a table that comes after the
+ * player moved on (BLUE, Back, Play) is not applied: the screen they went to stays, in the language it shows. */
 export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement {
   const row = el('div', 'lang-row');
   row.setAttribute('role', 'radiogroup');
@@ -55,6 +57,7 @@ export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement 
     row.querySelectorAll<HTMLElement>('.lang-btn').forEach((b) => {
       b.classList.toggle('on', b.lang === l);
       b.setAttribute('aria-checked', String(b.lang === l));
+      b.removeAttribute('aria-busy');
     });
   for (const l of LANGS) {
     const b = button(
@@ -62,9 +65,11 @@ export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement 
       () => {
         const n = ++asked;
         mark(l);
+        b.setAttribute('aria-busy', 'true');
+        const here = () => n === asked && row.isConnected;
         void loadLanguage(l).then(
-          () => n === asked && pick(l),
-          (err: unknown) => (console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), n === asked && mark(current)),
+          () => (b.removeAttribute('aria-busy'), here() && pick(l)),
+          (err: unknown) => (b.removeAttribute('aria-busy'), console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), here() && mark(current)),
         );
       },
       `lang-${l}`,

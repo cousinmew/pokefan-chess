@@ -40,13 +40,17 @@ function settled(reg: ServiceWorkerRegistration): Promise<void> {
 export const UNKNOWN = 'unknown';
 
 /** The newest active service worker of this page's registration, once it controls the page; null when there is none,
- * UNKNOWN when one is registered but nothing controls the page. */
-async function newest(): Promise<ServiceWorker | null | typeof UNKNOWN> {
+ * UNKNOWN when one is registered but nothing controls the page. `quick`: no wait for a controller when the active
+ * worker has finished activating, as it claimed every page it will then (sw.js clients.claim in activate): a hard
+ * reload gets none, and the check answered only after 10 s (review, 14 Oct). Should its controllerchange come after
+ * all, pwa.ts asks again. A warm up asked for keeps the wait. */
+async function newest(quick = false): Promise<ServiceWorker | null | typeof UNKNOWN> {
   if (!warmable()) return null;
   const sw = navigator.serviceWorker;
   const reg = await sw.getRegistration();
   if (!reg) return null;
   await settled(reg);
+  if (quick && !sw.controller && reg.active?.state === 'activated') return UNKNOWN;
   if (!sw.controller || sw.controller !== reg.active) {
     // A fresh worker claims the page right after it activates (sw.js clients.claim).
     await new Promise<void>((done) => {
@@ -64,7 +68,7 @@ async function newest(): Promise<ServiceWorker | null | typeof UNKNOWN> {
  * reload: ask again later). The worker names its build: the page's code carries none. */
 export async function readyBuild(): Promise<string | null> {
   try {
-    const worker = await newest();
+    const worker = await newest(true);
     if (worker === UNKNOWN) return UNKNOWN;
     if (!worker) return null;
     return await new Promise<string | null>((done) => {

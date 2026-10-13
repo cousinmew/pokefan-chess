@@ -3,7 +3,7 @@
 // Chromium: the caught install prompt. iOS: the Share → Add to Home Screen steps. Installed: a plain status line.
 // Anything else: a hint, never a dead button. Works the same under ?debug, where there is no service worker.
 import { fmt } from '../game/text';
-import { autoWarm, getReadyOffline, installState, offlineHeld, onInstallChange, promptInstall, warmState } from '../pwa';
+import { autoWarm, checkState, getReadyOffline, installState, offlineHeld, onInstallChange, promptInstall, warmState } from '../pwa';
 import { button, el } from './dom';
 
 let outcome: 'accepted' | 'dismissed' | null = null;
@@ -75,6 +75,7 @@ export function installRow(): HTMLElement {
       parts.push(p);
     }
     if (held) parts.push(button('install.warmNow', () => (getReadyOffline(), render()), 'install-warm'));
+    box.dataset.check = checkState() ?? 'idle'; // where the readiness check stands (tests wait on it, not on a timer)
     box.replaceChildren(...parts);
   };
   // Asks the worker whether this device is ready (once per page; the answer re-renders). Opened as an app whose files

@@ -68,6 +68,69 @@ test.describe('N1 the first load fetches one language', () => {
     expect(fetched2).toEqual(['strings.de']);
   });
 
+  test('a language whose table comes late never takes the player back to where it was tapped (shelf, OPTION, YELLOW)', async ({ browser }) => {
+    // The tapped language's tables arrive 1.5 s late, as on a slow network; meanwhile the player moves on.
+    const open = async (cartridge: string | null) => {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: { cookies: [], origins: [] } });
+      const p = await ctx.newPage();
+      await p.addInitScript((c) => {
+        if (c) localStorage.setItem('kc:v1:cartridge', JSON.stringify(c));
+        const w = window as unknown as { screens: string[] };
+        w.screens = [];
+        new MutationObserver(() => {
+          const s = document.body?.dataset.screen ?? '';
+          if (s && w.screens.at(-1) !== s) w.screens.push(s);
+        }).observe(document, { attributes: true, subtree: true, attributeFilter: ['data-screen'] }); // before <html> exists
+      }, cartridge);
+      const asked: string[] = [];
+      const served: string[] = [];
+      await p.route(/\/(strings|names)\.fr-[\w-]+\.js$/, async (r) => {
+        asked.push(r.request().url());
+        await new Promise((done) => setTimeout(done, 1500));
+        await r.continue();
+        served.push(r.request().url());
+      });
+      await p.goto('./?debug=1');
+      await p.getByTestId('screen-splash').click();
+      return { p, asked, served };
+    };
+    type Late = Awaited<ReturnType<typeof open>>;
+    /** The tables have arrived and run: a pick still waiting for them would have happened by now. */
+    const arrived = async ({ p, asked, served }: Late) => {
+      await expect.poll(() => served.length, { timeout: 10_000 }).toBe(2);
+      await p.evaluate(async (us) => {
+        await Promise.all(us.map((u) => import(u)));
+        await new Promise((done) => setTimeout(done, 100));
+      }, asked);
+    };
+    const screens = (p: Page) => p.evaluate(() => (window as unknown as { screens: string[] }).screens);
+    /** Taps a language, moves on before its tables come, and checks the screen it moved to stays. */
+    const moveOn = async (late: Late, from: string, go: () => Promise<void>) => {
+      await late.p.getByTestId('lang-fr').click();
+      await expect(late.p.getByTestId('lang-fr')).toHaveClass(/\bon\b/); // the tap shows at once
+      await expect(late.p.getByTestId('lang-fr')).toHaveAttribute('aria-busy', 'true'); // and that it is loading
+      await go();
+      await expect(late.p.getByTestId(from)).toHaveCount(0);
+      const to = (await screens(late.p)).at(-1)!;
+      expect(late.served).toEqual([]); // the player moved on while the tables were still on their way
+      await arrived(late);
+      expect((await screens(late.p)).slice(-2)).toEqual([from, to]);
+      expect(await late.p.evaluate(() => document.documentElement.lang)).toBe('en');
+      await late.p.context().close();
+    };
+    // First launch: Français, then BLUE at once.
+    const shelf = await open(null);
+    await moveOn(shelf, 'screen-shelf', () => shelf.p.getByTestId('cart-blue').click());
+    // OPTION: Français, then Back.
+    const option = await open('blue');
+    await option.p.getByTestId('settings').first().click();
+    await moveOn(option, 'screen-settings', () => option.p.getByTestId('screen-settings').getByTestId('back').click());
+    // YELLOW's language button: Français, then Play.
+    const yellow = await open('yellow');
+    await yellow.p.getByTestId('lang-button').click();
+    await moveOn(yellow, 'screen-yellow', () => yellow.p.getByTestId('yellow-play').click());
+  });
+
   test('@perf Slow 4G cold first contentful paint (median of 3)', async ({ browser }) => {
     test.setTimeout(120_000);
     const fcp = async (lang?: string) => {
@@ -225,10 +288,24 @@ test.describe('N2 the service worker keeps sprites across deploys', () => {
 });
 
 // Online: two browser contexts against the local relay (online.spec.ts).
-const RELAY = '&relay=http://localhost:8788';
+// RELAY_URL: a relay of your own (the config's webServer starts one on :8788).
+const RELAY_URL = process.env.RELAY_URL ?? 'http://localhost:8788';
+const RELAY = `&relay=${RELAY_URL}`;
 type KC = { netSend(m: unknown): void };
 const send = (p: Page, m: unknown) => p.evaluate((m) => (window as unknown as { __kc: KC }).__kc.netSend(m), m);
-const newPage = async (browser: Browser) => (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+type Size = { width: number; height: number };
+const newPage = async (browser: Browser, viewport: Size = { width: 390, height: 844 }) => (await browser.newContext({ viewport })).newPage();
+/** No cover or dip is up, so a press lands on the screen (tests/e2e/pace.ts noTransition(), copied here). */
+const noTransition = (p: Page) => p.waitForFunction(() => document.documentElement.dataset.transition === undefined && !document.querySelector('.board-dip'), null, { timeout: 15_000 });
+/** A card takes input (its guard is over): tests/e2e/pace.ts ready(), copied here. */
+const ready = (p: Page, testid: string) => p.locator(`[data-testid="${testid}"][data-ready]`).first().waitFor({ state: 'attached', timeout: 15_000 });
+/** Both end panels are up and take taps (a tap inside the card guard is dropped). */
+const ended = async (...ps: Page[]) => {
+  for (const p of ps) await expect(p.getByTestId('end-screen')).toBeVisible({ timeout: 8000 });
+  for (const p of ps) await ready(p, 'end-screen');
+};
+/** Lets the fitter run (it lays the screen out on the next animation frame after a size change). */
+const frames = (p: Page) => p.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
 /** Every text the text box shows, with the epoch time it showed (both pages share one clock). */
 const recordLines = (p: Page) =>
   p.evaluate(() => {
@@ -241,8 +318,8 @@ const recordLines = (p: Page) =>
 const lines = (p: Page) => p.evaluate(() => (window as unknown as { lines: [number, string][] }).lines);
 const epoch = (p: Page) => p.evaluate(() => performance.timeOrigin + performance.now());
 
-async function createRoom(browser: Browser, before?: (a: Page) => Promise<unknown>): Promise<{ a: Page; code: string }> {
-  const a = await newPage(browser);
+async function createRoom(browser: Browser, before?: (a: Page) => Promise<unknown>, viewport?: Size): Promise<{ a: Page; code: string }> {
+  const a = await newPage(browser, viewport);
   await before?.(a);
   await a.goto(`./?debug=1${RELAY}`);
   await a.getByTestId('screen-splash').click();
@@ -251,11 +328,12 @@ async function createRoom(browser: Browser, before?: (a: Page) => Promise<unknow
   const code = (await a.getByTestId('room-code').textContent({ timeout: 10_000 }))!.trim();
   return { a, code };
 }
-async function pair(browser: Browser, before?: (a: Page) => Promise<unknown>) {
-  const { a, code } = await createRoom(browser, before);
-  const b = await newPage(browser);
+async function pair(browser: Browser, before?: (a: Page) => Promise<unknown>, viewport?: Size) {
+  const { a, code } = await createRoom(browser, before, viewport);
+  const b = await newPage(browser, viewport);
   await b.goto(`./?debug=1${RELAY}&room=${code}`);
   for (const p of [a, b]) await expect(p.locator('#board')).toBeVisible({ timeout: 10_000 });
+  for (const p of [a, b]) await noTransition(p); // the battle bars open on the board and take the pointer meanwhile
   return { a, b, code };
 }
 async function play(mover: Page, other: Page, uci: string) {
@@ -292,7 +370,7 @@ test.describe('Online (N5 to N9)', () => {
     const { a, b } = await pair(browser);
     await play(a, b, 'e2e4');
     await send(b, { type: 'resign' }); // B gives up (straight to the relay)
-    for (const p of [a, b]) await expect(p.getByTestId('end-screen')).toBeVisible({ timeout: 8000 });
+    await ended(a, b);
     await recordLines(b);
     // When B's screen shows the request and B's Rematch button stands out, from A's tap.
     await b.evaluate(() => {
@@ -327,13 +405,62 @@ test.describe('Online (N5 to N9)', () => {
   test('N5 the friend leaves instead: the asker is told and taps Menu', async ({ browser }) => {
     const { a, b } = await pair(browser);
     await send(b, { type: 'resign' });
-    for (const p of [a, b]) await expect(p.getByTestId('end-screen')).toBeVisible({ timeout: 8000 });
+    await ended(a, b);
     await a.getByTestId('rematch').click();
     await expect(b.getByTestId('rematch')).toHaveClass(/asked/);
     await b.getByTestId('end-menu').click();
     await expect(a.getByTestId('text-main')).toHaveText('Your friend left.', { timeout: 5000 });
     await a.getByTestId('online-menu').click();
     await expect(a.getByTestId('screen-title')).toBeVisible();
+  });
+
+  test('N5 Rematch after the friend left says they left (no waiting line); a friend back at the end screen is said', async ({ browser }) => {
+    const { a, b, code } = await pair(browser);
+    await send(b, { type: 'resign' });
+    await ended(a, b);
+    const ctx = b.context();
+    await b.getByTestId('end-menu').click();
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend left.', { timeout: 5000 });
+    // B opens the room again, without asking for a rematch: A is told B is back.
+    const b2 = await ctx.newPage();
+    await b2.goto(`./?debug=1${RELAY}&room=${code}`);
+    await expect(b2.locator('#board')).toBeVisible({ timeout: 10_000 });
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend is back!', { timeout: 5000 });
+    // B leaves again; A asks anyway: told B is gone, with Menu, never "Waiting for your friend to say yes...".
+    await b2.close();
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend left.', { timeout: 5000 });
+    await recordLines(a);
+    await a.getByTestId('rematch').click();
+    await expect(a.getByTestId('online-menu')).toBeVisible();
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend left.');
+    expect((await lines(a)).map(([, t]) => t)).not.toContain(WAIT);
+  });
+
+  test('N8 Give up\'s question and the rematch wait keep the bar\'s place: the board does not move (360x640)', async ({ browser }) => {
+    const { a, b } = await pair(browser, undefined, { width: 360, height: 640 });
+    const layout = () =>
+      a.evaluate(() => {
+        const r = (s: string) => document.querySelector(s)?.getBoundingClientRect();
+        return { board: [r('#board')?.top, r('#board')?.width], bar: r('.reactions')?.height };
+      });
+    await frames(a);
+    const play = await layout();
+    expect(play.bar).toBeGreaterThan(0);
+    await a.getByTestId('resign').click();
+    await expect(a.getByTestId('resign-ask')).toBeVisible();
+    await frames(a);
+    expect(await layout()).toEqual(play);
+    await a.getByTestId('resign-no').click();
+    await expect(a.getByTestId('react-0')).toBeVisible();
+    await frames(a);
+    expect(await layout()).toEqual(play);
+    // After the game, Rematch's wait row (Menu) keeps it too.
+    await send(b, { type: 'resign' });
+    await ended(a);
+    await a.getByTestId('rematch').click();
+    await expect(a.getByTestId('online-menu')).toBeVisible();
+    await frames(a);
+    expect((await layout()).bar).toBe(play.bar);
   });
 
   test('N6 your friend is back: the lost connection line goes within 1 s, then your prompt', async ({ browser }) => {
@@ -360,7 +487,7 @@ test.describe('Online (N5 to N9)', () => {
     // WebSocket's frames, so the socket itself is routed).
     let late = 0;
     const { a, b } = await pair(browser, (a) =>
-      a.routeWebSocket(/:8788\//, (ws) => {
+      a.routeWebSocket((u) => u.host === new URL(RELAY_URL).host, (ws) => {
         const relay = ws.connectToServer();
         relay.onMessage((m) => void setTimeout(() => ws.send(m), late));
         ws.onMessage((m) => relay.send(m));
@@ -391,6 +518,7 @@ test.describe('Online (N5 to N9)', () => {
   });
 
   test('N8 reactions answer the sender, Give up asks first, and the bar goes when the game ends', async ({ browser }) => {
+    test.setTimeout(60_000); // two players and four moves: about 20 s with three of these running at once
     const { a, b } = await pair(browser);
     // A press shows on a plain button, and the sender sees "Sent!" within 100 ms.
     const react = a.getByTestId('react-1');
