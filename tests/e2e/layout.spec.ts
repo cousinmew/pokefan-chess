@@ -2,6 +2,7 @@
 // Change A: game screens fit the window at every size, with no scrolling. For each viewport: a game vs Computer
 // (board, both plates with messages, Menu and Take back), a puzzle, the battle overlay, the level picker and the shelf.
 import { expect, test, type Page } from '@playwright/test';
+import { settled } from './pace';
 
 const SIZES: [number, number][] = [[320, 480], [360, 640], [375, 667], [390, 844], [768, 1024], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2560, 1440]];
 const SHOTS = new Set(['360x640', '390x844', '1024x768', '1280x720', '1920x1080']);
@@ -205,7 +206,8 @@ test('@both W2: the game, a puzzle review and its Continue fit every window', as
   await page.getByTestId('route-route-1').click();
   await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
-  await page.waitForTimeout(300);
+  // Oak's lesson (loaded under a cover) or, after the "!" (TRAINER_SPOT_MS), the card: wait for one, not a fixed time.
+  await page.locator('[data-testid="lesson-ok"], [data-testid="trainer-intro"]').first().waitFor();
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
@@ -237,10 +239,10 @@ test('@both W2: YELLOW fits every window, its board included', async ({ page }) 
   out.push(...(await sweep(page, 'YELLOW levels')));
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByTestId('yellow-level-1').click();
-  await page.locator('[data-square]').first().waitFor();
-  await page.waitForTimeout(1500);
-  const intro = page.getByTestId('intro');
-  if (await intro.isVisible().catch(() => false)) await intro.click();
+  // The intro card holds INTRO_MS: click() waits for its guard (data-ready) and skips it, then the board settles.
+  await page.getByTestId('intro').click();
+  await expect(page.getByTestId('intro')).toHaveCount(0);
+  await settled(page);
   out.push(...(await sweep(page, 'YELLOW game')));
   expect(out).toEqual([]);
 });
