@@ -18,7 +18,7 @@ import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine } from './ai/engine';
 import { computerTurn } from './ai/turn';
 import { TextBox } from './ui/textBox';
-import { button, el } from './ui/dom';
+import { button, el, toast } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
 import { currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
@@ -202,8 +202,7 @@ function boot(): App {
       text.show([{ key }]);
       music.stop();
       music.play(key.endsWith('Win') ? 'victory' : 'defeat');
-      if (key.endsWith('Win') && !isGuest()) journey.onlineWin();
-      showEnd({ key });
+      showEnd({ key }, key.endsWith('Win') && !isGuest() ? journey.onlineWin() : []);
     },
     say: (key) => text.plain(fmt(key)),
     mySkin: () => journey.campaign.team,
@@ -461,7 +460,8 @@ function boot(): App {
    * change, and the harness (no intro) starts at once. */
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
     if (resume || !withIntro) return begin(setup, resume, withIntro);
-    if (onBoard()) return void boardDip(() => begin(setup, resume, withIntro));
+    const g = gen; // at the dip's peak, only if no other screen or game took over meanwhile (fix, 13 Oct)
+    if (onBoard()) return void boardDip(() => (g === gen && onBoard() ? begin(setup, resume, withIntro) : undefined));
     void covers.cover('battle').then(() => begin(setup, resume, withIntro));
   }
 
@@ -488,7 +488,7 @@ function boot(): App {
     const goal = app.mode === 'puzzle' ? puzzle.objective() : app.mode === 'path' ? path.objective() : ''; // BLUE's warm-up has its step goal (W5)
     turnEl.textContent = goal || (app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn()));
     turnEl.classList.toggle('objective', !!goal);
-    backBtn.hidden = !canTakeBack();
+    backBtn.hidden = app.ended || !canTakeBack(); // the mate is final: none in the end hold (fix, 13 Oct)
   }
 
   function playMove(from: string, to: string, promotion?: Role): Outcome | null {
@@ -604,12 +604,11 @@ function boot(): App {
   }
 
   function takeBack(): boolean {
-    if (!canTakeBack() || app.busy) return false;
+    if (!canTakeBack() || app.busy || app.ended) return false;
     const n = app.mode === 'computer' && game.turn() === app.human ? 2 : 1;
     let undone = 0;
     while (undone < n && game.undo()) undone++;
     if (!undone) return false;
-    app.ended = false;
     board.locked = false;
     modal.hidden = true;
     away.panel = null;
@@ -633,8 +632,8 @@ function boot(): App {
     // YELLOW (§B17): no "blacked out"; a gentle line instead.
     if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
     const drill = app.mode === 'challenge' ? drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human) : null;
-    // An online win evolves trade Pokémon on your team (§B12).
-    if (app.mode === 'online' && end.winner === app.human && !isGuest()) journey.onlineWin();
+    // An online win evolves trade Pokémon on your team (§B12): saved now, told with the end panel (fix, 13 Oct).
+    const evolved = app.mode === 'online' && end.winner === app.human && !isGuest() ? journey.onlineWin() : [];
     const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
     if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);
     if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
@@ -650,16 +649,18 @@ function boot(): App {
         const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
         img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
       }
-      void hold(END_HOLD_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => showEnd(end.line)));
+      void hold(END_HOLD_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => showEnd(end.line, evolved)));
     }), slide);
   }
 
-  function showEnd(line: Line): void {
-    const rematch = (swap: boolean) => (app.mode === 'online' ? ((modal.hidden = true), (away.panel = null), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
+  function showEnd(line: Line, evolved: [string, string][] = []): void {
+    // Gone on the first tap, so a second tap or Menu can't act too (fix, 13 Oct); away.panel stays if START cuts the dip.
+    const rematch = (swap: boolean) => ((modal.hidden = true), app.mode === 'online' ? ((away.panel = null), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
     modal.onclick = null;
     modal.replaceChildren(endPanel(line, { captions: settings.captions, online: app.mode === 'online', rematch, menu: goTitle }));
     modal.hidden = false;
     away.panel = () => showEnd(line); // back from OPTION, the end screen is still there (bugs #7)
+    for (const [from, to] of evolved) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
   }
 
   function pickPromotion(from: string, to: string): void {
