@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Three fixes: the MEIR code on any keyboard (with progress dots), and YELLOW's My Team with linear unlocks.
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 const CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 /** Seeds storage once per test (later reloads keep what the game saved). */
@@ -15,6 +16,7 @@ const shelf = async (page: Page) => {
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('screen-shelf')).toBeVisible();
+  await noTransition(page); // pacing R2: B is held back while the shelf's cover reveals it
 };
 const unlocked = async (page: Page) => {
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
@@ -44,6 +46,7 @@ test.describe('MEIR code @both', () => {
     await page.goto('./?debug=1');
     await page.getByTestId('screen-splash').click();
     await expect(page.getByTestId('screen-yellow')).toBeVisible();
+    await noTransition(page);
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', code: 'ArrowUp', repeat: true })));
     await expect(page.getByTestId('code-dots')).not.toHaveAttribute('data-progress', '1');
     for (const k of CODE) await page.keyboard.press(k);
@@ -164,6 +167,7 @@ test.describe('YELLOW My Team', () => {
     await page.getByTestId('back').click();
     await page.getByTestId('yellow-play').click();
     await page.getByTestId('yellow-level-1').click();
+    await expect(page.getByTestId('intro')).toBeVisible(); // the game starts once the battle bars have closed (pacing §2)
     await page.evaluate(() => {
       const kc = (window as unknown as { __kc: { loadFen(f: string): string; move(u: string): string } }).__kc;
       kc.loadFen('k7/8/1K6/8/8/8/8/7Q w - - 0 1');

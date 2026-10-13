@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, AI_MIN_THINK_MS, CHALLENGE_END_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, YELLOW_BOARD_PX, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, CARD_IN_MS, CHALLENGE_END_MS, END_HOLD_MS, HOLD_MIN_MS, INTRO_MS, MOVE_SLIDE_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, THEIR_SLIDE_MS, YELLOW_BOARD_PX, type AiLevel } from './config';
 import { Board } from './board/board';
-import { lookOf, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role, type TeamSkin } from './board/pieces';
+import { lookOf, setSkins, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role, type TeamSkin } from './board/pieces';
 import { withoutRival } from './campaign/rivalTeam';
 import { puzzleMoments } from './ui/puzzleMoments';
 import { Overlay } from './battle/overlay';
-import { preloadBattleSprites, prepareSprites } from './battle/sprites';
+import { preloadBattleSprites } from './battle/sprites';
+import { present, type PresentHost } from './battle/present';
 import { prewarmAudio, sound } from './audio/audio';
 import { music } from './audio/music';
-import { rng } from './game/rng';
+import { rng, type Rng } from './game/rng';
 import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
 import { currentLang, fmt, type Line, type StringKey } from './game/text';
-import { Engine, youngsterMove } from './ai/engine';
+import { Engine } from './ai/engine';
+import { computerTurn } from './ai/turn';
 import { TextBox } from './ui/textBox';
 import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
@@ -26,7 +28,7 @@ import { PuzzleGame } from './campaign/puzzleGame';
 import { JourneyGame } from './campaign/journeyGame';
 import { goalLine } from './campaign/journey';
 import { continueLine, hubData } from './ui/hubData';
-import { trainerSrc } from './ui/kanto';
+import { dexScreen, trainerSrc } from './ui/kanto';
 import type { Page } from './ui/manual';
 import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
@@ -56,13 +58,13 @@ import { Plates } from './ui/plates';
 import { applyLooks, computerTeam, ladderFaces, myLook, puzzleTeam, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
-import { dexScreen } from './ui/kanto';
 import { loadCampaign, STARTERS } from './campaign/kanto';
-import type { Rng } from './game/rng';
-import { setSkins } from './board/pieces';
 import { normalizeCode } from './net/online';
 import { shownLevel } from './campaign/trainer';
 import { Away } from './game/away';
+import { cancelHold, guard, hold, installPace } from './ui/pace';
+import { Covers, dip, domCovers, kindFor, type CoverKind } from './ui/transitions';
+import { watchModal } from './ui/cards';
 
 export type { App, Challenge, Mode, Setup } from './appTypes';
 import type { App, Challenge, Mode, SavedGame, Setup } from './appTypes';
@@ -141,6 +143,16 @@ function boot(): App {
   let introOpen = false;
   let red: Color = 'w'; // the colour wearing Red's look in the game on the board (W3: you, in puzzles and the Path)
   const away = new Away(() => stage.firstElementChild === gameView); // leaving bumps `gen`, not the game (bugs #7)
+  // Pacing (12 Oct): holds a tap or Enter, Space or B can skip, cards that ignore a double tap, and screen changes
+  // under one cover over #app (src/ui/pace.ts, transitions.ts, cards.ts).
+  installPace(() => away.round);
+  watchModal(modal);
+  const covers = new Covers(domCovers(root, () => fmt('puzzle.loading')), (on) => (on ? (document.documentElement.dataset.transition = '') : delete document.documentElement.dataset.transition));
+  /** A new position on the game screen (§2 dip): the board dips, `swap` runs at the peak, the board refits there only. */
+  const boardDip = (swap: () => void | Promise<void>) => covers.track(dip(boardWrap, swap, () => fmt('puzzle.loading')));
+  const onBoard = () => stage.firstElementChild === gameView;
+  /** The opponent's moves slide slower than yours (pacing, the owner's "when moves happen"). */
+  const slideOf = (c?: Color) => (c && c !== app.human && app.mode !== 'two-players' ? THEIR_SLIDE_MS : MOVE_SLIDE_MS);
 
   const board = new Board(game, {
     onMove: (from, to) => {
@@ -215,13 +227,14 @@ function boot(): App {
     showFrame: (frame) => {
       game.loadFen(frame.fen);
       board.locked = true;
-      board.showReview(frame.slide, frame.faded); // the move slides in, its squares lit (§B21 item 1)
+      board.showReview(frame.slide, frame.faded, slideOf(frame.slide && game.pieceAt(frame.slide.to)?.color)); // the move slides in, its squares lit (§B21 item 1)
       drawReview(frame);
     },
     clearFrames: () => reviewLayer.replaceChildren(),
     engineReply: (fen) => app.engine.bestMove(fen, REFUTATION_LEVEL),
     them: () => plates.nameOf(app.human === 'w' ? 'b' : 'w') ?? fmt('team.rocket'), // W3: the opponent by name
-    firstSteps: (): { n: number; coach: boolean } => journey.firstSteps(), coach: (event) => moments.coach(event), solvedMoment: () => moments.solved(),
+    firstSteps: (): { n: number; coach: boolean } => journey.firstSteps(), coach: (event) => moments.coach(event), solvedMoment: (stamp) => moments.solved(stamp),
+    onBoard, cover: () => covers.cover('battle'), uncover: () => covers.reveal(), dip: boardDip, revealed: () => covers.revealed(), miss: (sq) => moments.miss(sq),
   });
   app.puzzle = puzzle;
   const journey = new JourneyGame({
@@ -233,6 +246,8 @@ function boot(): App {
     evolveAnim: (from, to) => overlay.evolve(from, to),
     startChallenge: (ch) => startChallenge(ch),
     path: { run: (lesson, hooks) => path.run(lesson, hooks), stop: () => path.stop() }, // Oak's Route 1 warm-up (W5)
+    cover: (kind) => covers.cover(kind), uncover: () => covers.reveal(),
+    beat: (won) => plates.beat(won === (app.human === 'w') ? 'w' : 'b'),
   });
   app.journey = journey;
   app.campaignRng = journey.rng;
@@ -252,6 +267,7 @@ function boot(): App {
     home: () => goTitle(),
     stickers: (back) => show(dexScreen(loadCampaign(), () => undefined, back, true)),
     rng: journey.rng,
+    dip: boardDip, cover: () => covers.cover('screen'), uncover: () => covers.reveal(), cheer: (sq) => moments.cheer(sq),
   });
   const legend = new Legend(game, board);
   /** Who's who (§B19 item 4): on, off, or auto (YELLOW, and a save's first games). */
@@ -303,14 +319,19 @@ function boot(): App {
   gameView.append(header, main);
   const moments = puzzleMoments({ view: gameView, board, boardWrap, turnEl, plates, human: () => app.human, reducedMotion }); // W3
 
-  function show(view: HTMLElement): void {
+  /** One screen at a time (pacing R1): the stage swaps at once and the cover above it reveals the new screen; `kind`
+   * defaults from the two screens (src/ui/transitions.ts), and a cover already up waiting for this screen opens. */
+  let firstShow = true;
+  function show(view: HTMLElement, kind?: CoverKind | null): void {
     const staying = view === gameView && stage.firstElementChild === gameView;
+    const from = (stage.firstElementChild as HTMLElement | null)?.dataset.testid ?? '';
     if (!staying) {
       gen++;
       overlay.skip();
       // Nothing from the screen before may act later (bugs #8): a popup's click handler and children go with it.
       modal.hidden = true;
       modal.onclick = null;
+      modal.classList.remove('clear');
       modal.replaceChildren();
       if (view !== gameView) moments.coach('stop'); // the first puzzle's coach marks stay on the game screen (review fix)
       const wear = view === gameView ? red : 'w'; // W3: menus read the default teams by colour, the game its own (back from OPTION too)
@@ -321,10 +342,12 @@ function boot(): App {
     document.body.dataset.screen = view.dataset.testid ?? ''; // attached to feedback
     flow.decorate(view); // BACK during an unnamed NEW GAME (§B22 item 2)
     startBtn.place(view);
-    if (view === gameView) fitter.start();
-    else fitter.stop();
+    if (view !== gameView) fitter.stop();
+    else if (!staying) fitter.start();
     window.scrollTo(0, 0);
     if (view === gameView && !staying) away.back(); // finish what leaving cut off, put the end screen back
+    covers.reveal(kind !== undefined ? kind : kindFor(from, view.dataset.testid ?? '', firstShow));
+    firstShow = false;
   }
 
   function savedGame(): SavedGame | null {
@@ -433,7 +456,16 @@ function boot(): App {
     app.aiFailed = false;
   }
 
+  /** A new game from a menu: the battle bars close first (pacing §2), then the game starts under them and they open on
+   * the board; on the game screen (a rematch) the board dips instead. Back to a game in progress is a plain screen
+   * change, and the harness (no intro) starts at once. */
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
+    if (resume || !withIntro) return begin(setup, resume, withIntro);
+    if (onBoard()) return void boardDip(() => begin(setup, resume, withIntro));
+    void covers.cover('battle').then(() => begin(setup, resume, withIntro));
+  }
+
+  function begin(setup: Setup, resume?: SavedGame, withIntro = true): void {
     configure(setup);
     if (setup.mode === 'two-players' || setup.mode === 'computer') {
       save('last', 'game');
@@ -466,36 +498,8 @@ function boot(): App {
     app.busy = true;
     board.locked = true;
     const r = away.round;
-    void present(out, from, to).then(() => away.run(r, () => settle(out, from, to)));
+    void present(presenter, out, from, to).then(() => away.run(r, () => settle(out, from, to)));
     return out;
-  }
-
-  /** Capture battle and evolution, before the board shows the result. */
-  async function present(out: Outcome, from: string, to: string): Promise<void> {
-    // A move made while another screen shows (a puzzle's reply under OPTION) plays no battle over that screen; a puzzle's
-    // set up move plays Quick, so the player sees the position, not a battle, first (W3, ux #6).
-    const mode = stage.firstElementChild !== gameView ? 'off' : app.mode === 'puzzle' && puzzle.phase === 'setup' && settings.anim === 'full' ? 'quick' : settings.anim;
-    if (out.battle && mode !== 'off') music.play('battle');
-    if (out.battle && mode === 'full') {
-      // The player's Pokémon is always the near one. Two Players: the side that just moved.
-      const attackerNear = app.mode === 'two-players' || out.move.color === app.human;
-      const { attacker, defender } = out.battle;
-      const sprites = attackerNear ? await prepareSprites(attacker, defender) : await prepareSprites(defender, attacker);
-      // Both trainers step in behind their Pokémon with a one word reaction (§B20 item 2).
-      const them: Color = out.move.color === 'w' ? 'b' : 'w';
-      const src = (c: Color) => (plates.spriteOf(c) ? trainerSrc(plates.spriteOf(c)!) : null);
-      const [near, far] = attackerNear ? [out.move.color, them] : [them, out.move.color];
-      overlay.trainers(src(near), src(far), { near: fmt(near === out.move.color ? 'say.go' : 'say.ohno'), far: fmt(far === out.move.color ? 'say.go' : 'say.ohno') });
-      await overlay.battle(attacker, defender, undefined, sprites, attackerNear);
-    }
-    else if (out.battle && mode === 'quick') {
-      // Quick mode: no battle screen, the reactions show on the name plates (§B20 item 2).
-      plates.say(out.move.color, fmt('say.go'));
-      plates.say(out.move.color === 'w' ? 'b' : 'w', fmt('say.ohno'));
-      await overlay.quick(board.el, from, to, out.battle.attacker, out.battle.defender);
-    }
-    if (out.evolve && mode === 'full') music.play('evolution');
-    if (out.evolve && mode === 'full') await overlay.evolve(out.evolve.pawn, out.evolve.into);
   }
 
   function settle(out: Outcome, from: string, to: string): void {
@@ -507,7 +511,8 @@ function boot(): App {
     if (settings.autoFlip && app.mode === 'two-players' && !out.end) board.orientation = game.turn();
     plates.orient(board.orientation);
     if (out.battle) plates.capture(out.move.color);
-    board.render({ from, to });
+    const slide = slideOf(out.move.color); // the opponent's moves slide slower (pacing, "when moves happen")
+    board.render({ from, to }, slide);
     const sp = speciesFor(out.move.color, out.move.promotion ?? out.move.piece, to);
     const lines = notice ? [notice, ...out.lines] : out.lines;
     notice = null;
@@ -522,7 +527,7 @@ function boot(): App {
     const checked = game.checkedKing();
     if (checked) sound.cry(speciesFor(game.turn(), 'k', checked).dex);
     plates.check(checked ? game.turn() : null);
-    if (out.end) finish(out);
+    if (out.end) finish(out, slide);
     persistGame();
     updateTurn();
     void maybeAi();
@@ -534,9 +539,12 @@ function boot(): App {
       if (out.move.color === app.human) challenge.made++;
       if (challenge.limit && drillStatus(game.chess, challenge.made, challenge.limit, app.human) === 'limit') endChallenge('limit');
     }
-    if (app.mode === 'puzzle') puzzle.settled();
-    if (app.mode === 'path') path.settled();
+    if (app.mode === 'puzzle') puzzle.settled(slide);
+    if (app.mode === 'path') path.settled(slide);
   }
+
+  // A puzzle's set up move plays Quick, so the player sees the position, not a battle, first (W3, ux #6).
+  const presenter: PresentHost = { overlay, plates, board, near: (c) => app.mode === 'two-players' || c === app.human, mode: () => (!onBoard() ? 'off' : app.mode === 'puzzle' && puzzle.phase === 'setup' && settings.anim === 'full' ? 'quick' : settings.anim) };
 
   /** Online: only the player whose turn it is may touch the board. */
   function lockForTurn(): void {
@@ -546,10 +554,12 @@ function boot(): App {
   let challenge: (Challenge & { made: number }) | null = null;
 
   function startChallenge(ch: Challenge): void {
-    configure({ mode: 'challenge', human: 'w', level: ch.level });
-    challenge = { ...ch, made: 0 };
-    show(gameView);
-    restart(ch.fen);
+    void covers.cover('battle').then(() => {
+      configure({ mode: 'challenge', human: 'w', level: ch.level });
+      challenge = { ...ch, made: 0 };
+      show(gameView);
+      restart(ch.fen);
+    });
   }
 
   function endChallenge(result: DrillStatus): void {
@@ -560,7 +570,8 @@ function boot(): App {
     board.locked = true;
     music.play(result === 'mate' ? 'victory' : 'defeat');
     const r = away.round;
-    window.setTimeout(() => away.run(r, () => ch.onEnd(result)), CHALLENGE_END_MS); // after OPTION, on the way back
+    // A hold on the final position (pacing): skippable after HOLD_MIN_MS, after OPTION on the way back.
+    void hold(CHALLENGE_END_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => ch.onEnd(result)));
   }
 
   function submit(from: string, to: string, promotion?: Role): void {
@@ -577,30 +588,15 @@ function boot(): App {
     return TAKE_BACK_LEVELS.includes(app.level);
   }
 
-  /** Computer turn: Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
-  async function maybeAi(): Promise<void> {
-    if ((app.mode !== 'computer' && app.mode !== 'challenge') || app.ended || introOpen || app.busy || game.turn() === app.human) return;
-    const r = away.round;
-    app.busy = true;
-    board.locked = true;
-    text.show([{ key: 'ai.loading', vars: { trainer: roster.teams[teamOf(game.turn())].label } }]);
-    const t0 = performance.now();
-    let uci: string;
-    try {
-      uci = app.level === 1 ? youngsterMove(game.chess, rng) : await app.engine.bestMove(game.fen(), app.level);
-    } catch (err) {
-      if (r !== away.round) return;
-      console.warn('computer trainer fell back to Youngster:', err instanceof Error ? err.message : err);
-      app.level = 1;
-      app.aiFailed = true;
-      notice = { key: 'ai.failed' };
-      text.show([notice]);
-      uci = youngsterMove(game.chess, rng);
-    }
-    const wait = AI_MIN_THINK_MS - (performance.now() - t0);
-    if (wait > 0) await sleep(wait);
-    // Thought while OPTION was open: the reply waits for the board (bugs #7), and never lands in a game started since.
-    away.run(r, () => ((app.busy = false), playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined)));
+  /** Computer turn (src/ai/turn.ts): Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
+  function maybeAi(): Promise<void> {
+    return computerTurn({
+      app, away,
+      due: () => (app.mode === 'computer' || app.mode === 'challenge') && !app.ended && !introOpen && !app.busy && game.turn() !== app.human,
+      thinking: () => text.show([{ key: 'ai.loading', vars: { trainer: roster.teams[teamOf(game.turn())].label } }]),
+      failed: () => text.show([(notice = { key: 'ai.failed' })]),
+      play: (uci) => void playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined),
+    });
   }
 
   function setMode(mode: Mode, level: AiLevel = 1, human: Color = 'w'): void {
@@ -625,7 +621,9 @@ function boot(): App {
     return true;
   }
 
-  function finish(out: Outcome): void {
+  /** Game over (pacing C6): what it counts for at once; at the slide's end the line, the plates, the sting and the
+   * blast-off or faint on the undimmed board; END_HOLD_MS later (or on a skip) the end panel. */
+  function finish(out: Outcome, slide = 0): void {
     const end = out.end;
     if (!end) return;
     app.ended = true;
@@ -634,22 +632,26 @@ function boot(): App {
     if (app.mode === 'puzzle' || app.mode === 'path') return; // the Path and the warm-up have their own Next (W5)
     // YELLOW (§B17): no "blacked out"; a gentle line instead.
     if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
-    text.show([end.line]);
-    plates.end(end.winner ?? null);
-    music.stop();
-    if (app.mode === 'challenge') return endChallenge(drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human));
+    const drill = app.mode === 'challenge' ? drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human) : null;
     // An online win evolves trade Pokémon on your team (§B12).
     if (app.mode === 'online' && end.winner === app.human && !isGuest()) journey.onlineWin();
-    if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
     const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
     if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);
     if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
-    if (end.reason === 'checkmate') {
-      const king = game.checkedKing();
-      const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
-      img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
-    }
-    showEnd(end.line);
+    const r = away.round;
+    window.setTimeout(() => away.run(r, () => {
+      text.show([end.line]);
+      plates.end(end.winner ?? null);
+      music.stop();
+      if (drill) return endChallenge(drill);
+      if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
+      if (end.reason === 'checkmate') {
+        const king = game.checkedKing();
+        const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
+        img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
+      }
+      void hold(END_HOLD_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => showEnd(end.line)));
+    }), slide);
   }
 
   function showEnd(line: Line): void {
@@ -672,6 +674,7 @@ function boot(): App {
   function restart(fen?: string, pgn?: string, withIntro = false, moves?: string[]): void {
     gen++;
     away.newRound();
+    cancelHold();
     introOpen = false;
     gameView.querySelectorAll('[data-testid="intro"]').forEach((n) => n.remove()); // a card from the game before
     reviewLayer.replaceChildren();
@@ -696,12 +699,27 @@ function boot(): App {
     text.plain(app.mode === 'puzzle' || app.mode === 'path' || plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
     persistGame();
     updateTurn();
+    // The board keeps its size through a puzzle or a lesson (pacing R5): a new position refits it, nothing else does.
+    if (app.mode === 'puzzle' || app.mode === 'path') fitter.freeze();
     if (withIntro) {
       introOpen = true;
       board.locked = true;
       const r = away.round;
-      // The card can end while OPTION is open (bugs #7): then the board unlocks and the computer moves on the way back.
-      gameView.append(intro(introKey, app.mode === 'two-players' ? 'b' : opponent, () => away.run(r, () => ((introOpen = false), lockForTurn(), void maybeAi()))));
+      // After the reveal the card pops in and holds INTRO_MS, skippable after HOLD_MIN_MS (pacing C3). It can end while
+      // OPTION is open (bugs #7): then the board unlocks and the computer moves on the way back.
+      void covers.revealed().then(async () => {
+        if (r !== away.round) return;
+        const card = intro(introKey, app.mode === 'two-players' ? 'b' : opponent);
+        gameView.append(card);
+        guard(card, CARD_IN_MS);
+        await sleep(CARD_IN_MS);
+        if (r !== away.round || !card.isConnected) return; // a new game meanwhile: its hold never starts
+        const held = hold(INTRO_MS, 'intro', r);
+        guard(card, HOLD_MIN_MS); // a tap counts once the hold can be skipped
+        const how = await held;
+        card.remove();
+        if (how !== 'cancel') away.run(r, () => ((introOpen = false), lockForTurn(), void maybeAi()));
+      });
     } else {
       void maybeAi();
     }

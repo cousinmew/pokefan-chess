@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Pacing (12 Oct): holds end on time or on a skip after HOLD_MIN_MS, a skip is a tap that is not on a control or
+// START (it skips when its click arrives) or Enter, Space or B; a later game or a new hold cancels; guards (R4).
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HOLD_MIN_MS, CARD_GUARD_MS } from '../../src/config';
+
+type Listener = (e: unknown) => void;
+const listeners = new Map<string, Listener[]>();
+let startOpen = false;
+let coachOpen = false;
+
+/** Just enough DOM for pace.ts: elements answer closest() and matches() by a list of selectors they "are". */
+class FakeEl {
+  dataset: Record<string, string> = {};
+  attrs = new Map<string, string>();
+  disabled = false;
+  children: FakeEl[] = [];
+  constructor(readonly is: string[] = []) {}
+  closest(sel: string): FakeEl | null {
+    return sel.split(',').some((s) => this.is.includes(s.trim())) ? this : null;
+  }
+  matches(sel: string): boolean {
+    return !!this.closest(sel);
+  }
+  querySelectorAll(): FakeEl[] {
+    return this.children;
+  }
+  setAttribute(k: string, v: string): void {
+    this.attrs.set(k, v);
+  }
+  removeAttribute(k: string): void {
+    this.attrs.delete(k);
+  }
+}
+class FakeButton extends FakeEl {}
+const body = new FakeEl(['body']);
+const g = globalThis as unknown as Record<string, unknown>;
+g.Element = FakeEl;
+g.HTMLButtonElement = FakeButton;
+g.window = {
+  addEventListener: (t: string, fn: Listener) => listeners.set(t, [...(listeners.get(t) ?? []), fn]),
+  setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms),
+  clearTimeout: (id: number) => clearTimeout(id),
+};
+g.document = {
+  body,
+  documentElement: { dataset: {} as Record<string, string> },
+  activeElement: body,
+  querySelector: (sel: string) => (sel === '.start-overlay' && startOpen ? {} : sel.startsWith('.coach') && coachOpen ? {} : null),
+};
+
+const { cancelHold, guard, hold, holding, installPace } = await import('../../src/ui/pace');
+let round = 0;
+installPace(() => round);
+
+function fire(type: string, init: Record<string, unknown> = {}): { stopped: boolean } {
+  const out = { stopped: false };
+  const e = { type, button: 0, target: board, repeat: false, key: '', code: '', preventDefault: () => undefined, stopImmediatePropagation: () => (out.stopped = true), ...init };
+  for (const fn of listeners.get(type) ?? []) if (!out.stopped) fn(e);
+  return out;
+}
+const board = new FakeEl(['.board']);
+const button = new FakeEl(['button']);
+/** A tap: the press, then its click (when it skips). */
+const tap = (target: FakeEl = board) => [fire('pointerdown', { target }), fire('click', { target })];
+const key = (k: { key?: string; code?: string }) => fire('keydown', k);
+const settle = () => Promise.resolve().then(() => undefined);
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+  body.dataset = { screen: 'screen-game' };
+  startOpen = false;
+  coachOpen = false;
+  (g.document as { activeElement: unknown }).activeElement = body;
+});
+afterEach(() => {
+  cancelHold();
+  vi.useRealTimers();
+});
+
+describe('hold()', () => {
+  it('ends on time and marks the body while it runs', async () => {
+    let end = '';
+    void hold(900, 'reply').then((h) => (end = h));
+    expect(body.dataset.hold).toBe('reply');
+    expect(body.dataset.skippable).toBeUndefined();
+    vi.advanceTimersByTime(HOLD_MIN_MS);
+    expect(body.dataset.skippable).toBe('');
+    vi.advanceTimersByTime(900 - HOLD_MIN_MS);
+    await settle();
+    expect(end).toBe('time');
+    expect(body.dataset.hold).toBeUndefined();
+    expect(holding()).toBeNull();
+  });
+
+  it('a tap before HOLD_MIN_MS is swallowed and skips nothing; one after skips on its click', async () => {
+    let end = '';
+    void hold(1500, 'setup').then((h) => (end = h));
+    vi.advanceTimersByTime(HOLD_MIN_MS - 10);
+    const [down, click] = tap();
+    expect(down!.stopped && click!.stopped).toBe(true); // consumed: the board never sees it
+    await settle();
+    expect(end).toBe('');
+    vi.advanceTimersByTime(20);
+    tap();
+    await settle();
+    expect(end).toBe('skip');
+  });
+
+  it('a press before HOLD_MIN_MS whose click comes after it still skips nothing', async () => {
+    let end = '';
+    void hold(1500, 'setup').then((h) => (end = h));
+    vi.advanceTimersByTime(HOLD_MIN_MS - 10);
+    fire('pointerdown');
+    vi.advanceTimersByTime(30);
+    fire('click');
+    await settle();
+    expect(end).toBe('');
+  });
+
+  it.each([{ key: 'Enter' }, { code: 'Space', key: ' ' }, { code: 'KeyB', key: 'b' }])('%o skips after the minimum', async (k) => {
+    let end = '';
+    void hold(1600, 'end').then((h) => (end = h));
+    expect(key(k).stopped).toBe(true); // too early: swallowed
+    await settle();
+    expect(end).toBe('');
+    vi.advanceTimersByTime(HOLD_MIN_MS);
+    key(k);
+    await settle();
+    expect(end).toBe('skip');
+  });
+
+  it('controls, START and other screens are left alone', async () => {
+    let end = '';
+    void hold(1600, 'end').then((h) => (end = h));
+    vi.advanceTimersByTime(HOLD_MIN_MS);
+    expect(tap(button).every((e) => !e.stopped)).toBe(true); // the button does its own thing
+    (g.document as { activeElement: unknown }).activeElement = button;
+    expect(key({ code: 'Space', key: ' ' }).stopped).toBe(false); // Space presses the focused button, never both
+    (g.document as { activeElement: unknown }).activeElement = body;
+    startOpen = true;
+    expect(tap()[0]!.stopped).toBe(false);
+    expect(key({ key: 'Enter' }).stopped).toBe(false);
+    startOpen = false;
+    body.dataset.screen = 'screen-settings'; // OPTION over the game: its taps never skip the game's hold
+    expect(tap()[0]!.stopped).toBe(false);
+    body.dataset.screen = 'screen-game';
+    coachOpen = true; // the coach marks take the tap themselves
+    expect(tap()[0]!.stopped).toBe(false);
+    coachOpen = false;
+    await settle();
+    expect(end).toBe('');
+  });
+
+  it('a later game (round) or a new hold cancels it', async () => {
+    let a = '';
+    let b = '';
+    void hold(900, 'reply', round).then((h) => (a = h));
+    round++;
+    vi.advanceTimersByTime(900);
+    await settle();
+    expect(a).toBe('cancel');
+    void hold(900, 'think').then((h) => (a = h));
+    void hold(900, 'end').then((h) => (b = h));
+    await settle();
+    expect(a).toBe('cancel');
+    expect(holding()).toBe('end');
+    cancelHold();
+    await settle();
+    expect(b).toBe('cancel');
+  });
+
+  it('Enter, Space, B and S do nothing while a cover or dip is up (R2)', () => {
+    const root = (g.document as { documentElement: { dataset: Record<string, string> } }).documentElement;
+    root.dataset.transition = '';
+    for (const k of [{ key: 'Enter' }, { code: 'Space', key: ' ' }, { code: 'KeyB', key: 'b' }, { code: 'KeyS', key: 's' }]) expect(key(k).stopped).toBe(true);
+    expect(key({ key: 'ArrowUp', code: 'ArrowUp' }).stopped).toBe(false);
+    delete root.dataset.transition;
+  });
+});
+
+describe('guard()', () => {
+  it('a card without buttons is an aria-disabled button until CARD_GUARD_MS, then ready; clicks on it are dropped', () => {
+    const card = new FakeEl(['[data-guard]:not([data-ready])', '.panel']);
+    guard(card as unknown as HTMLElement);
+    expect(card.attrs.get('aria-disabled')).toBe('true');
+    expect(card.attrs.get('role')).toBe('button');
+    expect(fire('click', { target: card }).stopped).toBe(true);
+    vi.advanceTimersByTime(CARD_GUARD_MS);
+    expect(card.dataset.ready).toBe('');
+    expect(card.attrs.has('aria-disabled')).toBe(false);
+  });
+
+  it('a panel with buttons disables them instead, and enables only the ones it disabled', () => {
+    const panel = new FakeEl(['.panel']);
+    const live = new FakeButton(['button']);
+    const off = new FakeButton(['button']);
+    off.disabled = true; // e.g. an evolution there is not enough candy for
+    panel.children = [live, off];
+    guard(panel as unknown as HTMLElement);
+    expect(live.disabled).toBe(true);
+    expect(panel.attrs.has('aria-disabled')).toBe(false);
+    vi.advanceTimersByTime(CARD_GUARD_MS);
+    expect(live.disabled).toBe(false);
+    expect(off.disabled).toBe(true);
+  });
+});

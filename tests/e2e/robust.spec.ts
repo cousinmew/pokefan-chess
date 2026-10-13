@@ -2,6 +2,7 @@
 // Polish, 12 Oct (W4): leaving a game half way and coming back (bugs #7), nothing from an old screen acts later
 // (bugs #8), Enter on story boxes, START's CLOSE, guest OPTION, new save copy and YELLOW polish (ux #14 to #17).
 import { expect, test, type Page } from '@playwright/test';
+import { ready } from './pace';
 
 const camp = { v: 2, name: 'JADE', starter: 'bulbasaur', introSeen: true, teamRules: 2, caught: { bulbasaur: 1 }, lessonsSeen: ['mateIn1', 'fork', 'hangingPiece', 'pin', 'skewer', 'short', 'oneMove'] };
 const seed = (page: Page, extra: Record<string, unknown> = {}) =>
@@ -125,11 +126,16 @@ test('Enter advances a story box and a trainer card like a tap, and never opens 
   await page.getByTestId('kanto').click();
   await page.getByTestId('place-pallet').click(); // the button keeps focus behind the box
   const text = page.getByTestId('story-text');
+  // Pacing R4: each line ignores keys for LINE_GUARD_MS; data-ready (and its ▼) says when Enter counts.
+  await ready(page, 'story');
   const first = await text.textContent();
   await page.keyboard.press('Enter');
   await expect(text).not.toHaveText(first!);
   await expect(page.getByTestId('start-overlay')).toHaveCount(0);
-  for (let i = 0; i < 5 && (await page.getByTestId('story').isVisible()); i++) await page.keyboard.press('Enter');
+  for (let i = 0; i < 5 && (await page.getByTestId('story').isVisible()); i++) {
+    await ready(page, 'story', 2000).catch(() => undefined); // the box may have closed meanwhile
+    await page.keyboard.press('Enter');
+  }
   await expect(page.getByTestId('story')).toBeHidden();
   await expect(page.getByTestId('screen-map')).toBeVisible();
   await expect(page.getByTestId('start-overlay')).toHaveCount(0);
@@ -137,9 +143,9 @@ test('Enter advances a story box and a trainer card like a tap, and never opens 
   await page.getByTestId('route-route-1').click();
   await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
-  await expect(page.getByTestId('trainer-intro')).toBeVisible();
+  await ready(page, 'trainer-intro');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('goal-card')).toBeVisible();
+  await ready(page, 'goal-card');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('goal-card')).toBeHidden();
   await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/); // W3 moved the goal to the header

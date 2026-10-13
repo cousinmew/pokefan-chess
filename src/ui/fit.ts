@@ -55,6 +55,8 @@ export class Fitter {
   private order: Element[] = [];
   private queued = 0;
   private barsFirst = false;
+  /** Pacing R5: the board's square and the room it was fitted for, kept from a position's first frame. */
+  private frozen: { sq: number; W: number; H: number } | null = null;
 
   constructor(private readonly p: FitParts) {
     watchWindow();
@@ -77,12 +79,25 @@ export class Fitter {
 
   start(): void {
     this.active = true;
+    this.frozen = null;
     this.root.classList.add('fit');
     this.fit();
   }
 
+  /** The board never moves during a puzzle or a lesson (pacing R5): fitted now for the new position, it keeps its size
+   * until the next position (at a dip's peak), a real resize, or the game screen closes. What grows meanwhile (the
+   * review) takes the bars' slot when it fits and floats over the board's foot when it does not. */
+  freeze(): void {
+    if (!this.active) return;
+    this.frozen = null;
+    this.fit();
+    const { W, H } = this.room();
+    this.frozen = { sq: parseFloat(this.root.style.getPropertyValue('--sq')) || 0, W, H };
+  }
+
   stop(): void {
     this.active = false;
+    this.frozen = null;
     this.root.classList.remove('fit', 'legend-open', 'turn-flow', 'turn-row', ...MODES);
     this.root.style.removeProperty('--sq');
   }
@@ -95,9 +110,35 @@ export class Fitter {
     });
   }
 
-  /** Lays the game screen out for the window as it is now. */
+  /** Lays the game screen out for the window as it is now; frozen, only a real resize refits. */
   fit(): void {
     if (!this.active) return;
+    const f = this.frozen;
+    if (f) {
+      const { W, H } = this.room();
+      if (W === f.W && H === f.H) return this.keep(f.sq);
+      return this.freeze();
+    }
+    this.layout();
+  }
+
+  /** Frozen: the same square; a bar that grew is compacted, then floated, and the board never gives way. */
+  private keep(sq: number): void {
+    const cls = this.root.classList;
+    if (cls.contains('fit-wide')) {
+      this.layout(); // the side column scrolls on its own; only the header could change the square
+      this.root.style.setProperty('--sq', `${sq}px`);
+      return;
+    }
+    this.texts();
+    const barsOn = (this.p.bars ?? []).some((b) => !b.hidden);
+    for (const m of ['fit-bar-compact', 'fit-bar-over'] as const) {
+      if (!barsOn || this.overflow() <= 0) break;
+      cls.add(m);
+    }
+  }
+
+  private layout(): void {
     const { W, H } = this.room();
     const cls = this.root.classList;
     const wide = W > H && W - SIDE_COL_PX - COL_GAP_PX >= MIN_BOARD_PX && H < W * 0.9;

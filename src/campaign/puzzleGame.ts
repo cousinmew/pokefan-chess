@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Puzzle player: sets up a Lichess puzzle, checks each answer, auto plays the replies, gives hints and
 // updates the Trainer Rating. Moves go through the normal board path, so captures still battle.
-import { OPPONENT_REPLY_MS, PUZZLE_SETUP_MS, REVIEW_MOVE_MS } from '../config';
+import { CARD_GUARD_MS, MOVE_SLIDE_MS, OPPONENT_REPLY_MS, PUZZLE_SETUP_MS, REVIEW_MOVE_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS, THINKING_LINE_MS, TURN_LINE_DELAY_MS } from '../config';
 import { Chess } from 'chess.js';
 import { describeMove, keyIdea, lineFrames, refutationText, type Frame } from './review';
 import type { Color } from '../board/pieces';
@@ -12,6 +12,7 @@ import type { App } from '../main';
 import type { Side } from '../look';
 import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
 import { loadTrainer, pick, pickEasy, pool, record, shownLevel, THEMES } from './trainer';
+import { cancelHold, guard, hold, holding } from '../ui/pace';
 
 /** The first puzzles of a save say how to move (W3). */
 const TAP_HELP_PUZZLES = 3;
@@ -26,8 +27,19 @@ export interface PuzzleHost {
   firstSteps(): { n: number; coach: boolean };
   /** Coach marks (W3, design F): start them, add the "they moved" step, or close them when you move. */
   coach(event: 'start' | 'setup' | 'stop'): void;
-  /** The solve moment (W3, design J): stamp, sound, the opponent's "Oh no!". */
-  solvedMoment(): void;
+  /** The solve moment (W3, design J): stamp (unless `stamp` is false), sound, the opponent's "Oh no!". */
+  solvedMoment(stamp?: boolean): void;
+  /** A wrong move (pacing A14): the piece on `square` shakes. */
+  miss(square: string): void;
+  /** Pacing: whether the game screen shows now; a new puzzle then dips the board, else the battle bars close first. */
+  onBoard(): boolean;
+  /** The battle bars close (resolves when shut) and wait for the board; uncover() shows whatever is mounted. */
+  cover(): Promise<void>;
+  uncover(): void;
+  /** A new position on the game screen: the board dips and `swap` runs at the peak. */
+  dip(swap: () => void | Promise<void>): Promise<void>;
+  /** Resolves once no cover or dip is up. */
+  revealed(): Promise<void>;
   /** Review (§B15): shows a position with arrows and marks, frozen; clears them again. */
   showFrame(frame: Frame): void;
   clearFrames(): void;
@@ -38,7 +50,8 @@ export interface PuzzleHost {
   hint(squares: string[]): void;
 }
 
-type Phase = 'idle' | 'setup' | 'player' | 'checking' | 'reply' | 'review' | 'over';
+// 'solved': the solve beat and stamp before the review (pacing A11).
+type Phase = 'idle' | 'setup' | 'player' | 'checking' | 'reply' | 'solved' | 'review' | 'over';
 type Result = 'solved' | 'assisted' | 'missed';
 
 /** Tall grass on a Kanto route (§B3): the route's themes, and what happens after each result. */
@@ -82,7 +95,9 @@ export class PuzzleGame {
   private readonly reviewEl: HTMLElement;
   private readonly reviewText: HTMLElement;
   private readonly btn: Record<'prev' | 'next' | 'replay' | 'answer' | 'new' | 'continue', HTMLButtonElement>;
-  private review: { frames: Frame[]; idx: number; timer: number; result: Result; pre: string } | null = null;
+  /** `play` counts replays: a newer one (or ◀ ▶, or the end) stops the one running. */
+  private review: { frames: Frame[]; idx: number; play: number; result: Result; pre: string } | null = null;
+  private readonly acts: HTMLElement;
   /** The last refutation shown, for the harness: position, reply and whether Stockfish found it. */
   lastRefutation: { fen: string; uci: string; source: 'stockfish' | 'fallback' } | null = null;
   private gen = 0;
@@ -134,7 +149,7 @@ export class PuzzleGame {
     this.btn = {
       prev: mk('review.prev', 'prev', () => this.step(-1), 'review.prevLabel'),
       next: mk('review.next', 'next', () => this.step(1), 'review.nextLabel'),
-      replay: mk('review.replay', 'replay', () => this.play(0), 'review.replayLabel'),
+      replay: mk('review.replay', 'replay', () => void this.replay(0), 'review.replayLabel'),
       answer: mk('review.answer', 'answer', () => this.showAnswer()),
       new: mk('review.new', 'new', () => this.finishReview()),
       continue: mk('review.continue', 'continue', () => this.finishReview()),
@@ -142,6 +157,7 @@ export class PuzzleGame {
     const nav = el('div', 'review-nav');
     nav.append(this.btn.prev, this.btn.replay, this.btn.next);
     const acts = el('div', 'review-acts');
+    this.acts = acts;
     acts.append(this.btn.answer, this.btn.new, this.btn.continue);
     this.reviewEl.append(this.reviewText, nav, acts);
     this.bar.append(this.reviewEl, this.banner, this.ratingEl, row);
@@ -157,44 +173,73 @@ export class PuzzleGame {
     return this.row ? objective(this.puzzleTheme, this.row[2], (k, v) => fmt(k, v)) : '';
   }
 
-  /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one. */
+  /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one.
+   * Pacing (§2): from another screen the battle bars close on the tap and open on the board; on the game screen the
+   * board dips and the new position comes in at the peak. Either one waits there while the theme's puzzles load, and
+   * the "Watch!" hold starts once it is gone. */
   async start(ctx?: PuzzleContext | null): Promise<void> {
     if (ctx !== undefined) this.context = ctx;
-    this.themeSel.hidden = this.context !== null;
-    this.leaveBtn.hidden = this.context === null;
-    this.nextBtn.hidden = this.context?.battle === true;
-    if (!this.context?.battle) this.setBanner(null);
     const g = ++this.gen;
     this.phase = 'idle';
     this.hints = 0;
-    this.bar.hidden = false;
-    this.host.say('puzzle.loading');
     const wanted = this.context ? this.context.themes : [this.theme];
     const choices = wanted.includes('mixed') ? THEMES : wanted.filter((t) => THEMES.includes(t));
     const forced = this.forced;
     this.forced = null;
     const theme = forced?.theme ?? choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
+    const load = forced ? Promise.resolve([forced.row]) : pool(theme);
+    load.catch(() => undefined); // handled where it is awaited
+    let setup: { move: string; coach: boolean } | null = null;
+    const setUp = async () => {
+      const rows = await load;
+      if (g === this.gen) setup = this.setUp(rows, theme);
+    };
+    // "Finding a puzzle…" only when the load is slow: on the cover or the dip after COVER_LABEL_MS (no 20 ms flash).
+    if (this.host.onBoard()) await this.host.dip(setUp);
+    else {
+      // A load that fails, or never shows the board, still lifts the cover (COVER_MAX_MS at the latest).
+      try {
+        await this.host.cover();
+        await setUp();
+      } finally {
+        this.host.uncover();
+      }
+    }
+    const s = setup as { move: string; coach: boolean } | null;
+    if (!s || g !== this.gen) return;
+    await this.host.revealed();
+    if (g !== this.gen) return;
+    if (s.coach) this.host.coach('start');
+    // The position first, then the opponent's set up move (W3, ux #6): the player sees what is about to happen.
+    if ((await hold(PUZZLE_SETUP_MS, 'setup')) === 'cancel' || g !== this.gen) return;
+    this.host.applyMove(s.move);
+  }
+
+  /** The new position, at the dip's peak or under the cover: its set up move, and whether the coach marks show. */
+  private setUp(rows: PuzzleRow[], theme: string): { move: string; coach: boolean } {
+    this.themeSel.hidden = this.context !== null;
+    this.leaveBtn.hidden = this.context === null;
+    this.nextBtn.hidden = this.context?.battle === true;
+    if (!this.context?.battle) this.setBanner(null);
+    this.bar.hidden = false;
     this.puzzleTheme = theme;
     this.endReview();
     this.ratingEl.hidden = true;
-    const rows = forced ? [forced.row] : await pool(theme);
-    if (g !== this.gen) return;
     this.row = (this.context?.easy ? pickEasy(rows, this.trainer.seen) : null) ?? pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
-    const setup = this.run.first();
+    const move = this.run.first();
     const first = this.host.firstSteps();
     this.tapHelp = first.n < TAP_HELP_PUZZLES;
-    this.refreshBanner();
+    this.refreshBanner(this.context?.battle === true && this.host.onBoard()); // the pips pop with the new position (A13)
     this.host.startBoard(this.row[1], this.run.side);
     this.host.app.board.locked = true;
     this.phase = 'setup';
-    // The position first, then the opponent's set up move (W3, ux #6): the player sees what is about to happen.
     this.host.say('puzzle.watch', { them: this.host.them() });
-    if (first.coach) this.host.coach('start');
-    window.setTimeout(() => g === this.gen && this.host.applyMove(setup), PUZZLE_SETUP_MS);
+    return { move, coach: first.coach };
   }
 
   stop(): void {
+    if (this.phase !== 'idle') cancelHold(); // its "Watch!", reply or solve hold goes with it
     this.endReview();
     this.gen++;
     this.phase = 'idle';
@@ -222,18 +267,24 @@ export class PuzzleGame {
     this.host.applyMove(uci);
   }
 
-  /** Called by the game after every move has finished animating. */
-  settled(): void {
+  /** Called by the game once a move is made and starts to slide (`slide` ms: the opponent's are slower, pacing). */
+  settled(slide = MOVE_SLIDE_MS): void {
     const g = this.gen;
     const board = this.host.app.board;
     if (this.phase === 'setup' || this.phase === 'reply') {
-      const first = this.phase === 'setup';
-      this.phase = 'player';
+      const was = this.phase;
       this.pending = null;
-      board.locked = false;
-      // You are always TEAM RED (W3): no side names here, just whose turn it is.
-      this.host.say(!first ? 'puzzle.correct' : this.tapHelp ? 'puzzle.yourTurnTap' : 'puzzle.yourTurn');
-      if (first) this.host.coach('setup');
+      board.locked = true;
+      // The board opens when their piece lands, and the line follows a moment later (A9, A10), so it is read after
+      // the move it is about. You are always TEAM RED (W3): no side names here, just whose turn it is.
+      window.setTimeout(() => {
+        if (g !== this.gen || this.phase !== was) return;
+        this.phase = 'player';
+        board.locked = false;
+        if (was === 'setup') this.host.coach('setup');
+        const line = was === 'reply' ? 'puzzle.correct' : this.tapHelp ? 'puzzle.yourTurnTap' : 'puzzle.yourTurn';
+        window.setTimeout(() => g === this.gen && this.phase === 'player' && this.host.say(line), TURN_LINE_DELAY_MS);
+      }, slide);
     } else if (this.phase === 'checking' && this.pending && this.row) {
       const res = this.pending;
       if (res.done) {
@@ -241,25 +292,44 @@ export class PuzzleGame {
         const result = this.hints > 0 ? 'assisted' : 'solved';
         this.trainer = record(this.trainer, this.row, result);
         board.locked = true;
+        this.phase = 'solved';
         // A small "+12" only when the rating went up (W3, design J) and has settled (playtest, 12 Oct: no "+494" on a
         // first solve); no numbers mid-puzzle otherwise.
         const up = Math.round(this.trainer.rating.r) - Math.round(before);
         this.ratingEl.hidden = up <= 0 || shownLevel(this.trainer).r === null;
         this.ratingEl.textContent = fmt('puzzle.ratingUp', { n: String(up) });
         const mate = !!this.run && new Chess(this.run.currentFen()).isCheckmate();
-        this.host.say(result === 'assisted' ? 'puzzle.assisted' : mate ? 'puzzle.solvedMate' : 'puzzle.solved');
-        this.context?.onAttempt?.(result);
-        this.host.solvedMoment();
-        this.reviewSolved(result);
+        window.setTimeout(() => g === this.gen && void this.solveBeat(result, mate ? 'puzzle.solvedMate' : 'puzzle.solved'), slide);
       } else {
         this.phase = 'reply';
         board.locked = true;
-        window.setTimeout(() => g === this.gen && res.reply && this.host.applyMove(res.reply), OPPONENT_REPLY_MS);
+        // Your move's line stays while they answer (A10, A18): a hold a tap can cut after HOLD_MIN_MS.
+        void hold(OPPONENT_REPLY_MS, 'reply').then((how) => how !== 'cancel' && g === this.gen && this.phase === 'reply' && res.reply && this.host.applyMove(res.reply));
       }
     }
   }
 
-  /** Solved: the board freezes on the final position, the line replays once, then the theme's key idea is drawn. */
+  /** The solve (pacing A11), from the moment the mating piece lands: the line and the pip at once, the board alone for
+   * SOLVE_BEAT_MS, then the stamp, the sound and "Oh no!" for SOLVED_STAMP_MS, then the review. One hold; a skip
+   * after HOLD_MIN_MS opens the review at once. */
+  private async solveBeat(result: Result, line: StringKey): Promise<void> {
+    const g = this.gen;
+    this.host.say(result === 'assisted' ? 'puzzle.assisted' : line);
+    this.context?.onAttempt?.(result);
+    let stamped = false;
+    const stamp = window.setTimeout(() => {
+      stamped = true;
+      this.host.solvedMoment();
+    }, SOLVE_BEAT_MS);
+    const how = await hold(SOLVE_BEAT_MS + SOLVED_STAMP_MS, 'solved');
+    window.clearTimeout(stamp);
+    if (how === 'cancel' || g !== this.gen) return;
+    if (!stamped) this.host.solvedMoment(false); // skipped early: the sound and "Oh no!" still, no stamp over the review
+    this.reviewSolved(result);
+  }
+
+  /** Solved (pacing A12): the final position with the theme's key idea for REVIEW_MOVE_MS, the board dips back to the
+   * start, the line replays one move per REVIEW_MOVE_MS and ends on the key idea again. A skip jumps to the key idea. */
   private reviewSolved(result: Result): void {
     const run = this.run!;
     const frames = lineFrames(run.startFen, run.played, 'green');
@@ -268,11 +338,12 @@ export class PuzzleGame {
     frames[frames.length - 1] = { ...last, arrows: [...last.arrows, ...idea.lines], marks: idea.marks };
     this.openReview(result, frames, fmt(idea.text.key, idea.text.vars), run.startFen);
     this.show(frames.length - 1);
-    const g = this.gen;
-    window.setTimeout(() => g === this.gen && this.phase === 'review' && this.play(0), REVIEW_MOVE_MS);
+    void this.replay(0, { wait: true });
   }
 
-  /** Wrong: your move in red, then Stockfish's punishing reply, slowly, and one line about it. */
+  /** Wrong (pacing A14): your move in red (the piece shakes), then it slides in faded, then the punishing reply (at the
+   * earliest OPPONENT_REPLY_MS later; "{them} is thinking…" while the engine is still out), back to the position and
+   * the right move. Each step is a hold a tap can cut after HOLD_MIN_MS. */
   private async reviewMiss(pre: string, wrong: string, answer: string): Promise<void> {
     const g = this.gen;
     const chess = new Chess(pre);
@@ -287,12 +358,40 @@ export class PuzzleGame {
     ];
     this.openReview('missed', frames, fmt('puzzle.wrong'), pre);
     this.show(0);
+    this.host.miss(w.from);
+    const r = this.review!;
+    const t = ++r.play;
+    const live = () => g === this.gen && this.review === r && r.play === t;
     const right = this.rightFrames(pre, answer);
-    if (chess.isGameOver()) {
-      this.review?.frames.push(...right);
+    const over = chess.isGameOver();
+    // The engine works while the player looks at the miss.
+    const reply = over ? Promise.resolve('') : this.refutation(after, chess);
+    let answered = false;
+    void reply.then(() => (answered = true));
+    if ((await hold(OPPONENT_REPLY_MS, 'miss')) === 'cancel' || !live()) return;
+    this.show(1);
+    if (over) {
+      r.frames.push(...right);
       this.setReviewText(fmt('review.wrong.over'));
-      return this.play(1, OPPONENT_REPLY_MS);
+      return this.replay(2, { ms: OPPONENT_REPLY_MS, wait: true, skip: 'step' }, t);
     }
+    const slow = window.setTimeout(() => !answered && live() && this.setReviewText(fmt('ai.loading', { trainer: this.host.them() })), THINKING_LINE_MS);
+    if ((await hold(OPPONENT_REPLY_MS, 'miss')) === 'cancel' || !live()) return window.clearTimeout(slow);
+    const uci = await reply;
+    window.clearTimeout(slow);
+    if (!live() || !uci) return;
+    const end = new Chess(after);
+    end.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+    // The opponent by name (W3): "That lets YOUNGSTER TOBY take your BULBASAUR", never your own team's name.
+    const said = refutationText(after, uci, you, this.host.them());
+    const m = { from: uci.slice(0, 2), to: uci.slice(2, 4) };
+    r.frames.push({ fen: end.fen(), arrows: [{ ...m, color: 'blue' }], marks: [], slide: m, faded: [w.to], text: fmt(said.key, said.vars) }, ...right);
+    this.show(2);
+    return this.replay(3, { ms: OPPONENT_REPLY_MS, wait: true, skip: 'step' }, t);
+  }
+
+  /** Stockfish's punishing reply to a wrong move, or any legal one when the engine is out. */
+  private async refutation(after: string, chess: Chess): Promise<string> {
     let reply: string;
     let source: 'stockfish' | 'fallback' = 'stockfish';
     try {
@@ -304,16 +403,8 @@ export class PuzzleGame {
       reply = moves[0] ? moves[0].from + moves[0].to + (moves[0].promotion ?? '') : '';
       source = 'fallback';
     }
-    if (g !== this.gen || !this.review || !reply) return;
-    this.lastRefutation = { fen: after, uci: reply, source };
-    const end = new Chess(after);
-    end.move({ from: reply.slice(0, 2), to: reply.slice(2, 4), promotion: reply[4] });
-    // The opponent by name (W3): "That lets YOUNGSTER TOBY take your BULBASAUR", never your own team's name.
-    const t = refutationText(after, reply, you, this.host.them());
-    const r = { from: reply.slice(0, 2), to: reply.slice(2, 4) };
-    this.review.frames.push({ fen: end.fen(), arrows: [{ ...r, color: 'blue' }], marks: [], slide: r, faded: [w.to], text: fmt(t.key, t.vars) }, ...right);
-    this.setReviewText(fmt(t.key, t.vars));
-    this.play(1, OPPONENT_REPLY_MS);
+    if (reply) this.lastRefutation = { fen: after, uci: reply, source };
+    return reply;
   }
 
   /** The right move (§B21 item 1): back to the position, then the piece slides in, both squares lit, the arrow stays,
@@ -336,14 +427,19 @@ export class PuzzleGame {
     if (!this.review || !this.run) return;
     this.review.frames = lineFrames(this.review.pre, this.run.rest(), 'green');
     this.btn.answer.hidden = true;
-    this.play(0);
+    void this.replay(0);
   }
 
   private openReview(result: Result, frames: Frame[], text: string, pre: string): void {
     this.endReview();
     this.phase = 'review';
-    this.review = { frames, idx: 0, timer: 0, result, pre };
+    this.review = { frames, idx: 0, play: 0, result, pre };
     this.reviewEl.hidden = false;
+    // The panel fades in (REVIEW_IN_MS, opacity only) and never refits the board (R5); Continue waits CARD_GUARD_MS.
+    this.reviewEl.classList.remove('review-in');
+    void this.reviewEl.offsetWidth;
+    this.reviewEl.classList.add('review-in');
+    guard(this.acts, CARD_GUARD_MS);
     this.nextBtn.hidden = true;
     const battle = this.context?.battle === true;
     this.btn.answer.hidden = result !== 'missed';
@@ -358,36 +454,72 @@ export class PuzzleGame {
   private show(i: number): void {
     const r = this.review;
     if (!r) return;
-    r.idx = Math.max(0, Math.min(r.frames.length - 1, i));
+    this.select(i);
     this.host.showFrame(r.frames[r.idx]!);
+  }
+
+  /** The frame index, its line and ◀ ▶ at once; the board follows (at a dip's peak when it goes back). */
+  private select(i: number): void {
+    const r = this.review!;
+    r.idx = Math.max(0, Math.min(r.frames.length - 1, i));
     const text = r.frames[r.idx]!.text;
     if (text) this.setReviewText(text);
     this.btn.prev.disabled = r.idx === 0;
     this.btn.next.disabled = r.idx === r.frames.length - 1;
   }
 
-  private step(d: number): void {
-    if (!this.review) return;
-    window.clearInterval(this.review.timer);
-    this.show(this.review.idx + d);
-  }
-
-  /** Plays the line from `from` to the end, one move per `ms`, once. */
-  private play(from: number, ms = REVIEW_MOVE_MS): void {
+  /** To frame `i`: a move slides in; going back, or to a position that is not one move on, dips the board (§2). */
+  private async goTo(i: number): Promise<void> {
     const r = this.review;
     if (!r) return;
-    window.clearInterval(r.timer);
-    this.show(from);
-    r.timer = window.setInterval(() => {
-      if (this.review !== r || r.idx >= r.frames.length - 1) return window.clearInterval(r.timer);
-      this.show(r.idx + 1);
-    }, ms);
+    if (i < r.idx || (i !== r.idx && !r.frames[i]?.slide)) {
+      this.select(i);
+      const at = r.idx;
+      await this.host.dip(() => (this.review === r && r.idx === at ? this.host.showFrame(r.frames[at]!) : undefined));
+    } else this.show(i);
   }
 
-  private endReview(): void {
-    if (this.review) window.clearInterval(this.review.timer);
+  /** ◀ and ▶ stop a replay and step one frame. */
+  private step(d: number): void {
+    const r = this.review;
+    if (!r) return;
+    r.play++;
+    this.stopReplayHold();
+    void this.goTo(Math.max(0, Math.min(r.frames.length - 1, r.idx + d)));
+  }
+
+  /** Back to `from`, then one frame per `ms` to the end, each step a hold. `wait` holds on the frame shown first. A skip
+   * ends on the last frame (the key idea), or with `skip: 'step'` only cuts that step short. `token` continues a
+   * replay already running (the miss review). */
+  private async replay(from: number, o: { ms?: number; wait?: boolean; skip?: 'end' | 'step' } = {}, token?: number): Promise<void> {
+    const r = this.review;
+    if (!r) return;
+    const t = token ?? ++r.play;
+    const live = () => this.review === r && r.play === t;
+    for (let i = from; i < r.frames.length; i++) {
+      if (i > from || o.wait) {
+        const how = await hold(o.ms ?? REVIEW_MOVE_MS, o.skip === 'step' ? 'miss' : 'review');
+        if (how === 'cancel' || !live()) return;
+        if (how === 'skip' && o.skip !== 'step') return this.show(r.frames.length - 1);
+      }
+      await this.goTo(i);
+      if (!live()) return;
+    }
+  }
+
+  /** A replay's step hold goes with the replay, so it never eats the next tap. */
+  private stopReplayHold(): void {
+    if (holding() === 'review' || holding() === 'miss') cancelHold();
+  }
+
+  /** `keepSlot`: the panel goes invisible but keeps its room until the next position (R5: nothing below the board
+   * jumps on Continue); else it goes away. */
+  private endReview(keepSlot = false): void {
+    if (this.review) this.review.play++;
+    this.stopReplayHold();
     this.review = null;
-    this.reviewEl.hidden = true;
+    this.reviewEl.classList.toggle('gone', keepSlot);
+    this.reviewEl.hidden = !keepSlot;
     this.host.clearFrames();
   }
 
@@ -395,7 +527,7 @@ export class PuzzleGame {
   private finishReview(): void {
     const r = this.review;
     if (!r) return;
-    this.endReview();
+    this.endReview(true);
     this.phase = 'over';
     this.nextBtn.hidden = this.context?.battle === true;
     const ctx = this.context;

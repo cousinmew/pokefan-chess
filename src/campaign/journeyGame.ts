@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Kanto Journey controller (§B11, §B12): Oak's intro, the map, trainer and rival battles (the C1 puzzle player in a
 // battle context), towns, tall grass encounters, the Trainer Card, Training, the Pokédex with candy, and My Team.
-import { DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, INTRO_CARD_MS, PLAYTIME_TICK_MS } from '../config';
+import { BADGE_IN_MS, DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, PLAYTIME_TICK_MS, WIN_BEAT_MS } from '../config';
+import type { CoverKind } from '../ui/transitions';
 import { defaultSpecies, SPECIES } from '../board/pieces';
 import { stageEvolutions, stageFor } from '../board/stages';
 import { myTrainer, trainerSpriteId } from '../look';
@@ -11,7 +12,8 @@ import { music } from '../audio/music';
 import { createRng } from '../game/rng';
 import { fmt } from '../game/text';
 import { cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, goalCard, hofScreen, textGoalCard, nameScreen, oakScreen, story, teamScreen, trainerIntro, trainingScreen } from '../ui/kanto';
-import { mapScreen, placeCard, routeScreen, tapCard, winCard } from '../ui/journeyMap';
+import { badgeCard, mapScreen, placeCard, routeScreen, tapCard, winCard } from '../ui/journeyMap';
+import { trainerSpot } from '../ui/cards';
 import { exampleOf, lessonScreen, oakIntro } from '../ui/lesson';
 import { pool, shownLevel } from './trainer';
 import trainers from '../data/trainers.json';
@@ -40,6 +42,12 @@ export interface JourneyHost {
   startChallenge(ch: Challenge): void;
   /** The YELLOW engine on the main board, for Oak's Route 1 warm-up (W5). */
   path: WarmupHost['path'];
+  /** Pacing (§2): a cover up on a tap that waits for its screen (Oak's lesson loads first); uncover() shows what is
+   * mounted (an error). */
+  cover(kind: CoverKind): Promise<void>;
+  uncover(): void;
+  /** A battle decided (pacing §5): your plate hops and theirs shakes and fades, or the other way round. */
+  beat(won: boolean): void;
 }
 
 const PEOPLE = trainers.people as Record<string, string>;
@@ -144,7 +152,6 @@ export class JourneyGame {
     this.host.path.stop();
     this.host.modal.hidden = true;
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    if (justCleared) music.play('victory');
     this.host.show(
       mapScreen(this.campaign, {
         place: (i) => this.enterPlace(PLACES[i]!),
@@ -155,6 +162,7 @@ export class JourneyGame {
         training: () => this.showTraining(),
         back: () => this.host.goTitle(),
         hof: () => this.showHof(() => this.showMap()),
+        stamped: () => music.play('victory'), // the map sting plays with the stamp (pacing §5)
       }, justCleared, calm),
     );
     // Mew joins once 150 others are caught (§B12), whatever path got there.
@@ -249,35 +257,38 @@ export class JourneyGame {
     const team = teamOf(this.campaign, t);
     this.set(markSeen(this.campaign, team));
     music.play('battle');
+    void pool(theme).catch(() => undefined); // the puzzles load while the cards show (pacing A7)
     const modal = this.host.modal;
-    modal.replaceChildren(trainerIntro(this.campaign, t, this.spriteOf(t)));
-    modal.hidden = false;
-    let stage = 0;
-    const goal = () => {
-      if (stage !== 0) return;
-      stage = 1;
-      const leads = t.themes === 'learned' ? fmt('goal.rivalLeads', { starter: SPECIES[team[0]!]!.name }) : undefined;
-      modal.replaceChildren(goalCard(theme, t.puzzles, this.needOf(p, t), leads));
-    };
-    // Only while this screen shows: leaving it (START) must not let the card act in a later game (bugs #8).
-    const g = this.host.gen();
-    const timer = window.setTimeout(() => g === this.host.gen() && goal(), INTRO_CARD_MS);
-    modal.onclick = () => {
-      window.clearTimeout(timer);
-      if (stage === 0) return goal();
-      modal.onclick = null;
-      modal.hidden = true;
-      this.runBattle(p, t, theme);
-    };
+    // Pacing A4 to A6: a "!" over the trainer you tapped, then the dim and "wants to battle!", which waits for a tap
+    // (it no longer leaves by itself, so a late tap can never skip the goal card); the goal card waits for one too.
+    // Both ignore taps for CARD_GUARD_MS. show() clears the modal, so nothing here acts on a later screen (bugs #8).
+    trainerSpot(modal, document.querySelector('.trainer-row.next') ?? document.querySelector('[data-testid="map-current"]'), () => {
+      modal.replaceChildren(trainerIntro(this.campaign, t, this.spriteOf(t)));
+      let stage = 0;
+      modal.onclick = () => {
+        if (stage++ === 0) {
+          const leads = t.themes === 'learned' ? fmt('goal.rivalLeads', { starter: SPECIES[team[0]!]!.name }) : undefined;
+          return modal.replaceChildren(goalCard(theme, t.puzzles, this.needOf(p, t), leads));
+        }
+        modal.onclick = null;
+        modal.hidden = true;
+        this.runBattle(p, t, theme); // the battle bars close over this screen and open on the board
+      };
+    });
   }
 
   /** Oak's one screen lesson for a theme, with a looping example from a real puzzle (§B14). */
   async lesson(theme: string, done: () => void): Promise<void> {
-    const rows = await pool(theme).catch((err: unknown) => {
-      console.warn('lesson example unavailable:', err instanceof Error ? err.message : err);
-      return [];
-    });
-    this.host.show(lessonScreen(theme, exampleOf(rows), done, personSprite('oak')));
+    void this.host.cover('screen'); // up at once, held while the example loads (pacing §2)
+    try {
+      const rows = await pool(theme).catch((err: unknown) => {
+        console.warn('lesson example unavailable:', err instanceof Error ? err.message : err);
+        return [];
+      });
+      this.host.show(lessonScreen(theme, exampleOf(rows), done, personSprite('oak')));
+    } finally {
+      this.host.uncover();
+    }
   }
 
   /** Solves needed: gyms 1 to 4 take GYM_NEED_EARLY, gyms 5 to 8 GYM_NEED_LATE (config.ts), others their own. */
@@ -331,28 +342,25 @@ export class JourneyGame {
     });
   }
 
-  /** A trainer beaten (W5): the defeat story ends with the next goal, then a card with what was won and, when that
-   * cleared the place, a card with what opened; the map then stamps the place. */
+  /** A trainer beaten (W5, pacing §5), in order: the beat on the board, "You won!", the defeat quote, the badge card,
+   * the queen line, the card with what opened. "Next: …" is said once, last. The map then stamps the place. */
   private win(p: Place, t: Trainer, pips: string): void {
     const before = placeCleared(this.campaign, p);
     const stageBefore = stageFor(this.campaign.badges.length);
     let c = beatTrainer(this.campaign, p, t);
-    const lines = [fmt(t.defeat)];
     let badge: string | undefined;
+    let queen = false;
     // Badge ceremony (§B13 C3): the gym's badge, and the queen slot with the first one.
     if (p.kind === 'gym' && p.badge && !c.badges.includes(p.badge)) {
       c = { ...c, badges: [...c.badges, p.badge] };
       badge = p.badge;
-      lines.push(fmt('badge.received', { badge: fmt(`badge.${p.badge}` as StringKey) }));
-      if (c.badges.length === 1 && !c.queenOpen) lines.push(fmt('badge.queen'));
+      queen = c.badges.length === 1 && !c.queenOpen;
       save('backupDue', true); // the hub then offers "Back up your save" (§B18 item 2)
     }
     this.set(c);
-    music.play('victory');
     const now = placeCleared(this.campaign, p);
     const cleared = !before && now;
     const goal = goalLine(this.campaign);
-    if (goal) lines.push(goal); // "Next: ..." closes every win story (W5, design H)
     const next = () => {
       const more = !now ? nextTrainer(this.campaign, p) : null;
       if (more && p.kind === 'league') return this.battle(p, more);
@@ -360,16 +368,46 @@ export class JourneyGame {
       this.showMap(cleared ? p.id : undefined);
     };
     const modal = this.host.modal;
+    const sprite = this.spriteOf(t);
+    const quote = [fmt(t.defeat)];
+    const after = queen ? [fmt('badge.queen')] : [];
+    if (goal && !cleared) (badge ? after : quote).push(goal); // on the unlock card when there is one
     const unlock = () => tapCard(modal, placeCard(p, nextGoal(this.campaign)), () => this.reward(p, next));
-    const cards = () => tapCard(modal, winCard(this.campaign, p, t, this.spriteOf(t), pips, badge), () => (cleared ? unlock() : next()));
-    const tell = () => this.story(lines, cards, this.spriteOf(t) ?? undefined);
-    // A badge that crosses 3 or 6 evolves both story teams (§B18 item 5): one evolution ceremony per piece.
-    const stage = stageFor(this.campaign.badges.length);
-    // Rocket's stage brings a new trainer and team (change B), not an evolution: only Red's pieces evolve.
-    const evos = stageEvolutions('w', stageBefore, stage, (role, dark) => defaultSpecies('w', role, dark));
-    if (!evos.length) return tell();
-    music.play('evolution');
-    void evos.reduce((done, [a, b]) => done.then(() => this.host.evolveAnim(a, b)), Promise.resolve()).then(tell);
+    const last = () => (cleared ? unlock() : next());
+    const afterBadge = () => (after.length ? this.story(after, last, sprite ?? undefined) : last());
+    const badgeStep = () => {
+      if (!badge) return last();
+      tapCard(modal, badgeCard(badge), afterBadge);
+      window.setTimeout(() => sound.shimmer(), BADGE_IN_MS); // the shimmer as the badge lands
+    };
+    const card = () => tapCard(modal, winCard(this.campaign, p, t, sprite, pips), () => this.story(quote, badgeStep, sprite ?? undefined));
+    // A badge that crosses 3 or 6 evolves both story teams (§B18 item 5): one evolution ceremony per piece, before
+    // the cards. Rocket's stage brings a new trainer and team (change B), not an evolution: only Red's pieces evolve.
+    const evos = stageEvolutions('w', stageBefore, stageFor(this.campaign.badges.length), (role, dark) => defaultSpecies('w', role, dark));
+    this.afterBeat(true, () => {
+      if (!evos.length) return card();
+      modal.hidden = true;
+      music.play('evolution');
+      void evos.reduce((done, [a, b]) => done.then(() => this.host.evolveAnim(a, b)), Promise.resolve()).then(card);
+    });
+  }
+
+  /** The beat after the last Continue (pacing §5): the board stays, the plates react, the sting plays, and input waits
+   * WIN_BEAT_MS (the modal is up but clear); then the dim fades in under `then`'s card. */
+  private afterBeat(won: boolean, then: () => void): void {
+    const modal = this.host.modal;
+    music.play(won ? 'victory' : 'defeat');
+    this.host.beat(won);
+    modal.onclick = null;
+    modal.replaceChildren();
+    modal.classList.add('clear');
+    modal.hidden = false;
+    const g = this.host.gen();
+    window.setTimeout(() => {
+      if (g !== this.host.gen()) return; // the screen changed meanwhile (bugs #8)
+      modal.classList.remove('clear');
+      then();
+    }, WIN_BEAT_MS);
   }
 
   /** Rewards for clearing a place the first time (§B12 part 2): gifts, then a choice. Never twice. */
@@ -484,8 +522,7 @@ export class JourneyGame {
   }
 
   private lose(p: Place, t: Trainer): void {
-    music.play('defeat');
-    this.story([fmt('trainer.lost', { class: fmt(t.class), name: fmt(t.name) })], () => this.battle(p, t));
+    this.afterBeat(false, () => this.story([fmt('trainer.lost', { class: fmt(t.class), name: fmt(t.name) })], () => this.battle(p, t)));
   }
 
   private walkGrass(p: Place, route: Route): void {

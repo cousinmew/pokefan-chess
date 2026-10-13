@@ -40,8 +40,8 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   await expect(page.getByTestId('turn')).toHaveText(/^(Checkmate in \d moves?|Goal: .+)$/);
   for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
     await playAnswer(page);
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('checking');
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toBe('reply');
+    // Pacing: the reply waits OPPONENT_REPLY_MS, and a solve has its beat ('solved') before the review.
+    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply|solved/);
   }
   await expect(page.getByTestId('text-main')).toHaveText(/^(Solved|Checkmate)! Well done\.$/);
   await expect(page.getByTestId('review')).toBeVisible();

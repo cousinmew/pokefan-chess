@@ -156,20 +156,20 @@ test('beating Route 1: win card, unlock card, CLEARED stamp and ▶ on Viridian,
   await page.getByTestId('map-next').click();
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
-  for (let i = 0; i < 3 && !(await page.getByTestId('story').isVisible()); i++) {
+  for (let i = 0; i < 3 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solve(page);
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await kc<string>(page, 'puzzlePhase')) === 'player', { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await kc<string>(page, 'puzzlePhase')) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  // The defeat line, then "Next: …" closes the story.
-  await page.getByTestId('story').click();
-  await expect(page.getByTestId('story-text')).toHaveText('Next: Go to VIRIDIAN CITY');
-  await page.getByTestId('story').click();
+  // Pacing §5: "You won!" first, then the defeat line, then the unlock card, which says "Next: …" once, last.
   await expect(page.getByTestId('win-card')).toContainText('✓ LASS MINA');
   await expect(page.getByTestId('win-card')).toContainText('2 of 2 trainers beaten');
   await shot(page, 'win-card-390');
   await page.getByTestId('win-card').click();
+  await expect(page.getByTestId('story-text')).not.toContainText('Next:');
+  await page.getByTestId('story').click();
   await expect(page.getByTestId('unlock-card')).toContainText('ROUTE 1 cleared!');
   await expect(page.getByTestId('unlock-card')).toContainText('VIRIDIAN CITY is open!');
+  await expect(page.getByTestId('unlock-card')).toContainText('Next: Go to VIRIDIAN CITY');
   await shot(page, 'unlock-card-390');
   await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('route-route-1')).toContainText('CLEARED');

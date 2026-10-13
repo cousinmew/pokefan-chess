@@ -74,14 +74,15 @@ export class Board {
     this.hints = [];
   }
 
-  /** A review frame (§B21 item 1): the position, the move's two squares lit, the piece sliding from its square. */
-  showReview(slide?: { from: string; to: string }, faded: string[] = []): void {
+  /** A review frame (§B21 item 1): the position, the move's two squares lit, the piece sliding from its square over
+   * `ms` (the opponent's moves slide slower, pacing). */
+  showReview(slide?: { from: string; to: string }, faded: string[] = [], ms = MOVE_SLIDE_MS): void {
     this.selected = null;
     this.hints = [];
     this.stars = [];
     this.faded = faded;
     this.lastMove = slide ? [slide.from, slide.to] : null;
-    this.render(slide);
+    this.render(slide, ms);
   }
 
   /** Clears the selection and the last move tint (restart, take back). */
@@ -113,7 +114,8 @@ export class Board {
     return new Set([...seen.w].filter((d) => seen.b.has(d)));
   }
 
-  render(slide?: { from: string; to: string }): void {
+  /** Draws the position; `slide` slides the moved piece in over `ms` (yours MOVE_SLIDE_MS, the opponent's THEIR_SLIDE_MS). */
+  render(slide?: { from: string; to: string }, ms = MOVE_SLIDE_MS): void {
     const before = slide ? this.cells.get(slide.from)?.getBoundingClientRect() : undefined;
     this.el.replaceChildren();
     this.cells.clear();
@@ -166,13 +168,14 @@ export class Board {
         this.el.append(cell);
       }
     }
-    if (slide && before) {
+    // Reduced motion (pacing R7): the piece is just there, nothing slides.
+    if (slide && before && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       const img = this.cells.get(slide.to)?.querySelector('.piece, .classic') as HTMLElement | null;
       const after = this.cells.get(slide.to)?.getBoundingClientRect();
       if (img && after && typeof img.animate === 'function') {
         const dx = before.left - after.left;
         const dy = before.top - after.top;
-        img.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: MOVE_SLIDE_MS, easing: 'ease-out' });
+        img.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ms, easing: 'ease-out' });
       }
     }
   }

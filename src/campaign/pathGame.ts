@@ -10,6 +10,9 @@ import { loadCampaign, saveCampaign, type Campaign } from './kanto';
 import { grantUnlocks, UNLOCKS } from './yellowTeam';
 import { AUTHORED, hintMove, meets, mateLessons, type Lesson, type PathPuzzle } from './path';
 import { pool } from './trainer';
+import { MOVE_SLIDE_MS, PATH_NEXT_DELAY_MS } from '../config';
+import { sound } from '../audio/audio';
+import { guard } from '../ui/pace';
 
 export interface PathHost {
   show(view: HTMLElement): void;
@@ -23,6 +26,13 @@ export interface PathHost {
   home(): void;
   stickers(back: () => void): void;
   rng: Rng;
+  /** Pacing (§2): the next position comes in under a dip of the board. */
+  dip(swap: () => void | Promise<void>): Promise<void>;
+  /** A cover up while lessons 10 to 12 load; uncover() shows what is mounted. */
+  cover(): Promise<void>;
+  uncover(): void;
+  /** Six stars burst from a square (a right move, D4). */
+  cheer(square: string): void;
 }
 
 /** Oak's warm-up in BLUE (W5): what follows the last move, or Skip. No sticker. */
@@ -86,9 +96,12 @@ export class PathGame {
     return loadCampaign();
   }
 
-  open(): void {
+  /** The Path; `fresh`, a lesson that just opened, pulses twice once the screen is in (pacing D7). */
+  open(fresh?: number): void {
     this.stop();
-    this.host.show(pathScreen(this.campaign.path, { lesson: (n) => void this.start(n), stickers: () => this.host.stickers(() => this.open()), back: () => this.host.home() }));
+    const view = pathScreen(this.campaign.path, { lesson: (n) => void this.start(n), stickers: () => this.host.stickers(() => this.open()), back: () => this.host.home() });
+    if (fresh) view.querySelector(`[data-testid="lesson-${fresh}"]:not([disabled])`)?.classList.add('path-new');
+    this.host.show(view);
   }
 
   stop(): void {
@@ -96,10 +109,19 @@ export class PathGame {
     this.lesson = null;
     this.hooks = null;
     this.bar.hidden = true;
+    this.bar.classList.remove('gone');
   }
 
   async start(n: number): Promise<void> {
-    this.lesson = n <= AUTHORED.length ? AUTHORED[n - 1]! : (mateLessons(await pool('mateIn1'))[n - AUTHORED.length - 1] ?? null);
+    if (n <= AUTHORED.length) this.lesson = AUTHORED[n - 1]!;
+    else {
+      void this.host.cover(); // lessons 10 to 12 come from the puzzle file: the cover waits for it (pacing §2)
+      try {
+        this.lesson = mateLessons(await pool('mateIn1'))[n - AUTHORED.length - 1] ?? null;
+      } finally {
+        this.host.uncover();
+      }
+    }
     if (!this.lesson) return this.open();
     this.idx = 0;
     this.puzzle();
@@ -115,6 +137,7 @@ export class PathGame {
     this.host.startBoard(p.fen);
     this.host.marks(p.star ? [p.star] : [], []);
     this.bar.hidden = false;
+    this.bar.classList.remove('gone');
     this.nextBtn.hidden = true;
     this.hintBtn.hidden = false;
     this.backBtn.hidden = !!this.hooks;
@@ -139,15 +162,34 @@ export class PathGame {
       return;
     }
     this.phase = 'moving';
+    this.lastTo = uci.slice(2, 4);
     this.host.applyMove(uci);
   }
 
-  settled(): void {
+  /** The square the last right move went to (the stars burst there). */
+  private lastTo = '';
+
+  /** A right move landed (pacing D4): at the end of its slide the stars, "Great job!" and a chime; Next fades into the
+   * Hint button's place PATH_NEXT_DELAY_MS later and ignores taps for CARD_GUARD_MS. */
+  settled(slide = MOVE_SLIDE_MS): void {
     if (this.phase !== 'moving') return;
     this.phase = 'solved';
-    this.host.say('path.good');
-    this.nextBtn.hidden = false;
-    this.hintBtn.hidden = true; // nothing left to hint after a solve (playtest, 12 Oct)
+    const lesson = this.lesson;
+    const idx = this.idx;
+    const same = () => this.lesson === lesson && this.idx === idx && this.phase === 'solved';
+    window.setTimeout(() => {
+      if (!same()) return;
+      this.host.say('path.good');
+      if (this.lastTo) this.host.cheer(this.lastTo);
+      sound.sparkle();
+      window.setTimeout(() => {
+        if (!same()) return;
+        this.hintBtn.hidden = true; // nothing left to hint after a solve (playtest, 12 Oct)
+        this.nextBtn.hidden = false;
+        this.nextBtn.classList.add('fade-in');
+        guard(this.nextBtn);
+      }, PATH_NEXT_DELAY_MS);
+    }, slide);
   }
 
   /** Free and unlimited: the piece and where it goes. */
@@ -161,7 +203,14 @@ export class PathGame {
     if (this.phase !== 'solved' || !this.lesson) return;
     if (this.idx < this.lesson.puzzles.length - 1) {
       this.idx++;
-      return this.puzzle();
+      this.phase = 'idle';
+      // The board dips and the next position comes in at the peak, with the progress chip popping (pacing D5).
+      return void this.host.dip(() => {
+        this.puzzle();
+        this.progress.classList.remove('pop');
+        void this.progress.offsetWidth;
+        this.progress.classList.add('pop');
+      });
     }
     if (this.hooks) return this.leave('done');
     this.finish(this.lesson.n);
@@ -170,16 +219,20 @@ export class PathGame {
   /** Lesson done: the next sticker from YELLOW's fixed list (fix 3, no chance), then back to the path. A replayed
    * lesson shows the sticker it gave the first time. */
   private finish(n: number): void {
+    const opened = n > this.campaign.path ? n + 1 : undefined;
     this.stop();
+    this.bar.hidden = false;
+    this.bar.classList.add('gone'); // the bar keeps its place under the sticker card (pacing D6, R5)
     const c = this.campaign;
     const { campaign, got } = grantUnlocks({ ...c, path: Math.max(c.path, n) });
     saveCampaign(campaign);
     const id = got[0] ?? UNLOCKS[Math.min(n, UNLOCKS.length) - 1]!;
     const modal = this.host.modal;
+    // The sticker bounces in and hops twice; OK ignores taps for CARD_GUARD_MS (src/ui/cards.ts).
     modal.replaceChildren(
       stickerPanel(id, SPECIES[id]!.name, () => {
         modal.hidden = true;
-        this.open();
+        this.open(opened);
       }),
     );
     modal.hidden = false;

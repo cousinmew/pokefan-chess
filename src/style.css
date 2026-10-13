@@ -755,8 +755,10 @@ header.game-header .turn.objective { max-width: calc(100% - 2 * 80px); font-weig
 @keyframes pip-pop { 40% { transform: scale(1.06); } }
 .rating-up { align-self: center; margin: 0; padding: 0 8px; font-weight: 700; color: #186018; background: #d8f0c0; border: 2px solid var(--ink); border-radius: 10px; }
 .rating-up[hidden] { display: none; }
-.solved-stamp { position: absolute; left: 50%; top: 50%; z-index: 5; padding: 4px 16px; font-size: clamp(22px, 8vw, 40px); font-weight: 900; color: #fff; background: #30a030; border: 4px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink); max-width: calc(100% - 16px); box-sizing: border-box; white-space: nowrap; transform: translate(-50%, -50%) rotate(-8deg); animation: solved-stamp-in 600ms ease-out forwards; pointer-events: none; }
-@keyframes solved-stamp-in { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); } 25% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } 80% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
+.solved-stamp { position: absolute; left: 50%; top: 50%; z-index: 5; padding: 4px 16px; font-size: clamp(22px, 8vw, 40px); font-weight: 900; color: #fff; background: #30a030; border: 4px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink); max-width: calc(100% - 16px); box-sizing: border-box; white-space: nowrap; transform: translate(-50%, -50%) rotate(-8deg); animation: solved-stamp-in var(--stamp-edge, 180ms) ease-out both, solved-stamp-out var(--stamp-edge, 180ms) ease-in calc(var(--stamp-ms, 900ms) - var(--stamp-edge, 180ms)) forwards; pointer-events: none; }
+/* Pacing A11: STAMP_EDGE_MS in (scale 1.8 to 1), the hold, STAMP_EDGE_MS out to nothing; centred in every keyframe. */
+@keyframes solved-stamp-in { from { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
+@keyframes solved-stamp-out { from { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
 .coach { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
 .coach[hidden] { display: none; }
 .coach-spot { position: fixed; border: 3px solid #f8d030; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); }
@@ -904,7 +906,7 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .kanto-map .node-row b { flex: 1; }
 .kanto-map .node-row .badge { width: 18px; height: 18px; }
 .stamp { display: inline-block; border: 2px solid #307030; color: #307030; border-radius: 4px; padding: 0 5px; font-size: 11px; font-weight: 700; letter-spacing: 1px; transform: rotate(-6deg); background: #fff; }
-.stamp-now .stamp { animation: cleared-stamp-in 400ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.stamp-now .stamp { animation: cleared-stamp-in var(--map-stamp, 400ms) cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 @keyframes cleared-stamp-in { from { transform: rotate(-6deg) scale(2.4); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
 .kanto-map .node.current { min-height: 0; padding: 8px 10px; gap: 6px; border-width: 4px; outline: 3px solid #f0a020; box-shadow: 0 0 0 6px rgba(240, 160, 32, 0.2); }
 .kanto-map .node.current .node-name { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; border: 0; background: transparent; font: inherit; font-size: 18px; text-align: start; padding: 0; cursor: pointer; color: inherit; }
@@ -931,7 +933,7 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .start-next { margin: 0 0 4px; padding: 4px 8px; font-size: 14px; font-weight: 700; border-bottom: 2px solid var(--ink); }
 .summary { flex-wrap: wrap; }
 .summary-next { flex-basis: 100%; margin: 0; font-weight: 700; }
-@media (prefers-reduced-motion: reduce) { .stamp-now .stamp, .kanto-map .node.current .pointer { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .kanto-map .node.current .pointer { animation: none; } }
 /* Polish, 12 Oct (playtest replay). The ▼ marker sits in the text's own end strip, never over its last line
    (the earlier `right: auto` cancelled its inline end inset, so it fell to the start under the text). */
 .plate .textbox { padding: 0; padding-inline-end: 16px; }
@@ -948,3 +950,92 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
    Pokémon under it shows whole; it is a little larger than the normal chip, and the sprite is no longer faded. */
 .chip.big { top: 1px; left: 1px; transform: none; width: max(22px, calc(var(--sq) * 0.44)); height: max(22px, calc(var(--sq) * 0.44)); font-size: max(14px, calc(var(--sq) * 0.32)); }
 .piece.faded { opacity: 1; }
+
+/* ===== Pacing, 12 Oct (owner: "transitions between screens ... cut too hard"). Durations come from config.ts through
+   setCssVars() (src/ui/cssVars.ts); geometry (scales, offsets, peak opacities) stays here beside its keyframes. Screens
+   never animate themselves (a transform or opacity on .stage, a screen or .game-view would break their fixed children):
+   the cover over #app does, from src/ui/transitions.ts. ===== */
+html { --dir: 1; }
+html[dir='rtl'] { --dir: -1; }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+/* The cover (z 49: over the battle, the coach and the intro card; under the modal and START) and the board's dip. */
+.screen-cover { position: fixed; inset: 0; z-index: 49; overflow: hidden; pointer-events: auto; }
+.cover-screen { background: var(--paper); }
+.cover-area, .cover-first { background: #fff; }
+.cover-bar { position: absolute; left: 0; right: 0; height: 12.6%; background: var(--ink); }
+.cover-bar:nth-child(2) { top: 12.5%; } .cover-bar:nth-child(3) { top: 25%; } .cover-bar:nth-child(4) { top: 37.5%; }
+.cover-bar:nth-child(5) { top: 50%; } .cover-bar:nth-child(6) { top: 62.5%; } .cover-bar:nth-child(7) { top: 75%; } .cover-bar:nth-child(8) { top: 87.5%; }
+.cover-label { position: absolute; left: 0; right: 0; top: 50%; margin: 0; transform: translateY(-50%); text-align: center; font-weight: 700; color: var(--ink); }
+.cover-label[hidden] { display: none; }
+.cover-battle .cover-label { color: #fff; }
+.board-dip { position: absolute; inset: 0; z-index: 6; background: var(--paper); opacity: 0; pointer-events: auto; }
+/* Cards (§3): the dim fades in when the modal opens (not on swaps), every card pops in, a story box rises and each
+   line fades; a guarded card shows its ▼ only once it takes taps (R4). The trainer slides in once per sequence. */
+.overlay { transition: background-color var(--dim-in) ease-out; }
+.overlay:not([hidden]) { animation: dim-in var(--dim-in) ease-out; }
+.overlay.clear { background-color: transparent; }
+@keyframes dim-in { from { background-color: rgba(0, 0, 0, 0); } }
+.overlay > .panel, .intro > .panel { animation: card-in var(--card-in) ease-out both; }
+@keyframes card-in { 0% { opacity: 0; transform: scale(0.94); } 50% { opacity: 1; } 70% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
+.overlay > .panel.story { animation: story-in var(--story-in) ease-out both; }
+@keyframes story-in { from { opacity: 0; transform: translateY(12px); } }
+.story-text.line-in { animation: fade-in var(--line-in) ease-out both; }
+[data-guard]:not([data-ready]) .tb-tick { visibility: hidden; }
+.slide-in { animation: slide-in var(--trainer-in) ease-out both; }
+[dir='rtl'] .slide-in { animation-name: slide-in-rtl; }
+[dir='rtl'] .story-trainer.slide-in { animation-name: story-slide-in-rtl; }
+@keyframes slide-in-rtl { from { transform: translateX(-120%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes story-slide-in-rtl { from { transform: translateX(calc(-50% - 60vw)); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+/* R5, wide: when the side column (START, plates, the review, Who's who) outgrows the board, only the board's row may
+   take the extra height; with two auto rows the header's row took a share and the board slid down a pixel. */
+html.fit-wide main { grid-template-rows: auto 1fr; }
+/* A4: the Gen 1 "!" over the trainer you tapped, before the dim and the card. */
+.trainer-spot { position: fixed; left: 50%; top: 40%; padding: 0 12px; font-size: 32px; font-weight: 900; line-height: 1.2; color: var(--ink); background: #fff; border: 3px solid var(--ink); border-radius: 8px; transform: translate(-50%, -100%); animation: spot-pop var(--spot) ease-out both; pointer-events: none; }
+@keyframes spot-pop { 0% { opacity: 0; transform: translate(-50%, -60%) scale(0.4); } 30% { opacity: 1; transform: translate(-50%, -100%) scale(1.2); } 45%, 100% { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
+/* A12 to A14: the review fades in and keeps its slot when it goes (R5); arrows and marks fade in; a wrong piece shakes. */
+.review.review-in { animation: fade-in var(--review-in) ease-out both; }
+.review.gone, .path-bar.gone { visibility: hidden; }
+.review-layer > * { animation: fade-in var(--arrow-in) ease-out both; }
+.piece.miss-shake { animation: miss-shake var(--shake) linear; }
+@keyframes miss-shake { 20%, 60% { translate: -4px 0; } 40%, 80% { translate: 4px 0; } }
+/* §5: the win card slams in and its pips light one by one; the badge spins in and a shine crosses it; the unlock
+   card's CLEARED stamp slams once the card is in; on the map the row flashes with the stamp and ▶ pulses twice. */
+.overlay > .panel.win-card { animation: win-slam var(--win-card-in) ease-out both; }
+@keyframes win-slam { 0% { opacity: 0; transform: scale(1.5) rotate(-4deg); } 60% { opacity: 1; transform: scale(0.96) rotate(0deg); } 100% { opacity: 1; transform: none; } }
+.win-card .pip { display: inline-block; animation: pip-light var(--card-in) ease-out both; animation-delay: calc(var(--win-card-in) + var(--i, 0) * var(--pip-step)); }
+@keyframes pip-light { from { opacity: 0.15; transform: scale(0.5); } }
+.badge-card .badge-big { position: relative; width: 96px; height: 96px; border-width: 4px; overflow: hidden; animation: badge-spin var(--badge-in) ease-out both; }
+@keyframes badge-spin { 0% { transform: scale(0) rotate(-180deg); } 70% { transform: scale(1.15) rotate(0deg); } 100% { transform: none; } }
+.badge-card .badge-big::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(-120%); animation: badge-shine var(--badge-shine) ease-in-out var(--badge-in) both; }
+[dir='rtl'] .badge-card .badge-big::after { background: linear-gradient(-105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(120%); animation-name: badge-shine-rtl; }
+@keyframes badge-shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
+@keyframes badge-shine-rtl { from { transform: translateX(120%); } to { transform: translateX(-120%); } }
+.unlock-card .stamp, .town-card .stamp { animation: cleared-stamp-in var(--map-stamp) cubic-bezier(0.2, 1.6, 0.4, 1) var(--card-in) both; }
+.kanto-map .node.stamp-now { animation: row-flash var(--cleared-row) ease-in-out; }
+@keyframes row-flash { 0%, 50%, 100% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0); } 25%, 75% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0.65); } }
+.kanto-map .node.current.next-pulse { animation: next-pulse calc(var(--next-pulse) / 2) ease-in-out 2; }
+@keyframes next-pulse { 50% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(240, 160, 32, 0.35); } }
+/* YELLOW (D4 to D7): stars burst on a right move, Next fades in, the progress chip pops, the sticker bounces in and
+   hops twice, and the lesson that just opened pulses twice once the Path is in. */
+.cheer { position: absolute; z-index: 6; width: 0; height: 0; pointer-events: none; }
+.cheer-star { position: absolute; left: 0; top: 0; color: #f0c020; font-size: calc(var(--sq) * 0.4); line-height: 1; text-shadow: 0 0 2px var(--ink); animation: cheer var(--cheer) ease-out both; }
+@keyframes cheer { from { opacity: 1; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(0.4); } to { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--sq) * -0.9)) scale(1); } }
+.path-bar button.fade-in { animation: fade-in var(--line-in) ease-out both; }
+.path-progress.pop { animation: pip-pop 360ms ease-out; }
+.overlay > .panel.sticker { animation: sticker-in var(--sticker-in) ease-out both; }
+@keyframes sticker-in { 0% { opacity: 0; transform: scale(0.5); } 60% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
+.panel.sticker img { animation: sticker-hop calc(var(--sticker-in) / 2) ease-out var(--sticker-in) 2; }
+@keyframes sticker-hop { 40% { transform: translateY(-14px); } }
+.path-step.path-new { animation: path-new calc(var(--path-new) / 2) ease-in-out var(--screen-in) 2; }
+@keyframes path-new { 50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(248, 208, 48, 0.6); } }
+/* R7: under reduced motion nothing moves; what appears fades in over REDUCED_FADE_MS, and holds keep their length. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay:not([hidden]) { animation-duration: var(--reduced-fade); }
+  .overlay { transition-duration: var(--reduced-fade); }
+  .overlay > .panel, .overlay > .panel.story, .overlay > .panel.win-card, .overlay > .panel.sticker, .intro > .panel, .slide-in, .story-trainer.slide-in, .trainer-spot,
+  .review.review-in, .story-text.line-in, .path-bar button.fade-in, .review-layer > *, .unlock-card .stamp, .town-card .stamp, .stamp-now .stamp, .badge-card .badge-big { animation: fade-in var(--reduced-fade) linear both; }
+  .solved-stamp { animation: fade-in var(--reduced-fade) linear both, fade-out var(--reduced-fade) linear calc(var(--stamp-ms) - var(--reduced-fade)) forwards; }
+  .win-card .pip, .panel.sticker img, .badge-card .badge-big::after, .piece.miss-shake, .cheer, .path-progress.pop, .path-step.path-new, .kanto-map .node.next-pulse, .kanto-map .node.stamp-now, .piece.hop { animation: none; }
+  .piece.blast-off, .piece.faint { animation: fade-out var(--reduced-fade) linear forwards; }
+}

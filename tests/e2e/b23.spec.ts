@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // §B23: BACK on OPTION from every way in; relay failures are visible, and feedback waits on the device until it sends.
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 const RELAY = 'http://localhost:8788';
 const camp = { v: 2, name: 'JADE', starter: 'charmander', introSeen: true, teamRules: 2, caught: { charmander: 1 } };
@@ -22,6 +23,7 @@ test.describe('OPTION: BACK, B and Escape return to where it was opened', () => 
     await page.getByTestId('back').click();
     expect(await screenId(page)).toBe('screen-start');
     await page.getByTestId('start-option').click();
+    await noTransition(page); // pacing R2: B waits for the screen change to finish
     await page.keyboard.press('b');
     expect(await screenId(page)).toBe('screen-start');
   });

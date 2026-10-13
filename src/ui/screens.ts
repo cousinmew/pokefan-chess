@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Splash, title, team select, level select, How to Play and the intro card (Part I §5).
-import { AI_LEVELS, INTRO_MS, SPLASH_AUTO_MS, type AiLevel } from '../config';
+import { AI_LEVELS, SPLASH_AUTO_MS, type AiLevel } from '../config';
+import { hold } from './pace';
 import { faceoff, opponentTag } from './ladder';
 import type { Side } from '../look';
 import { speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
@@ -26,17 +27,12 @@ function heading(): HTMLElement {
   return h;
 }
 
+/** The title: moves on by itself after SPLASH_AUTO_MS, or on a tap, Enter, Space or B once HOLD_MIN_MS has passed
+ * (a hold, pacing E1), so the tap that loaded the page never skips it. */
 export function splash(onDone: () => void): HTMLElement {
-  let done = false;
-  const go = () => {
-    if (done) return;
-    done = true;
-    window.clearTimeout(timer);
-    onDone();
-  };
   const s = screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
-  s.onclick = go;
-  const timer = window.setTimeout(go, SPLASH_AUTO_MS);
+  // Started once the splash is on screen (the hold belongs to the screen showing then).
+  queueMicrotask(() => void hold(SPLASH_AUTO_MS, 'splash').then((how) => how !== 'cancel' && s.isConnected && onDone()));
   return s;
 }
 
@@ -222,23 +218,13 @@ export function howTo(back: () => void, page: Page = 'journey', tryIt: (p: Page)
   return manualScreen(page, tryIt, back, footer());
 }
 
-/** "X wants to battle!" for INTRO_MS, tap to skip. */
-export function intro(key: StringKey, opponent: Color, onDone: () => void): HTMLElement {
-  let done = false;
+/** "X wants to battle!": the game holds it INTRO_MS (a hold, skippable after HOLD_MIN_MS, pacing C3). */
+export function intro(key: StringKey, opponent: Color): HTMLElement {
   const card = el('div', 'intro');
   card.dataset.testid = 'intro';
-  const finish = () => {
-    if (done) return;
-    done = true;
-    window.clearTimeout(timer);
-    card.remove();
-    onDone();
-  };
   const inner = el('div', 'panel');
   inner.append(sprite(opponent, 'k', opponent === 'w' ? 'e1' : 'e8'), el('p', '', key));
   card.append(inner);
-  card.onclick = finish;
-  const timer = window.setTimeout(finish, INTRO_MS);
   sound.sparkle();
   return card;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
-import { ANIME, BATTLE, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
+import { ANIME, BATTLE, HOLD_MIN_MS, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
 import { MOVES, species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
@@ -101,11 +101,13 @@ export class Overlay {
     this.quickCanvas.className = 'quick-fx';
     this.quickCanvas.hidden = true;
     document.body.append(this.quickCanvas);
+    // A tap or key ends the battle at once, but not in its first HOLD_MIN_MS of battle clock (pacing A17): the tap
+    // that made the capture never skips the battle it starts. data-skippable says when a tap counts.
     const skipper = (e: Event) => {
       if (this.kind === 'none') return;
       e.stopPropagation();
       e.preventDefault();
-      this.skip();
+      if (this.clock >= HOLD_MIN_MS) this.skip();
     };
     window.addEventListener('pointerdown', skipper, true);
     window.addEventListener('keydown', skipper, true);
@@ -418,6 +420,7 @@ export class Overlay {
   update(dt: number): void {
     if (!this.running) return;
     this.clock += dt;
+    if (this.clock >= HOLD_MIN_MS) this.el.dataset.skippable = '';
     // The impact frame lasts exactly one frame.
     if (this.impact && this.phases[this.i]?.id === 'flash' && this.t > 0) {
       this.impact = false;
@@ -455,6 +458,7 @@ export class Overlay {
     this.fx = null;
     this.fxT = -1;
     this.clock = 0;
+    delete this.el.dataset.skippable;
     this.flashes = new FlashGuard();
     this.backdropK = 0;
     this.sparkP = -1;

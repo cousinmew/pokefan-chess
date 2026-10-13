@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The puzzle's moments on the game screen (W3): the first puzzle's coach marks (design F) and the solve moment
 // (design J). Kept out of main.ts, which only wires them to the puzzle player.
-import { SOLVED_STAMP_MS } from '../config';
+import { MISS_SHAKE_MS, SOLVED_STAMP_MS, YELLOW_CHEER_MS } from '../config';
 import { sound } from '../audio/audio';
 import type { Board } from '../board/board';
 import type { Color } from '../board/pieces';
@@ -20,7 +20,14 @@ export interface MomentsHost {
   reducedMotion(): boolean;
 }
 
-export function puzzleMoments(h: MomentsHost): { coach(event: 'start' | 'setup' | 'stop'): void; solved(): void } {
+export interface Moments {
+  coach(event: 'start' | 'setup' | 'stop'): void;
+  solved(stamp?: boolean): void;
+  miss(square: string): void;
+  cheer(square: string): void;
+}
+
+export function puzzleMoments(h: MomentsHost): Moments {
   const coach = new Coach();
   h.view.append(coach.el);
   const boardRect = () => h.board.el.getBoundingClientRect();
@@ -43,16 +50,42 @@ export function puzzleMoments(h: MomentsHost): { coach(event: 'start' | 'setup' 
         { text: fmt('coach.goal'), target: () => h.turnEl.getBoundingClientRect() },
       ], 1);
     },
-    // A short "SOLVED!" stamp (none under reduced motion), the shimmer, and the opponent's "Oh no!".
-    solved() {
+    // The "SOLVED!" stamp over the board's centre (a plain fade under reduced motion, pacing R7), the shimmer, and the
+    // opponent's "Oh no!".
+    solved(stamp = true) {
       sound.shimmer();
       h.plates.say(h.human() === 'w' ? 'b' : 'w', fmt('say.ohno'));
-      if (h.reducedMotion()) return;
-      const stamp = el('div', 'solved-stamp');
-      stamp.dataset.testid = 'solved-stamp';
-      stamp.textContent = fmt('review.stamp.solved');
-      h.boardWrap.append(stamp);
-      window.setTimeout(() => stamp.remove(), SOLVED_STAMP_MS);
+      if (!stamp) return;
+      const s = el('div', 'solved-stamp');
+      s.dataset.testid = 'solved-stamp';
+      s.textContent = fmt('review.stamp.solved');
+      h.boardWrap.append(s);
+      window.setTimeout(() => s.remove(), SOLVED_STAMP_MS);
+    },
+    // A wrong move (pacing A14): the piece you moved shakes on its square (none under reduced motion).
+    miss(square) {
+      const piece = h.board.squareEl(square)?.querySelector<HTMLElement>('.piece, .classic');
+      if (!piece || h.reducedMotion()) return;
+      piece.classList.add('miss-shake');
+      window.setTimeout(() => piece.classList.remove('miss-shake'), MISS_SHAKE_MS);
+    },
+    // A right Pikachu's Path move (pacing D4): six stars burst from the target square (none under reduced motion).
+    cheer(square) {
+      const cell = h.board.squareEl(square);
+      if (!cell || h.reducedMotion()) return;
+      const wrap = h.boardWrap.getBoundingClientRect();
+      const r = cell.getBoundingClientRect();
+      const burst = el('div', 'cheer');
+      burst.dataset.testid = 'cheer';
+      Object.assign(burst.style, { left: `${r.left - wrap.left + r.width / 2}px`, top: `${r.top - wrap.top + r.height / 2}px` });
+      for (let i = 0; i < 6; i++) {
+        const star = el('span', 'cheer-star');
+        star.textContent = '★';
+        star.style.setProperty('--a', `${i * 60}deg`);
+        burst.append(star);
+      }
+      h.boardWrap.append(burst);
+      window.setTimeout(() => burst.remove(), YELLOW_CHEER_MS);
     },
   };
 }

@@ -2,6 +2,7 @@
 // Change C: the Gen 1 style start menu, several players on one device, NEW GAME, and Two Players with saves.
 // (?debug=1 skips the start menu for the other tests; &menu brings it back.)
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 const camp = (name: string, badges: string[], caught: Record<string, number>, playMs: number, team: Record<string, string> = {}) => ({ v: 2, name, starter: 'charmander', introSeen: true, teamRules: 2, badges, caught, playMs, team });
 /** Seeds storage once per test (reloads keep what the game saved). */
@@ -31,6 +32,7 @@ test('one save: CONTINUE shows its summary and resumes the game in progress', as
   await expect(page.getByTestId('start-summary-name')).toHaveText('JADE');
   await expect(page.getByTestId('start-summary-badges')).toHaveText('1');
   await expect(page.getByTestId('start-summary-time')).toHaveText('0:30');
+  await noTransition(page); // pacing R2: Enter waits for the screen change to finish
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-square="e4"]')).toHaveAttribute('data-piece', 'wp');
 });
