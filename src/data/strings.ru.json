@@ -601,6 +601,7 @@
   "review.wrong.mate": "Тогда {side} ставят тебе мат!",
   "review.wrong.check": "{side} отвечают шахом!",
   "review.wrong.move": "{side} отвечают, и это больно!",
+  "review.wrong.any": "Вот один из ответов.",
   "review.wrong.over": "Этот ход заканчивает партию не так, как надо.",
   "review.stamp.solved": "РЕШЕНО!",
   "review.prev": "◀",

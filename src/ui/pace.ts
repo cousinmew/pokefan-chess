@@ -11,6 +11,11 @@ import { CARD_GUARD_MS, HOLD_MIN_MS } from '../config';
 export type HoldKind = 'setup' | 'reply' | 'solved' | 'review' | 'miss' | 'think' | 'end' | 'intro' | 'splash';
 /** How a hold ended: on time, skipped, or cancelled (a new hold, a new game, or the game screen left for good). */
 export type HoldEnd = 'time' | 'skip' | 'cancel';
+export interface HoldOptions {
+  /** Waits for the player (fix, 14 Oct): the timer stops while the owner screen is not showing or START is open, and
+   * goes on with the time left, at least HOLD_MIN_MS, once it is back. The puzzle's "Watch!" and its replies. */
+  pauseAway?: boolean;
+}
 
 interface Active {
   kind: HoldKind;
@@ -45,13 +50,17 @@ export function skipKey(e: KeyboardEvent): boolean {
 /** Waits `ms`, or less on a skip after HOLD_MIN_MS. With `round`, a hold that ends in a later game says 'cancel'.
  * `screen` owns it (default: the one showing now); the puzzle passes the game screen, so a review step that starts
  * while OPTION shows never takes OPTION's B, Enter or Space (fix, 13 Oct). A new hold cancels the one before: there is
- * only ever one. */
-export function hold(ms: number, kind: HoldKind, round?: number, screen = screenNow()): Promise<HoldEnd> {
+ * only ever one. `opts.pauseAway`: see HoldOptions. */
+export function hold(ms: number, kind: HoldKind, round?: number, screen = screenNow(), opts: HoldOptions = {}): Promise<HoldEnd> {
   active?.end('cancel');
   return new Promise((resolve) => {
     const body = document.body;
     let timer = 0;
     let min = 0;
+    let left = ms;
+    let since = 0;
+    let paused = false;
+    let watch: MutationObserver | null = null;
     const h: Active = {
       kind,
       screen,
@@ -61,18 +70,62 @@ export function hold(ms: number, kind: HoldKind, round?: number, screen = screen
         active = null;
         window.clearTimeout(timer);
         window.clearTimeout(min);
+        watch?.disconnect();
         delete body.dataset.hold;
         delete body.dataset.skippable;
         resolve(how !== 'cancel' && round !== undefined && round !== roundNow() ? 'cancel' : how);
       },
     };
+    /** The timer for what is left, and the unskippable start (again after a pause: a tap on the way back skips nothing). */
+    const run = (t: number) => {
+      since = performance.now();
+      timer = window.setTimeout(() => h.end('time'), t);
+      min = window.setTimeout(() => {
+        h.skippable = true;
+        if (active === h) body.dataset.skippable = '';
+      }, Math.min(HOLD_MIN_MS, t));
+    };
     active = h;
     body.dataset.hold = kind;
-    timer = window.setTimeout(() => h.end('time'), ms);
-    min = window.setTimeout(() => {
-      h.skippable = true;
-      if (active === h) body.dataset.skippable = '';
-    }, Math.min(HOLD_MIN_MS, ms));
+    if (!opts.pauseAway) return run(ms);
+    const check = () => {
+      if (active !== h) return;
+      const away = screenNow() !== screen || startOpen();
+      if (away && !paused) {
+        paused = true;
+        window.clearTimeout(timer);
+        window.clearTimeout(min);
+        left -= performance.now() - since;
+        h.skippable = false;
+        delete body.dataset.skippable;
+      } else if (!away && paused) {
+        paused = false;
+        left = Math.max(left, HOLD_MIN_MS);
+        run(left);
+      }
+    };
+    // The screen is body[data-screen]; START is an overlay appended to body.
+    watch = new MutationObserver(check);
+    watch.observe(body, { attributes: true, attributeFilter: ['data-screen'], childList: true });
+    run(ms);
+    check();
+  });
+}
+
+/** Resolves true once `screen` shows (at once if it does), or false at a screen change after `stop()` says to give up
+ * (fix, 14 Oct: a new puzzle that loaded behind OPTION waits for the game screen instead of pulling the player back). */
+export function onScreen(screen: string, stop: () => boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    const check = (o?: MutationObserver): boolean => {
+      const shows = screenNow() === screen;
+      if (!shows && !stop()) return false;
+      o?.disconnect();
+      resolve(shows);
+      return true;
+    };
+    if (check()) return;
+    const o = new MutationObserver(() => void check(o));
+    o.observe(document.body, { attributes: true, attributeFilter: ['data-screen'] });
   });
 }
 
@@ -144,10 +197,14 @@ function onClick(e: MouseEvent): void {
   if (guardedTarget(e.target)) consume(e);
 }
 
+/** A cover over #app, or a dip on a board that is on screen: decided at key time (fix, 14 Oct), since a dip that
+ * started on the board and waits on a slow puzzle load goes on, off screen, after the player opens OPTION. */
+const transitionShown = () => !!(document.querySelector('.screen-cover') ?? document.querySelector('.board-dip'));
+
 function onKey(e: KeyboardEvent): void {
   const key = skipKey(e);
   // Covers and dips (R2): nothing acts twice, or on the screen that is leaving.
-  if (document.documentElement.dataset.transition !== undefined && (key || e.code === 'KeyS' || e.key === 's' || e.key === 'S')) return consume(e);
+  if ((key || e.code === 'KeyS' || e.key === 's' || e.key === 'S') && transitionShown()) return consume(e);
   const h = active;
   if (!key || !h || h.screen !== screenNow() || startOpen()) return;
   const focus = document.activeElement;

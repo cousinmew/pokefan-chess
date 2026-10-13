@@ -8,6 +8,9 @@ type Listener = (e: unknown) => void;
 const listeners = new Map<string, Listener[]>();
 let startOpen = false;
 let coachOpen = false;
+/** A cover over #app, or a dip on a board that is on screen (fix, 14 Oct: keys are dropped only while one is there). */
+let coverUp = false;
+let dipUp = false;
 
 /** Just enough DOM for pace.ts: elements answer closest() and matches() by a list of selectors they "are". */
 class FakeEl {
@@ -46,8 +49,21 @@ g.document = {
   body,
   documentElement: { dataset: {} as Record<string, string> },
   activeElement: body,
-  querySelector: (sel: string) => (sel === '.start-overlay' && startOpen ? {} : sel.startsWith('.coach') && coachOpen ? {} : null),
+  querySelector: (sel: string) =>
+    (sel === '.start-overlay' && startOpen) || (sel.startsWith('.coach') && coachOpen) || (sel === '.screen-cover' && coverUp) || (sel === '.board-dip' && dipUp) ? {} : null,
 };
+/** Body's observers (a hold that pauses away from its screen watches data-screen and START); mutate() runs them. */
+const observers = new Set<() => void>();
+g.MutationObserver = class {
+  constructor(private readonly cb: () => void) {}
+  observe(): void {
+    observers.add(this.cb);
+  }
+  disconnect(): void {
+    observers.delete(this.cb);
+  }
+};
+const mutate = () => [...observers].forEach((cb) => cb());
 
 const { cancelHold, guard, hold, holding, installPace } = await import('../../src/ui/pace');
 let round = 0;
@@ -71,6 +87,8 @@ beforeEach(() => {
   body.dataset = { screen: 'screen-game' };
   startOpen = false;
   coachOpen = false;
+  coverUp = false;
+  dipUp = false;
   (g.document as { activeElement: unknown }).activeElement = body;
 });
 afterEach(() => {
@@ -188,9 +206,89 @@ describe('hold()', () => {
   it('Enter, Space, B and S do nothing while a cover or dip is up (R2)', () => {
     const root = (g.document as { documentElement: { dataset: Record<string, string> } }).documentElement;
     root.dataset.transition = '';
-    for (const k of [{ key: 'Enter' }, { code: 'Space', key: ' ' }, { code: 'KeyB', key: 'b' }, { code: 'KeyS', key: 's' }]) expect(key(k).stopped).toBe(true);
-    expect(key({ key: 'ArrowUp', code: 'ArrowUp' }).stopped).toBe(false);
+    for (const up of ['cover', 'dip']) {
+      coverUp = up === 'cover';
+      dipUp = up === 'dip';
+      for (const k of [{ key: 'Enter' }, { code: 'Space', key: ' ' }, { code: 'KeyB', key: 'b' }, { code: 'KeyS', key: 's' }]) expect(key(k).stopped, up).toBe(true);
+      expect(key({ key: 'ArrowUp', code: 'ArrowUp' }).stopped).toBe(false);
+    }
     delete root.dataset.transition;
+  });
+
+  it('a dip left behind on a board that is not on screen (OPTION opened during a slow puzzle load) takes no keys (fix, 14 Oct)', () => {
+    // The dip started on the board, so the transition is still counted, but its board is off screen: OPTION types.
+    const root = (g.document as { documentElement: { dataset: Record<string, string> } }).documentElement;
+    root.dataset.transition = '';
+    body.dataset.screen = 'screen-settings';
+    for (const k of [{ code: 'KeyB', key: 'b' }, { code: 'KeyS', key: 's' }, { key: 'Enter' }, { code: 'Space', key: ' ' }]) expect(key(k).stopped).toBe(false);
+    delete root.dataset.transition;
+  });
+});
+
+describe('hold(..., { pauseAway }) (fix, 14 Oct)', () => {
+  const away = { pauseAway: true };
+
+  it("pauses while its screen is not showing and resumes with the time left: OPTION during the puzzle's Watch!", async () => {
+    let end = '';
+    void hold(1500, 'setup', undefined, 'screen-game', away).then((h) => (end = h));
+    vi.advanceTimersByTime(500);
+    body.dataset.screen = 'screen-settings';
+    mutate();
+    vi.advanceTimersByTime(3000);
+    await settle();
+    expect(end).toBe(''); // the base build ended it here, behind OPTION
+    expect(holding()).toBe('setup');
+    body.dataset.screen = 'screen-game';
+    mutate();
+    vi.advanceTimersByTime(999);
+    await settle();
+    expect(end).toBe('');
+    vi.advanceTimersByTime(1);
+    await settle();
+    expect(end).toBe('time');
+  });
+
+  it('pauses while START is open; with little time left it still waits HOLD_MIN_MS once back', async () => {
+    let end = '';
+    void hold(1500, 'reply', undefined, 'screen-game', away).then((h) => (end = h));
+    vi.advanceTimersByTime(1450);
+    startOpen = true;
+    mutate();
+    vi.advanceTimersByTime(3000);
+    await settle();
+    expect(end).toBe('');
+    startOpen = false;
+    mutate();
+    expect(body.dataset.skippable).toBeUndefined(); // a tap the moment START closes skips nothing
+    vi.advanceTimersByTime(HOLD_MIN_MS - 1);
+    await settle();
+    expect(end).toBe('');
+    vi.advanceTimersByTime(1);
+    await settle();
+    expect(end).toBe('time');
+  });
+
+  it('starts paused when it begins away (the coach marks closed by leaving), and a cancel stops watching', async () => {
+    let end = '';
+    body.dataset.screen = 'screen-settings';
+    void hold(1500, 'setup', undefined, 'screen-game', away).then((h) => (end = h));
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(end).toBe('');
+    cancelHold();
+    await settle();
+    expect(end).toBe('cancel');
+    expect(observers.size).toBe(0);
+  });
+
+  it('without the option a hold keeps running behind OPTION (reviews play on, 13 Oct)', async () => {
+    let end = '';
+    void hold(900, 'review', undefined, 'screen-game').then((h) => (end = h));
+    body.dataset.screen = 'screen-settings';
+    mutate();
+    vi.advanceTimersByTime(900);
+    await settle();
+    expect(end).toBe('time');
   });
 });
 

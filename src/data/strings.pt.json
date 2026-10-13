@@ -601,6 +601,7 @@
   "review.wrong.mate": "Assim {side} pode dar xeque-mate em você!",
   "review.wrong.check": "{side} responde com xeque!",
   "review.wrong.move": "{side} responde, e essa dói!",
+  "review.wrong.any": "Aqui está uma resposta.",
   "review.wrong.over": "Esse lance termina a partida do jeito errado.",
   "review.stamp.solved": "RESOLVIDO!",
   "review.prev": "◀",

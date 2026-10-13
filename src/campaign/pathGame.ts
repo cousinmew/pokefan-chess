@@ -12,7 +12,7 @@ import { AUTHORED, hintMove, meets, mateLessons, type Lesson, type PathPuzzle } 
 import { pool } from './trainer';
 import { MOVE_SLIDE_MS, PATH_NEXT_DELAY_MS } from '../config';
 import { sound } from '../audio/audio';
-import { guard } from '../ui/pace';
+import { guard, onScreen } from '../ui/pace';
 
 export interface PathHost {
   show(view: HTMLElement): void;
@@ -204,12 +204,22 @@ export class PathGame {
     if (this.idx < this.lesson.puzzles.length - 1) {
       this.idx++;
       this.phase = 'idle';
-      // The board dips and the next position comes in at the peak, with the progress chip popping (pacing D5).
-      return void this.host.dip(() => {
+      const lesson = this.lesson;
+      const idx = this.idx;
+      const same = () => this.lesson === lesson && this.idx === idx && this.phase === 'idle';
+      // The board dips and the next position comes in at the peak, with the progress chip popping (pacing D5). Only
+      // on the game screen (fix, 14 Oct): OPTION opened in the dip's first half keeps OPTION, and the position comes in
+      // with a dip of its own on the way back.
+      const swap = () => {
+        if (!same() || !this.bar.isConnected) return;
         this.puzzle();
         this.progress.classList.remove('pop');
         void this.progress.offsetWidth;
         this.progress.classList.add('pop');
+      };
+      return void this.host.dip(swap).then(async () => {
+        if (!same() || !(await onScreen('screen-game', () => !same())) || !same()) return;
+        await this.host.dip(swap);
       });
     }
     if (this.hooks) return this.leave('done');

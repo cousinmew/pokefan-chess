@@ -601,6 +601,7 @@
   "review.wrong.mate": "Così {side} ti dà scacco matto!",
   "review.wrong.check": "{side} risponde con uno scacco!",
   "review.wrong.move": "{side} risponde, e questa fa male!",
+  "review.wrong.any": "Ecco una risposta.",
   "review.wrong.over": "Questa mossa fa finire la partita nel modo sbagliato.",
   "review.stamp.solved": "RISOLTO!",
   "review.prev": "◀",

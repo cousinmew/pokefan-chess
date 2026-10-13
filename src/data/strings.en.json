@@ -600,6 +600,7 @@
   "review.wrong.mate": "That lets {side} checkmate you!",
   "review.wrong.check": "{side} answers with check!",
   "review.wrong.move": "{side} answers, and that one hurts!",
+  "review.wrong.any": "Here is one answer.",
   "review.wrong.over": "That move ends the game the wrong way.",
   "review.stamp.solved": "SOLVED!",
   "review.prev": "◀",

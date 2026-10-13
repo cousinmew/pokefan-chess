@@ -8,10 +8,32 @@ import { DEX, routeSpecies, type Campaign, type Route } from '../campaign/kanto'
 import { nextGoal, nextTrainer, PLACES, placeCleared, placeName, placeUnlocked, progress, routeOf, trainerName, unlockText, type Goal, type Place, type Trainer } from '../campaign/journey';
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { AREA_IN_MS, MAP_STAMP_DELAY_MS, STAMP_PAUSE_MS } from '../config';
+import { warmEngine } from '../ai/engine';
+import trainers from '../data/trainers.json';
 import { button, el, screen } from './dom';
-import { mon, trainerSprite } from './kanto';
+import { mon, trainerSprite, trainerSrc } from './kanto';
+import { preloadNow } from './loader';
+
+export const BADGE_SHOW_MS = 1200; // a gym just won: the strip with the new badge pulsing shows this long before the map scrolls to the gym's row
+export const MAP_SCROLL_MS = 450; // that scroll's time, before the row's CLEARED stamp slams
 
 const BADGES = ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth'];
+const PEOPLE = trainers.people as Record<string, string>;
+const CLASSES = trainers.classes as Record<string, string>;
+/** A trainer's sprite file, as journeyGame's spriteOf picks it ("-": none). */
+const spriteFile = (t: Trainer): string | null => (t.sprite === '-' ? null : ((t.sprite ? PEOPLE[t.sprite] : CLASSES[t.class]) ?? null));
+const warmed = new Set<string>();
+
+/** A place is about to be played (fix, 14 Oct): its trainers' sprites load while the map is read (Route 1's rows
+ * showed silhouettes for up to half a second on Slow 4G), and a place with battles starts the engine's first load
+ * (route trainers, gyms, the rival, the Elite Four, legendaries, drills, the Champion), so it is in for the first
+ * miss review or the first reply of a game. */
+function warmFor(p: Place, engine = false): void {
+  const urls = (p.trainers ?? []).map(spriteFile).filter((s): s is string => !!s && !warmed.has(s));
+  urls.forEach((s) => warmed.add(s));
+  if (urls.length) preloadNow(urls.map(trainerSrc));
+  if (engine && (p.trainers?.length || p.drills?.length || p.kind === 'champion')) warmEngine();
+}
 
 function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
   const p = el('p', cls);
@@ -90,19 +112,20 @@ function currentCard(c: Campaign, p: Place, i: number, goal: Goal, a: MapActions
   const name = el('button', 'node-name');
   name.dataset.testid = testidOf(p);
   name.append(text('span', '▶', 'pointer'), text('b', placeName(p)));
-  name.onclick = () => a.place(i);
+  name.onclick = () => (warmFor(p, true), a.place(i));
   const go = el('button', 'primary map-next');
   go.dataset.testid = 'map-next';
   go.textContent = `▶ ${goal.text}`;
-  go.onclick = () => a.next();
+  go.onclick = () => (warmFor(goal.place, true), a.next());
   card.append(name, ...details(c, p), go);
   return card;
 }
 
 /** `justCleared`: a place cleared a moment ago (W5, pacing §5). The map opens with its row in view, its stamp hidden, and
  * stays live; once the reveal is over the CLEARED stamp slams and the row flashes, and STAMP_PAUSE_MS later the map
- * scrolls to ▶ only when it is off screen, and ▶ pulses twice. Under reduced motion the stamp fades in (from hidden too)
- * and nothing flashes or pulses. */
+ * scrolls to ▶ only when it is off screen, and ▶ pulses twice. A gym (fix, 14 Oct) first shows the strip with its new
+ * badge pulsing for BADGE_SHOW_MS (it was a 12 px dot on the row, the strip above the fold), then scrolls to the row
+ * for the stamp. Under reduced motion the stamp fades in (from hidden too) and nothing flashes or pulses. */
 export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm = false): HTMLElement {
   const goal = nextGoal(c);
   const list = el('div', 'kanto-map');
@@ -131,7 +154,7 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
     if (done && p.kind === 'gym' && p.badge) row.append(el('span', `badge won ${p.badge}`));
     if (done) row.append(stamp());
     b.append(row, ...(done ? [] : details(c, p)));
-    b.onclick = () => a.place(i);
+    b.onclick = () => (warmFor(p, true), a.place(i));
     if (p.id === justCleared) {
       stamped = b;
       b.classList.add('stamp-wait'); // its stamp hidden until it slams (Fix, 13 Oct: it showed, blinked out, slammed)
@@ -152,12 +175,20 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
     ...(c.champion && a.hof ? [button('map.champion', a.hof, 'open-hof')] : []),
   );
   const legend = optional ? [line('map.optional', undefined, 'small map-legend')] : [];
-  const s = screen('map', el('h2', '', 'map.title'), strip(c), tools, ...legend, list, button('back', a.back, 'back', 'secondary'));
+  const top = strip(c);
+  const s = screen('map', el('h2', '', 'map.title'), top, tools, ...legend, list, button('back', a.back, 'back', 'secondary'));
+  if (goal) warmFor(goal.place); // the current place's trainers load while the map is read
+  const won = PLACES.find((p) => p.id === justCleared && p.kind === 'gym')?.badge;
+  const badge = won ? top.querySelector<HTMLElement>(`.badge.won.${won}`) : null;
+  badge?.classList.add('badge-new');
   requestAnimationFrame(() => {
     const at = stamped as HTMLElement | null;
     const here = current as HTMLElement | null;
     if (!at) return here?.scrollIntoView({ block: 'center' });
-    at.scrollIntoView({ block: 'center' });
+    if (badge) {
+      top.scrollIntoView({ block: 'start' });
+      window.setTimeout(() => at.isConnected && at.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' }), AREA_IN_MS + BADGE_SHOW_MS);
+    } else at.scrollIntoView({ block: 'center' });
     window.setTimeout(() => {
       if (!at.isConnected) return;
       at.classList.replace('stamp-wait', 'stamp-now');
@@ -169,7 +200,7 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
         if (r.top < box.top || r.bottom > box.bottom) here.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
         if (!calm) here.classList.add('next-pulse');
       }, STAMP_PAUSE_MS);
-    }, AREA_IN_MS + MAP_STAMP_DELAY_MS);
+    }, AREA_IN_MS + MAP_STAMP_DELAY_MS + (badge ? BADGE_SHOW_MS + MAP_SCROLL_MS : 0));
   });
   return s;
 }
@@ -199,7 +230,7 @@ export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement
   }
   const count = line('route.trainers', { beaten: String(all.filter((t) => c.journey.beaten.includes(t.id)).length), total: String(all.length) }, 'small');
   count.dataset.testid = 'route-trainers';
-  const fight = next ? button('trainer.next', () => a.battle(next), 'battle-trainer', 'primary') : line('trainer.cleared', undefined, 'cleared');
+  const fight = next ? button('trainer.next', () => (warmEngine(), a.battle(next)), 'battle-trainer', 'primary') : line('trainer.cleared', undefined, 'cleared');
   if (next) fight.textContent = fmt('trainer.next', { class: fmt(next.class), name: fmt(next.name) });
   const dex = el('div', 'dex-grid');
   for (const s of routeSpecies(r)) {
