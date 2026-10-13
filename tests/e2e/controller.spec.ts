@@ -347,13 +347,13 @@ test.describe('C5: YELLOW stickers and online trade evolutions are told with the
     await scholars(a, b);
     await a.locator('body[data-hold="end"]').waitFor({ state: 'attached', timeout: 10_000 });
     await a.getByTestId('start-button').click();
+    const left = await now(a); // START is open, SAVE & QUIT next: the toast comes with leaving, not at the mate
     await a.getByTestId('start-menu-quit').click();
-    const left = await now(a);
     await expect(a.getByTestId('screen-title')).toBeVisible();
     await a.waitForTimeout(2500); // the end hold's own time and more: a second toast would come in here
     const toasts = (await rec(a)).filter((e) => e.k === 'toast' && /evolved into/.test(e.v));
     expect(toasts.map((e) => e.v)).toEqual(['Your KADABRA evolved into ALAKAZAM after the online win!']);
-    expect(toasts[0]!.t).toBeGreaterThanOrEqual(left - 50);
+    expect(toasts[0]!.t).toBeGreaterThanOrEqual(left);
   });
 });
 
