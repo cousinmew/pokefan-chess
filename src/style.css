@@ -983,8 +983,12 @@ html[dir='rtl'] { --dir: -1; }
 .story-text.line-in { animation: fade-in var(--line-in) ease-out both; }
 [data-guard]:not([data-ready]) .tb-tick { visibility: hidden; }
 .slide-in { animation: slide-in var(--trainer-in) ease-out both; }
-[dir='rtl'] .slide-in { animation-name: slide-in-rtl; }
-[dir='rtl'] .story-trainer.slide-in { animation-name: story-slide-in-rtl; }
+/* RTL: trainers slide in from the left, only with motion on; outside this query these rules outranked the reduced
+   motion fade below, so trainers still slid in Hebrew (Fix, 13 Oct). The badge shine's RTL name is kept the same way. */
+@media (prefers-reduced-motion: no-preference) {
+  [dir='rtl'] .slide-in { animation-name: slide-in-rtl; }
+  [dir='rtl'] .story-trainer.slide-in { animation-name: story-slide-in-rtl; }
+}
 @keyframes slide-in-rtl { from { transform: translateX(-120%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes story-slide-in-rtl { from { transform: translateX(calc(-50% - 60vw)); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 /* R5, wide: when the side column (START, plates, the review, Who's who) outgrows the board, only the board's row may
@@ -1008,11 +1012,13 @@ html.fit-wide main { grid-template-rows: auto 1fr; }
 .badge-card .badge-big { position: relative; width: 96px; height: 96px; border-width: 4px; overflow: hidden; animation: badge-spin var(--badge-in) ease-out both; }
 @keyframes badge-spin { 0% { transform: scale(0) rotate(-180deg); } 70% { transform: scale(1.15) rotate(0deg); } 100% { transform: none; } }
 .badge-card .badge-big::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(-120%); animation: badge-shine var(--badge-shine) ease-in-out var(--badge-in) both; }
-[dir='rtl'] .badge-card .badge-big::after { background: linear-gradient(-105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(120%); animation-name: badge-shine-rtl; }
+[dir='rtl'] .badge-card .badge-big::after { background: linear-gradient(-105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(120%); }
+@media (prefers-reduced-motion: no-preference) { [dir='rtl'] .badge-card .badge-big::after { animation-name: badge-shine-rtl; } }
 @keyframes badge-shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
 @keyframes badge-shine-rtl { from { transform: translateX(120%); } to { transform: translateX(-120%); } }
 .unlock-card .stamp, .town-card .stamp { animation: cleared-stamp-in var(--map-stamp) cubic-bezier(0.2, 1.6, 0.4, 1) var(--card-in) both; }
 .kanto-map .node.stamp-now { animation: row-flash var(--cleared-row) ease-in-out; }
+.kanto-map .node.stamp-wait .stamp { visibility: hidden; } /* the row just cleared, until its stamp slams (Fix, 13 Oct) */
 @keyframes row-flash { 0%, 50%, 100% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0); } 25%, 75% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0.65); } }
 .kanto-map .node.current.next-pulse { animation: next-pulse calc(var(--next-pulse) / 2) ease-in-out 2; }
 @keyframes next-pulse { 50% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(240, 160, 32, 0.35); } }

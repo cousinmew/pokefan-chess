@@ -99,9 +99,10 @@ function currentCard(c: Campaign, p: Place, i: number, goal: Goal, a: MapActions
   return card;
 }
 
-/** `justCleared`: a place cleared a moment ago (W5, pacing §5). The map opens with its row in view and stays live; once
- * the reveal is over the CLEARED stamp slams and the row flashes, and STAMP_PAUSE_MS later the map scrolls to ▶ only
- * when it is off screen, and ▶ pulses twice. Under reduced motion the stamp fades in and nothing flashes or pulses. */
+/** `justCleared`: a place cleared a moment ago (W5, pacing §5). The map opens with its row in view, its stamp hidden, and
+ * stays live; once the reveal is over the CLEARED stamp slams and the row flashes, and STAMP_PAUSE_MS later the map
+ * scrolls to ▶ only when it is off screen, and ▶ pulses twice. Under reduced motion the stamp fades in (from hidden too)
+ * and nothing flashes or pulses. */
 export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm = false): HTMLElement {
   const goal = nextGoal(c);
   const list = el('div', 'kanto-map');
@@ -131,7 +132,10 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
     if (done) row.append(stamp());
     b.append(row, ...(done ? [] : details(c, p)));
     b.onclick = () => a.place(i);
-    if (p.id === justCleared) stamped = b;
+    if (p.id === justCleared) {
+      stamped = b;
+      b.classList.add('stamp-wait'); // its stamp hidden until it slams (Fix, 13 Oct: it showed, blinked out, slammed)
+    }
     list.append(b);
   });
   if (locked > 1) {
@@ -156,7 +160,7 @@ export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm
     at.scrollIntoView({ block: 'center' });
     window.setTimeout(() => {
       if (!at.isConnected) return;
-      at.classList.add('stamp-now');
+      at.classList.replace('stamp-wait', 'stamp-now');
       a.stamped?.();
       window.setTimeout(() => {
         if (!here?.isConnected) return;
