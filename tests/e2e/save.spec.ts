@@ -20,6 +20,7 @@ test('an old save moves into slot 1; a second player gets the picker, own cartri
   await expect(page.getByTestId('screen-title')).toBeVisible();
   const keys = await page.evaluate(() => Object.keys(localStorage).sort());
   expect(keys).toContain('kc:v1:p1:cartridge');
+  expect(keys).toContain('kc:v1:p1:campaign');
   expect(keys).toContain('kc:v1:profiles');
   await settings(page);
   await page.getByTestId('players').click();
@@ -30,9 +31,7 @@ test('an old save moves into slot 1; a second player gets the picker, own cartri
   await page.getByTestId('lang-fr').click();
   await page.getByTestId('cart-yellow').click();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
-  // A YELLOW save is kept once a lesson is done (an untouched one is dropped at the next launch).
-  await page.evaluate(() => localStorage.setItem('kc:v1:p2:campaign', JSON.stringify({ path: 1 })));
-  // A new visit asks who's playing.
+  // A new visit asks who's playing; the YELLOW save is kept with no lesson done yet (its cartridge is its progress).
   await page.evaluate(() => sessionStorage.clear());
   await page.reload();
   await page.getByTestId('screen-splash').click();
