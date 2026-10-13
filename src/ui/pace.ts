@@ -43,8 +43,10 @@ export function skipKey(e: KeyboardEvent): boolean {
 }
 
 /** Waits `ms`, or less on a skip after HOLD_MIN_MS. With `round`, a hold that ends in a later game says 'cancel'.
- * A new hold cancels the one before: there is only ever one. */
-export function hold(ms: number, kind: HoldKind, round?: number): Promise<HoldEnd> {
+ * `screen` owns it (default: the one showing now); the puzzle passes the game screen, so a review step that starts
+ * while OPTION shows never takes OPTION's B, Enter or Space (fix, 13 Oct). A new hold cancels the one before: there is
+ * only ever one. */
+export function hold(ms: number, kind: HoldKind, round?: number, screen = screenNow()): Promise<HoldEnd> {
   active?.end('cancel');
   return new Promise((resolve) => {
     const body = document.body;
@@ -52,7 +54,7 @@ export function hold(ms: number, kind: HoldKind, round?: number): Promise<HoldEn
     let min = 0;
     const h: Active = {
       kind,
-      screen: screenNow(),
+      screen,
       skippable: false,
       end(how) {
         if (active !== h) return;

@@ -23,6 +23,10 @@ export interface MomentsHost {
 export interface Moments {
   coach(event: 'start' | 'setup' | 'stop'): void;
   solved(stamp?: boolean): void;
+  /** The SOLVED! stamp goes now (its hold ended or was skipped, the review opened, a new position). */
+  unstamp(): void;
+  /** The game screen is left: the coach marks close and the stamp goes. */
+  leave(): void;
   miss(square: string): void;
   cheer(square: string): void;
 }
@@ -40,6 +44,15 @@ export function puzzleMoments(h: MomentsHost): Moments {
     const top = Math.min(...rs.map((r) => r.top));
     return new DOMRect(left, top, Math.max(...rs.map((r) => r.right)) - left, Math.max(...rs.map((r) => r.bottom)) - top);
   };
+  // Fix, 13 Oct: the stamp's own timer was its only way out, so a skipped solve left it over the review, the next
+  // puzzle's "Watch!" and the win beat. It now also goes with its hold, the review, a new position and the screen.
+  let stamp: HTMLElement | null = null;
+  let stampTimer = 0;
+  const unstamp = () => {
+    window.clearTimeout(stampTimer);
+    stamp?.remove();
+    stamp = null;
+  };
   return {
     // Your pieces at the bottom, the goal in the header, then (after the set up move) the opponent's move.
     coach(event) {
@@ -52,15 +65,21 @@ export function puzzleMoments(h: MomentsHost): Moments {
     },
     // The "SOLVED!" stamp over the board's centre (a plain fade under reduced motion, pacing R7), the shimmer, and the
     // opponent's "Oh no!".
-    solved(stamp = true) {
+    solved(withStamp = true) {
       sound.shimmer();
       h.plates.say(h.human() === 'w' ? 'b' : 'w', fmt('say.ohno'));
-      if (!stamp) return;
-      const s = el('div', 'solved-stamp');
-      s.dataset.testid = 'solved-stamp';
-      s.textContent = fmt('review.stamp.solved');
-      h.boardWrap.append(s);
-      window.setTimeout(() => s.remove(), SOLVED_STAMP_MS);
+      unstamp();
+      if (!withStamp || !h.boardWrap.isConnected) return; // none on a board behind OPTION
+      stamp = el('div', 'solved-stamp');
+      stamp.dataset.testid = 'solved-stamp';
+      stamp.textContent = fmt('review.stamp.solved');
+      h.boardWrap.append(stamp);
+      stampTimer = window.setTimeout(unstamp, SOLVED_STAMP_MS);
+    },
+    unstamp,
+    leave() {
+      coach.close();
+      unstamp();
     },
     // A wrong move (pacing A14): the piece you moved shakes on its square (none under reduced motion).
     miss(square) {

@@ -148,8 +148,8 @@ function boot(): App {
   installPace(() => away.round);
   watchModal(modal);
   const covers = new Covers(domCovers(root, () => fmt('puzzle.loading')), (on) => (on ? (document.documentElement.dataset.transition = '') : delete document.documentElement.dataset.transition));
-  /** A new position on the game screen (§2 dip): the board dips, `swap` runs at the peak, the board refits there only. */
-  const boardDip = (swap: () => void | Promise<void>) => covers.track(dip(boardWrap, swap, () => fmt('puzzle.loading')));
+  /** A new position on the game screen (§2 dip): the board dips, `swap` runs at the peak, the board refits there only. A dip behind OPTION (a review going on) is no transition: OPTION keeps its keys (fix, 13 Oct). */
+  const boardDip = (swap: () => void | Promise<void>): Promise<void> => { const d = dip(boardWrap, swap, () => fmt('puzzle.loading')); return boardWrap.isConnected ? covers.track(d) : d; };
   const onBoard = () => stage.firstElementChild === gameView;
   /** The opponent's moves slide slower than yours (pacing, the owner's "when moves happen"). */
   const slideOf = (c?: Color) => (c && c !== app.human && app.mode !== 'two-players' ? THEIR_SLIDE_MS : MOVE_SLIDE_MS);
@@ -233,7 +233,7 @@ function boot(): App {
     clearFrames: () => reviewLayer.replaceChildren(),
     engineReply: (fen) => app.engine.bestMove(fen, REFUTATION_LEVEL),
     them: () => plates.nameOf(app.human === 'w' ? 'b' : 'w') ?? fmt('team.rocket'), // W3: the opponent by name
-    firstSteps: (): { n: number; coach: boolean } => journey.firstSteps(), coach: (event) => moments.coach(event), solvedMoment: (stamp) => moments.solved(stamp),
+    firstSteps: (): { n: number; coach: boolean } => journey.firstSteps(), coach: (event) => moments.coach(event), solvedMoment: (stamp) => moments.solved(stamp), unstamp: () => moments.unstamp(),
     onBoard, cover: () => covers.cover('battle'), uncover: () => covers.reveal(), dip: boardDip, revealed: () => covers.revealed(), miss: (sq) => moments.miss(sq),
   });
   app.puzzle = puzzle;
@@ -333,7 +333,7 @@ function boot(): App {
       modal.onclick = null;
       modal.classList.remove('clear');
       modal.replaceChildren();
-      if (view !== gameView) moments.coach('stop'); // the first puzzle's coach marks stay on the game screen (review fix)
+      if (view !== gameView) moments.leave(); // the first puzzle's coach marks and the SOLVED! stamp stay on the game screen (review fix; fix, 13 Oct)
       const wear = view === gameView ? red : 'w'; // W3: menus read the default teams by colour, the game its own (back from OPTION too)
       if (lookOf('w') !== wear) applyLooks({ w: look(), b: look() }, wear);
     }
