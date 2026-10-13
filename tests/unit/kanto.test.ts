@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
-import { catchChance, chooseStarter, loadCampaign, mastered, recordRoute, rollSlotIndex, ROUTES, slotsOf, throwBall, unlocked } from '../../src/campaign/kanto';
+import { catchChance, catchGains, chooseStarter, loadCampaign, mastered, recordRoute, rollSlotIndex, ROUTES, slotsOf, throwBall, unlocked } from '../../src/campaign/kanto';
 import { createRng } from '../../src/game/rng';
 import { SPECIES, setSkins, speciesIdFor } from '../../src/board/pieces';
 
@@ -49,6 +49,15 @@ describe('catching and mastery', () => {
     expect(res.caught).toBe(true);
     expect(res.campaign.routes['route-1']!.streak).toBe(0);
     expect(res.campaign.caught.pidgey).toBe(1);
+  });
+
+  it('a throw says what it gave (J3): the candy, then the Pokédex count for a new species or how many for a duplicate', () => {
+    const c = chooseStarter(loadCampaign(), 'charmander');
+    const sure = { next: () => 0, seed: (n: number) => n, calls: () => 0 };
+    const first = throwBall(c, 'route-1', { species: 'pidgeotto', chance: 1 }, 'first', sure);
+    expect(catchGains(c, first.campaign, 'pidgeotto')).toEqual({ candy: 3, family: 'pidgey', count: 1, dex: 2 });
+    const again = throwBall(first.campaign, 'route-1', { species: 'pidgeotto', chance: 1 }, 'first', sure);
+    expect(catchGains(first.campaign, again.campaign, 'pidgeotto')).toEqual({ candy: 3, family: 'pidgey', count: 2, dex: null });
   });
 
   it('8 of the last 10 solved still measures mastery; routes now open by beating trainers (§B11)', () => {

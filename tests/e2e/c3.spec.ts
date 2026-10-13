@@ -108,6 +108,9 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   await page.getByTestId('story').click();
   await expect(page.getByTestId('hof-team').locator('img')).toHaveCount(2);
   await page.getByTestId('hof-ok').click();
+  // J4 (Fix, 13 Oct): the first Champion win gets a trainer place's ceremony, the unlock card and then the map's stamp.
+  await expect(page.getByTestId('unlock-card')).toContainText('cleared!');
+  await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('open-hof')).toBeVisible();
   const save = await kc<Save>(page, 'journey');
   expect(save.champion).toBe(true);
