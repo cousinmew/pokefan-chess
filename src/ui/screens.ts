@@ -14,11 +14,10 @@ import { levelNewVars, type ShownLevel } from '../campaign/trainer';
 import { itemIcon, pixelIcon, type PixelIcon } from './icons';
 import { decodedSrc, decodeImage, onDecoded, stillUrl } from '../battle/sprites';
 
-export const INTRO_SPRITE_WAIT_MS = 400; // the intro card stays clear at most this long for its Pokémon to decode, then pops
 /** A Poké Ball outline drawn under a menu sprite's retro stand-in: its box is never empty while both load. */
 const WAITING = 'radial-gradient(circle, transparent 0 9%, rgba(128, 128, 128, 0.45) 9% 13%, transparent 13% 31%, rgba(128, 128, 128, 0.45) 31% 35%, transparent 35%)';
 
-/** A menu Pokémon (team picker, intro card) that is never an empty box (loading fix, 13 Oct): kanto.ts mon(), whose
+/** A menu Pokémon (team picker, intro card) that is never an empty box (loading fix, 14 Oct): kanto.ts mon(), whose
  * retro sprite stands in while the animated one loads, over a drawn outline while the retro one loads too. */
 function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLImageElement {
   const { base, shiny } = parseVariant(speciesIdFor(color, role, square));
@@ -221,7 +220,7 @@ export function levelSelect(pick: (l: AiLevel) => void, back: () => void, faces?
   return view;
 }
 
-/** A level is chosen (loading fix, 13 Oct): the picker's loads still going stop (the bars close over them), so the
+/** A level is chosen (loading fix, 14 Oct): the picker's loads still going stop (the bars close over them), so the
  * board gets the connections, and the chosen trainer's board starts loading while the bars close: its stills, then
  * its animated fronts at low priority, behind the board's own pieces. */
 function leaving(view: HTMLElement | null, them: Side | undefined, me: Side | undefined): void {
@@ -250,20 +249,19 @@ export function intro(key: StringKey, opponent: Color): HTMLElement {
   const inner = el('div', 'panel');
   const square = opponent === 'w' ? 'e1' : 'e8';
   const img = sprite(opponent, 'k', square);
-  // Drawn the moment the card goes in (loading fix, 13 Oct): the animated king once it has decoded, else the still
-  // the board already shows (the animated one replaces it when it decodes). With neither, the card stays clear until
-  // its sprite decodes, at most INTRO_SPRITE_WAIT_MS, then pops.
+  // Drawn the moment the card goes in (loading fix, 14 Oct): the animated king once it has decoded, else its still (a
+  // board on screen decodes both kings' stills, whatever its piece style, and its cover waits for them); the animated
+  // one replaces the still when it decodes. Should neither be in (a cover that hit its cap), the card still shows at
+  // once with mon()'s retro sprite or the drawn outline until one decodes: a card held back would lose its guard.
   const sp = speciesFor(opponent, 'k', square);
   const front = spriteUrl(sp.dex, 'front', sp.shiny);
-  const now = decodedSrc(front) ?? decodedSrc(stillUrl(sp.dex, sp.shiny));
+  const still = stillUrl(sp.dex, sp.shiny);
+  const now = decodedSrc(front) ?? decodedSrc(still);
   if (now) img.src = now;
-  if (!decodedSrc(front)) onDecoded(front, (src) => (img.src = src));
-  if (!img.complete) {
-    card.classList.add('intro-wait');
-    let cap = 0;
-    const pop = () => (window.clearTimeout(cap), card.classList.remove('intro-wait'));
-    cap = window.setTimeout(pop, INTRO_SPRITE_WAIT_MS);
-    img.decode().then(pop, pop);
+  if (!decodedSrc(front)) {
+    onDecoded(front, (src) => (img.src = src));
+    if (!now) onDecoded(still, (src) => void (decodedSrc(front) || (img.src = src)));
+    void decodeImage(still);
   }
   inner.append(img, el('p', '', key));
   card.append(inner);

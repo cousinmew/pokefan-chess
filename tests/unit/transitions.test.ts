@@ -19,7 +19,7 @@ function fakeFx(close = 200, open = 420) {
       up: (k: Kind) => void log.push(`up ${k}`),
       close: (k: Kind) => (log.push(`close ${k}`), wait(close)),
       open: (k: Kind) => (log.push(`open ${k}`), wait(open)),
-      label: (on: boolean) => void log.push(`label ${on}`),
+      label: (on: boolean, drawing?: boolean) => void log.push(`label ${on}${drawing ? ' drawing' : ''}`),
       down: () => void log.push('down'),
     },
   };
@@ -136,7 +136,7 @@ describe('Covers', () => {
   });
 
   it('reveal waits for fx.ready, capped', async () => {
-    // Loading fix, 13 Oct: a cover opens on a drawn screen. The board's images decode 300 ms after show().
+    // Loading fix, 14 Oct: a cover opens on a drawn screen. The board's images decode 300 ms after show().
     const { fx, log } = fakeFx();
     let drawn: () => void = () => undefined;
     const c = new Covers({ ...fx, ready: (k: Kind) => (log.push(`ready ${k}`), new Promise<void>((r) => (drawn = r))) });
@@ -181,5 +181,33 @@ describe('Covers', () => {
     new Covers(plain.fx).reveal('area');
     await flush(0);
     expect(plain.log).toEqual(['up area', 'label false', 'open area']);
+  });
+
+  it('a cover held for its images says so after COVER_LABEL_MS, and drops the line before it opens', async () => {
+    // Review, 14 Oct: the bars could stay shut up to BATTLE_READY_MS with no word, which reads as a hang.
+    const { fx, log } = fakeFx();
+    let drawn: () => void = () => undefined;
+    const c = new Covers({ ...fx, ready: () => new Promise<void>((r) => (drawn = r)) });
+    void c.cover('battle');
+    await flush(200);
+    c.reveal();
+    await flush(COVER_LABEL_MS - 1);
+    expect(log).toEqual(['close battle', 'label false']);
+    await flush(1);
+    expect(log.at(-1)).toBe('label true drawing');
+    drawn();
+    await flush(0);
+    expect(log.slice(-2)).toEqual(['label false', 'open battle']);
+    // Drawn within COVER_LABEL_MS: not a word. At the cap: the line goes before the bars open.
+    const quick = fakeFx();
+    const q = new Covers({ ...quick.fx, ready: () => new Promise<void>((r) => setTimeout(r, COVER_LABEL_MS - 1)) });
+    q.reveal('battle');
+    await flush(COVER_LABEL_MS);
+    expect(quick.log).toEqual(['up battle', 'label false', 'open battle']);
+    const never = fakeFx();
+    const n = new Covers({ ...never.fx, ready: () => new Promise<void>(() => undefined) });
+    n.reveal('battle');
+    await flush(BATTLE_READY_MS);
+    expect(never.log).toEqual(['up battle', 'label false', 'label true drawing', 'label false', 'open battle']);
   });
 });

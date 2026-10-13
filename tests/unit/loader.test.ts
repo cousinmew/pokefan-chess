@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Loading fix, 13 Oct: the idle queue waits while a screen's visible images load (a cover or dip pauses it), still
+// Loading fix, 14 Oct: the idle queue waits while a screen's visible images load (a cover or dip pauses it), still
 // two at a time, and the board's priority lane goes first.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -82,5 +82,25 @@ describe('loader', () => {
     finish('still');
     await vi.advanceTimersByTimeAsync(1000);
     expect(log).toEqual(['still']); // idle work still waits for the screen's images
+  });
+
+  it('a cover also waits for what its screen shows right after the reveal, once (review, 14 Oct)', async () => {
+    // A Classic style board draws no sprite, but the intro card shows each king's still: the cover waits for those.
+    const { neededAtReveal, revealNeeds } = await import('../../src/ui/loader');
+    let still: () => void = () => undefined;
+    neededAtReveal(new Promise<void>((r) => (still = r)));
+    neededAtReveal(Promise.reject(new Error('404'))); // a file that fails counts as settled
+    let open = false;
+    void revealNeeds().then(() => (open = true));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(open).toBe(false);
+    still();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(open).toBe(true);
+    // Settled ones are dropped: the next cover does not wait on them.
+    let next = false;
+    void revealNeeds().then(() => (next = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(next).toBe(true);
   });
 });

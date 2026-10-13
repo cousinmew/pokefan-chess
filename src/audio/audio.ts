@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Cries from same origin files, and a tiny Web Audio synth for ticks and blips. Loading fix, 13 Oct: cries are
-// fetched once and decoded into the shared AudioContext (the board's species are preloaded when it is set), so a
-// ready cry starts with its event; one that is not ready within CRY_LATE_MS is skipped, never heard late.
+// Cries from same origin files, and a tiny Web Audio synth for ticks and blips. Loading fix, 14 Oct: cries are
+// fetched once and decoded into the shared AudioContext (the board's species when it is set, the Journey's next panels
+// ahead of them), so a ready cry starts with its event. A board event's cry not ready within CRY_LATE_MS is skipped,
+// never heard late; a panel's (the starter pick, a wild encounter, a gift choice) may come up to CRY_PANEL_LATE_MS late.
 import { ASSET_BASE, CRY_VOLUME, SFX_VOLUME } from '../config';
 import { whenFree } from '../ui/loader';
 
-export const CRY_LATE_MS = 150; // a cry not ready this long after its event (a select, a faint) is skipped; its file is kept for next time
+export const CRY_LATE_MS = 150; // a board event's cry (a select, a check, a faint) not ready this long after its event is skipped; its file is kept for next time
+export const CRY_PANEL_LATE_MS = 1000; // any other cry belongs to a panel that stays up (the starter pick, a wild encounter, a gift choice): it may start this late, never later
 
 let ctx: AudioContext | null = null;
 let unlocked = false;
@@ -48,38 +50,71 @@ const ext = (() => {
 })();
 const cryUrl = (dex: number) => `${ASSET_BASE}cries/${dex}.${ext}`;
 
-/** Decoded cries, kept for the page's lifetime; 'media' where the file cannot be decoded here (an <audio> plays it). */
-const cries = new Map<number, { buffer: AudioBuffer | 'media' | null; ready: Promise<void> }>();
+interface Cry {
+  /** The file (a few KB), fetched once; null when that failed (the entry is then dropped, so a later call tries again). */
+  data: Promise<ArrayBuffer | null>;
+  /** Decoded into the shared AudioContext; 'media' where the file cannot be decoded here (an <audio> plays it). */
+  buffer: AudioBuffer | 'media' | null;
+  decoded: Promise<void> | null;
+}
+/** Cries kept for the page's lifetime. */
+const cries = new Map<number, Cry>();
+/** Species that have stood on a board this page load (src/battle/sprites.ts warmBoard): their cries are its events'. */
+const onBoard = new Set<number>();
 
-/** Fetches and decodes a cry once (same origin, relative URL; decodeAudioData works while the context is suspended).
- * A network failure forgets it, so a later call tries again. */
-function loadCry(dex: number): Promise<void> {
+/** Fetches a cry's file once (same origin, relative URL). */
+function fetchCry(dex: number): Cry {
   const known = cries.get(dex);
-  if (known) return known.ready;
-  const c = context();
-  const e: { buffer: AudioBuffer | 'media' | null; ready: Promise<void> } = { buffer: c ? null : 'media', ready: Promise.resolve() };
+  if (known) return known;
+  const e: Cry = { data: Promise.resolve(null), buffer: null, decoded: null };
   cries.set(dex, e);
-  if (!c) return e.ready;
-  e.ready = fetch(cryUrl(dex))
+  e.data = fetch(cryUrl(dex))
     .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${cryUrl(dex)} ${r.status}`))))
-    .then(
-      (data) =>
-        c.decodeAudioData(data).then(
-          (buf) => void (e.buffer = buf),
-          () => void (e.buffer = 'media'),
-        ),
-      (err: unknown) => {
-        console.warn('cry not loaded:', err instanceof Error ? err.message : err);
-        cries.delete(dex);
-      },
-    );
-  return e.ready;
+    .catch((err: unknown) => {
+      console.warn('cry not loaded:', err instanceof Error ? err.message : err);
+      if (cries.get(dex) === e) cries.delete(dex);
+      return null;
+    });
+  return e;
 }
 
-/** Loads these species' cries ahead of their events, in the loader's priority lane (the board's species, the
- * warm-up's first catch). */
-export function preloadCries(dexes: number[]): void {
-  for (const dex of new Set(dexes)) if (!cries.has(dex)) whenFree(() => loadCry(dex));
+/** Fetches and decodes a cry once (decodeAudioData works while the context is suspended); where Web Audio is
+ * missing, an <audio> plays it. */
+function loadCry(dex: number): Promise<void> {
+  const c = context();
+  if (!c) {
+    const e = cries.get(dex) ?? { data: Promise.resolve(null), buffer: null, decoded: null };
+    e.buffer = 'media';
+    cries.set(dex, e);
+    return (e.decoded = Promise.resolve());
+  }
+  const e = fetchCry(dex);
+  e.decoded ??= e.data.then((data) =>
+    data
+      ? c.decodeAudioData(data).then(
+          (buf) => void (e.buffer = buf),
+          () => void (e.buffer = 'media'),
+        )
+      : undefined,
+  );
+  return e.decoded;
+}
+
+/** Loads these species' cries ahead of their events, in the loader's priority lane: decoded at once (the board's, the
+ * warm-up's first catch), or with `later` only fetched (a few KB each) and decoded when first heard (the starters,
+ * the next wild encounters, a gift choice: a panel waits a few milliseconds for that). */
+export function preloadCries(dexes: number[], later = false): void {
+  for (const dex of new Set(dexes)) {
+    const e = cries.get(dex);
+    if (later ? !e : !e?.decoded) whenFree(() => (later ? fetchCry(dex).data : loadCry(dex)));
+  }
+}
+
+/** The species on a board (src/battle/sprites.ts warmBoard), decoded ahead: their cries belong to its events (a
+ * select, a check, a faint, an evolution), so each plays with its event or, not ready within CRY_LATE_MS, not at all. */
+export function boardCries(dexes: number[]): void {
+  for (const dex of dexes) onBoard.add(dex);
+  preloadCries(dexes);
 }
 
 /** Audio may play: unlocked, or inside the tap that is about to unlock it (the board hears it before the window). */
@@ -99,14 +134,16 @@ export const sound = {
     // The music and the rest start after this frame, so the tap itself stays light.
     window.setTimeout(() => unlockListeners.splice(0).forEach((fn) => fn(c)), 0);
   },
-  /** A Pokémon's cry: at once when it is decoded, within CRY_LATE_MS of the call once it arrives, else not at all
-   * (still loading for next time). `rate` lowers the pitch (a faint). */
+  /** A Pokémon's cry: at once when it is decoded, else once it is, if that is soon enough (CRY_LATE_MS for a board
+   * event's, CRY_PANEL_LATE_MS for a panel's), else not at all (still loading for next time). `rate` lowers the pitch
+   * (a faint). */
   cry(dex: number, volume = CRY_VOLUME, rate = 1): void {
     if (!this.enabled || blocked || !mayPlay()) return;
     const asked = performance.now();
+    const late = onBoard.has(dex) ? CRY_LATE_MS : CRY_PANEL_LATE_MS;
     const play = () => {
       const buf = cries.get(dex)?.buffer;
-      if (!this.enabled || !buf || performance.now() - asked > CRY_LATE_MS) return;
+      if (!this.enabled || !buf || performance.now() - asked > late) return;
       if (buf === 'media') return this.media(dex, volume, rate);
       if (!unlocked) this.unlock();
       const c = ctx!;

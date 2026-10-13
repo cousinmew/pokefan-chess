@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Image load order (load fix): menu icons and the starters first, the current screen's Pokémon as they appear, and
 // the battle sprites last, in idle time, two at a time, only once the first screen's images are in. Loading fix,
-// 13 Oct: idle work waits while a screen's visible images load, and a priority lane (the boards' stills, cries,
+// 14 Oct: idle work waits while a screen's visible images load, and a priority lane (the boards' stills, cries,
 // backs and animated fronts, src/battle/sprites.ts) goes before it, waiting only while a cover or dip holds its
 // screen for its images (src/ui/transitions.ts).
 export const PRIORITY_PARALLEL = 4; // priority lane loads at a time: small files (cries, stills) are round trip bound
@@ -53,6 +53,18 @@ export function pauseWhile(until: Promise<unknown>, laneMs = 0): void {
   hold(until, PAUSE_MAX_MS, false);
   if (laneMs > 0) hold(until, Math.min(laneMs, PAUSE_MAX_MS), true);
 }
+
+const needed = new Set<Promise<unknown>>();
+/** The next cover opens only once `p` has settled too (within the cover's cap): an image the screen shows right after
+ * its reveal that is not in its DOM yet (the intro card's king over a Classic style board, src/board/board.ts). */
+export function neededAtReveal(p: Promise<unknown>): void {
+  needed.add(p);
+  const drop = () => void needed.delete(p);
+  void p.then(drop, drop);
+}
+
+/** Settles once everything neededAtReveal() was given has (at once when nothing is pending). */
+export const revealNeeds = (): Promise<void> => Promise.all([...needed].map((p) => p.catch(() => undefined))).then(() => undefined);
 
 function hold(until: Promise<unknown>, ms: number, both: boolean): void {
   if (both) lanePaused++;

@@ -32,7 +32,7 @@ test('battle sprites are drawn on Slow 3G with the cache disabled', async ({ pag
   expect(imgs.map((i) => i.src?.replace(/\.(gif|webp)$/, ''))).toEqual(['back/133', 'front/19']);
 });
 
-// Loading fix, 13 Oct (real WebPs, CI check 9): board pieces swap their stills for the animated WebP once it has
+// Loading fix, 14 Oct (real WebPs, CI check 9): board pieces swap their stills for the animated WebP once it has
 // decoded, the board's backs come as WebP too, and so does the Pokédex detail. RATTATA (19) and EEVEE's back (133)
 // have a smaller WebP; the board here is Two Players at BLUE's first story stage (Rocket's pawns are RATTATA).
 test('board pieces and the Pokédex detail use the animated WebP where one exists', async ({ page }) => {

@@ -1,234 +1,85 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Loading (fix, 13 Oct; owner: "all the sprites and animations to load in a timely fashion"): board, battle and menu
+// Loading (fix, 14 Oct; owner: "all the sprites and animations to load in a timely fashion"): board, battle and menu
 // sprites and cries arrive before they are needed. Slow 4G and Fast 4G are the CDP profiles of the brief, in a fresh
 // context (empty HTTP cache) with the service worker blocked. Real timings: no sleeps to wait out a guard.
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { BATTLE_CLOSE_MS } from '../../src/config';
+import { arm, battleOver, blankFrames, blueSave, boot, cartBlue, FAST_4G, FEN_D5, firstFrame, fresh, kc, ld, median, now, QUIET1, SLOW_4G, type Frame, type Ld } from './loadwatch';
 
-const SLOW_4G = { offline: false, latency: 562.5, downloadThroughput: 180_000, uploadThroughput: 84_375 };
-const FAST_4G = { offline: false, latency: 165, downloadThroughput: 1_012_500, uploadThroughput: 84_375 };
-const ALL_THEMES = ['advancedPawn', 'advantage', 'backRankMate', 'capturingDefender', 'castling', 'deflection', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'fork', 'hangingPiece', 'mateIn1', 'mateIn2', 'pin', 'promotion', 'skewer', 'trappedPiece', 'xRayAttack'];
-/** A BLUE save past the warm-up: PIDGEY pawns (the warm-up's first catch puts them there). */
-const SAVE = { v: 2, name: 'JADE', starter: 'bulbasaur', introSeen: true, teamRules: 2, caught: { bulbasaur: 1, pidgey: 1 }, team: { p: 'pidgey' }, warmup: true, lessonsSeen: ALL_THEMES, tips: ['puzzle'], puzzlesStarted: 5, journey: { cleared: [], beaten: [], visited: ['route-1'] } };
-/** A mate in 1 for Route 1's trainer (the set up a6-a8, then e2-e1). */
-const QUIET1 = ['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480];
+const BATTLE_READY_MS = 2500; // src/ui/transitions.ts: the longest a battle cover waits for its board's images
 
-type KC = Record<string, (...a: unknown[]) => unknown>;
-const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
-
-/** Frame by frame what the player sees (in the page, from its first script): the cover, holds, blank board pieces,
- * the intro card when it is inserted, the battle's first frame, cries as they start, and taps. */
-function recorder(): void {
-  type Img = { w: number; complete: boolean; src: string; mirror?: boolean };
-  const w = window as unknown as { __ld: Record<string, unknown> };
-  const L = {
-    armed: false,
-    frames: [] as Record<string, unknown>[],
-    intros: [] as { t: number; complete: boolean; w: number; opacity: string }[],
-    battles: [] as { t: number; att: Img; def: Img; near: Img; far: Img }[],
-    cries: [] as { t: number; url: string; how: string; called?: number }[],
-    taps: [] as { t: number; sq: string; up?: boolean }[],
-    encounters: [] as { t: number; complete: boolean; w: number }[],
-  };
-  w.__ld = L;
-  const short = (u: string) => u.replace(/^.*?\/assets\//, '');
-  const imgOf = (i: HTMLImageElement | null | undefined): Img => ({ w: i?.naturalWidth ?? 0, complete: !!i?.complete, src: short(i?.currentSrc || i?.src || ''), mirror: !!i?.closest('.mirror') });
-  const shown = (e: HTMLElement | null) => !!e && !e.hidden && e.style.opacity !== '0' && getComputedStyle(e).display !== 'none';
-  let battleOn = false;
-  const tick = () => {
-    try {
-      sample();
-    } catch (err) {
-      console.warn('loading.spec recorder:', err);
-    }
-    requestAnimationFrame(tick);
-  };
-  const sample = () => {
-    if (L.armed) {
-      const cov = document.querySelector<HTMLElement>('.screen-cover');
-      const board = document.querySelector('.board');
-      const blanks: string[] = [];
-      let total = 0;
-      if (board?.isConnected) {
-        for (const sq of board.querySelectorAll<HTMLElement>('.sq[data-piece]')) {
-          total++;
-          const img = sq.querySelector<HTMLImageElement>('img.piece');
-          if (!img || !img.complete || !img.naturalWidth) blanks.push(`${sq.dataset.square!}${img ? `:${short(img.src)}` : ''}`);
-        }
-      }
-      const intro = document.querySelector<HTMLElement>('[data-testid="intro"]');
-      const introImg = intro?.querySelector('img');
-      L.frames.push({
-        t: performance.now(),
-        cover: cov ? `${cov.dataset.kind}:${cov.dataset.phase ?? 'up'}` : '',
-        trans: document.documentElement.dataset.transition !== undefined || !!document.querySelector('.board-dip'),
-        hold: document.body.dataset.hold ?? '',
-        board: !!board?.isConnected,
-        total,
-        blanks,
-        intro: intro ? { op: getComputedStyle(intro.querySelector('.panel') ?? intro).opacity, ok: !!introImg && introImg.complete && introImg.naturalWidth > 0 } : null,
-        selected: !!document.querySelector('.sq.selected'),
-        scr: document.querySelector('#app .stage > [data-testid]')?.getAttribute('data-testid') ?? '',
-        // Trainer sprites on the screen not drawn yet, and silhouettes standing in.
-        tr: [...document.querySelectorAll<HTMLImageElement>('#app .stage img[data-trainer]')].filter((i) => !i.complete || !i.naturalWidth).length,
-        sil: document.querySelectorAll('#app .stage .trainer-sprite.loading, #app .stage .trainer-sprite.sil').length,
-      });
-      const bat = document.querySelector<HTMLElement>('[data-testid="battle"]');
-      const on = shown(bat);
-      if (on && !battleOn) L.battles.push({ t: performance.now(), att: imgOf(bat!.querySelector('.mon.att img')), def: imgOf(bat!.querySelector('.mon.def img')), near: imgOf(bat!.querySelector('.t-near img')), far: imgOf(bat!.querySelector('.t-far img')) });
-      battleOn = on;
-      (L as unknown as { battleOn: boolean }).battleOn = on;
-    }
-  };
-  requestAnimationFrame(tick);
-  // The intro card and the encounter panel, the moment they are inserted.
-  new MutationObserver((recs) => {
-    for (const r of recs) {
-      for (const n of r.addedNodes) {
-        if (!(n instanceof HTMLElement)) continue;
-        const intro = n.matches('[data-testid="intro"]') ? n : n.querySelector<HTMLElement>('[data-testid="intro"]');
-        if (intro) {
-          const img = intro.querySelector('img');
-          L.intros.push({ t: performance.now(), complete: !!img?.complete, w: img?.naturalWidth ?? 0, opacity: getComputedStyle(intro.querySelector('.panel') ?? intro).opacity });
-        }
-        const enc = n.matches('[data-testid="encounter"]') ? n : n.querySelector<HTMLElement>('[data-testid="encounter"]');
-        if (enc) {
-          const img = enc.querySelector('img');
-          L.encounters.push({ t: performance.now(), complete: !!img?.complete, w: img?.naturalWidth ?? 0 });
-        }
-      }
-    }
-  }).observe(document, { childList: true, subtree: true });
-  // Cries as they start: a Web Audio buffer (traced back to its file) or a media element's 'playing'.
-  const urlOf = new WeakMap<object, string>();
-  const ab = Response.prototype.arrayBuffer;
-  Response.prototype.arrayBuffer = function (this: Response) {
-    const url = this.url;
-    return ab.call(this).then((b) => (urlOf.set(b, url), b));
-  };
-  const decode = BaseAudioContext.prototype.decodeAudioData;
-  BaseAudioContext.prototype.decodeAudioData = function (this: BaseAudioContext, data: ArrayBuffer, ...rest: unknown[]) {
-    const url = urlOf.get(data) ?? '';
-    return (decode as (...a: unknown[]) => Promise<AudioBuffer>).call(this, data, ...rest).then((buf) => (url && urlOf.set(buf, url), buf));
-  } as typeof decode;
-  const start = AudioBufferSourceNode.prototype.start;
-  AudioBufferSourceNode.prototype.start = function (this: AudioBufferSourceNode, ...a: unknown[]) {
-    L.cries.push({ t: performance.now(), url: short((this.buffer && urlOf.get(this.buffer)) ?? ''), how: `buffer:${this.context.state}` });
-    return (start as (...x: unknown[]) => void).apply(this, a);
-  } as typeof start;
-  const play = HTMLMediaElement.prototype.play;
-  HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
-    const called = performance.now();
-    this.addEventListener('playing', () => L.cries.push({ t: performance.now(), called, url: short(this.currentSrc || this.src), how: 'media' }), { once: true });
-    return play.call(this);
-  };
-  window.addEventListener('pointerdown', (e) => {
-    const sq = (e.target as Element | null)?.closest?.('[data-square]') as HTMLElement | null;
-    L.taps.push({ t: performance.now(), sq: sq?.dataset.square ?? '' });
-  }, true);
-  window.addEventListener('pointerup', (e) => {
-    const sq = (e.target as Element | null)?.closest?.('[data-square]') as HTMLElement | null;
-    L.taps.push({ t: performance.now(), sq: sq?.dataset.square ?? '', up: true });
-  }, true);
-}
-
-type Frame = { t: number; cover: string; trans: boolean; hold: string; board: boolean; total: number; blanks: string[]; intro: { op: string; ok: boolean } | null; selected: boolean; scr: string; tr: number; sil: number };
-type Ld = { frames: Frame[]; intros: { t: number; complete: boolean; w: number; opacity: string }[]; battles: { t: number; att: { w: number; complete: boolean; src: string; mirror: boolean }; def: { w: number; complete: boolean; src: string; mirror: boolean }; near: { w: number; src: string }; far: { w: number; src: string } }[]; cries: { t: number; url: string; how: string; called?: number }[]; taps: { t: number; sq: string; up?: boolean }[]; encounters: { t: number; complete: boolean; w: number }[]; battleOn: boolean };
-const ld = (page: Page) => page.evaluate(() => (window as unknown as { __ld: Ld }).__ld);
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
-const FEN_D5 = 'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2';
-
-/** The recorder saw battle number `n` (from 0) come and go. */
-async function battleOver(page: Page, n: number): Promise<void> {
-  await page.waitForFunction((i) => (window as unknown as { __ld: Ld }).__ld.battles.length > i, n, { timeout: 30_000 });
-  await page.waitForFunction(() => !(window as unknown as { __ld: Ld }).__ld.battleOn, null, { timeout: 30_000 });
-}
-const arm = (page: Page) => page.evaluate(() => ((window as unknown as { __ld: { armed: boolean; frames: unknown[] } }).__ld.armed = true));
-const now = (page: Page) => page.evaluate(() => performance.now());
-
-/** A fresh context (empty HTTP cache) on a network profile, the recorder in, `store` seeded once. */
-async function fresh(browser: Browser, store: Record<string, unknown>, net: typeof SLOW_4G | null, cpu = 4): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
-  await context.addInitScript(recorder);
-  await context.addInitScript((kv) => {
-    if (sessionStorage.getItem('seeded')) return;
-    sessionStorage.setItem('seeded', '1');
-    for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, JSON.stringify(v));
-  }, store);
-  const page = await context.newPage();
-  if (net) {
-    const cdp = await context.newCDPSession(page);
-    await cdp.send('Network.enable');
-    await cdp.send('Network.emulateNetworkConditions', net);
-    if (cpu > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
+/** No blank piece from the cover's open on. A cover that opened at its cap (BATTLE_READY_MS after the bars shut) did
+ * so on images still in flight, as a busy runner on HTTP/1.1 can make it: blanks then are noted, not failed, except
+ * under `strict` (@perf). The wait is logged either way (review, 14 Oct). */
+function drawnWhenOpen(frames: Frame[], t0: number, open: Frame, what: string, strict: boolean): void {
+  const later = blankFrames(frames, open.t).map((f) => `${Math.round(f.t - t0)}:${f.blanks.join(',')}`);
+  const capped = open.t - t0 >= BATTLE_CLOSE_MS + BATTLE_READY_MS - 50;
+  console.log(`${what}: cover open ${Math.round(open.t - t0)} ms after the tap${capped ? ' (at its cap)' : ''}, blank at open ${open.blanks.length}/${open.total}`);
+  if (capped && !strict && (open.blanks.length || later.length)) {
+    test.info().annotations.push({ type: 'capped', description: `${what}: the cover opened at its ${BATTLE_READY_MS} ms cap with ${open.blanks.length} of ${open.total} pieces still loading` });
+    return;
   }
-  return { context, page };
+  expect(open.blanks, 'blank pieces when the cover opens').toEqual([]);
+  expect(later).toEqual([]);
 }
 
-/** Boots on ?debug=1 and leaves the splash once the first screen's own loads are done (a player reads it). */
-async function boot(page: Page, query = '?debug=1', tap = true): Promise<void> {
-  await page.goto(`./${query}`, { timeout: 120_000 });
-  await page.getByTestId('screen-splash').waitFor({ timeout: 120_000 });
-  await page.waitForFunction(() => performance.getEntriesByType('resource').filter((r) => /assets\/(front|retro|trainers)\//.test(r.name)).length >= 4, null, { timeout: 60_000 }).catch(() => undefined);
-  if (tap) await page.getByTestId('screen-splash').click({ timeout: 60_000 });
+/** vs Computer L2 from the team picker, cold: the cover opens on a drawn board and the intro card on a drawn king. */
+async function vsComputerL2(browser: Browser, run: number, strict: boolean): Promise<void> {
+  const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
+  await boot(page);
+  await page.getByTestId('vs-computer').click({ timeout: 60_000 });
+  await page.getByTestId('team-red').click({ timeout: 60_000 });
+  await page.getByTestId('level-2').waitFor({ timeout: 60_000 });
+  // A player reads the ladder for a moment (the audit's 1.5 s); a tap before its images are in cancels them.
+  await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[data-testid="screen-level"] img')].every((i) => i.complete), null, { timeout: 1500 }).catch(() => undefined);
+  await arm(page);
+  const t0 = await now(page);
+  await page.getByTestId('level-2').click({ timeout: 60_000 });
+  await page.getByTestId('intro').waitFor({ timeout: 60_000 });
+  await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
+  await page.waitForTimeout(1000); // the board is the player's: sample a second of play
+  const l = await ld(page);
+  const open = firstFrame(l.frames, t0, (f) => f.cover === 'battle:open');
+  expect(open, 'the battle cover opened').toBeTruthy();
+  drawnWhenOpen(l.frames, t0, open!, `vs Computer L2 run ${run}`, strict);
+  // The level picker no longer holds the connections with animated previews (review, 14 Oct: about 2.2 s before).
+  if (strict) expect(open!.t - t0, 'tap to the bars opening').toBeLessThanOrEqual(1500);
+  // The intro card's Pokémon is already drawn when the card goes in.
+  expect(l.intros[0], 'intro card').toMatchObject({ complete: true });
+  expect(l.intros[0]!.w).toBeGreaterThan(0);
+  await context.close();
 }
 
-/** The first frame at or after `t0` where `pred` holds. */
-const firstFrame = (frames: Frame[], t0: number, pred: (f: Frame) => boolean) => frames.find((f) => f.t >= t0 && pred(f));
-/** Every frame from `from` on that shows a blank piece. */
-const blankFrames = (frames: Frame[], from: number) => frames.filter((f) => f.t >= from && f.board && f.blanks.length > 0);
+/** Two Players straight from the hub (a quick tap), cold. */
+async function twoPlayers(browser: Browser, run: number, strict: boolean): Promise<void> {
+  const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
+  await boot(page);
+  await page.getByTestId('two-players').waitFor({ timeout: 60_000 });
+  await arm(page);
+  const t0 = await now(page);
+  await page.getByTestId('two-players').click({ timeout: 60_000 });
+  await page.getByTestId('intro').waitFor({ timeout: 60_000 });
+  await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
+  await page.waitForTimeout(1000);
+  const l = await ld(page);
+  const open = firstFrame(l.frames, t0, (f) => f.cover === 'battle:open');
+  expect(open, 'the battle cover opened').toBeTruthy();
+  drawnWhenOpen(l.frames, t0, open!, `Two Players run ${run}`, strict);
+  expect(l.intros[0], 'intro card').toMatchObject({ complete: true });
+  await context.close();
+}
 
-const cartBlue = { 'kc:v1:cartridge': 'blue' };
-const blueSave = { ...cartBlue, 'kc:v1:campaign': SAVE };
+test.describe('@perf no blank piece when the cover opens, never at its cap (Slow 4G cold)', () => {
+  for (const run of [1, 2, 3]) {
+    test(`vs Computer L2, run ${run}`, async ({ browser }) => (test.setTimeout(180_000), vsComputerL2(browser, run, true)));
+    test(`Two Players, run ${run}`, async ({ browser }) => (test.setTimeout(180_000), twoPlayers(browser, run, true)));
+  }
+});
 
 test.describe('no blank piece when the cover opens (vs Computer L2, Two Players, tall grass, YELLOW lesson 1), Slow 4G cold', () => {
   for (const run of [1, 2, 3]) {
-    test(`vs Computer L2 (team picker, level), run ${run}`, async ({ browser }) => {
-      test.setTimeout(180_000);
-      const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
-      await boot(page);
-      await page.getByTestId('vs-computer').click({ timeout: 60_000 });
-      await page.getByTestId('team-red').click({ timeout: 60_000 });
-      await page.getByTestId('level-2').waitFor({ timeout: 60_000 });
-      // A player reads the ladder for a moment (the audit's 1.5 s); a tap before its images are in cancels them.
-      await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[data-testid="screen-level"] img')].every((i) => i.complete), null, { timeout: 1500 }).catch(() => undefined);
-      await arm(page);
-      const t0 = await now(page);
-      await page.getByTestId('level-2').click({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
-      await page.waitForTimeout(1000); // the board is the player's: sample a second of play
-      const l = await ld(page);
-      const open = firstFrame(l.frames, t0, (f) => f.cover === 'battle:open');
-      expect(open, 'the battle cover opened').toBeTruthy();
-      console.log(`vs Computer L2 run ${run}: cover open ${Math.round(open!.t - t0)} ms after the tap, blank at open ${open!.blanks.length}/${open!.total}`);
-      expect(open!.blanks, 'blank pieces when the cover opens').toEqual([]);
-      expect(blankFrames(l.frames, open!.t).map((f) => `${Math.round(f.t - t0)}:${f.blanks.join(',')}`)).toEqual([]);
-      // The intro card's Pokémon is already drawn when the card goes in.
-      expect(l.intros[0], 'intro card').toMatchObject({ complete: true });
-      expect(l.intros[0]!.w).toBeGreaterThan(0);
-      await context.close();
-    });
-
-    test(`Two Players from the hub, run ${run}`, async ({ browser }) => {
-      test.setTimeout(180_000);
-      const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
-      await boot(page);
-      await page.getByTestId('two-players').waitFor({ timeout: 60_000 });
-      await arm(page);
-      const t0 = await now(page);
-      await page.getByTestId('two-players').click({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
-      await page.waitForTimeout(1000);
-      const l = await ld(page);
-      const open = firstFrame(l.frames, t0, (f) => f.cover === 'battle:open');
-      expect(open, 'the battle cover opened').toBeTruthy();
-      console.log(`Two Players run ${run}: cover open ${Math.round(open!.t - t0)} ms after the tap, blank at open ${open!.blanks.length}/${open!.total}`);
-      expect(open!.blanks, 'blank pieces when the cover opens').toEqual([]);
-      expect(blankFrames(l.frames, open!.t).map((f) => `${Math.round(f.t - t0)}:${f.blanks.join(',')}`)).toEqual([]);
-      expect(l.intros[0], 'intro card').toMatchObject({ complete: true });
-      await context.close();
-    });
+    test(`vs Computer L2 (team picker, level), run ${run}`, async ({ browser }) => (test.setTimeout(180_000), vsComputerL2(browser, run, false)));
+    test(`Two Players from the hub, run ${run}`, async ({ browser }) => (test.setTimeout(180_000), twoPlayers(browser, run, false)));
   }
 
   test('tall grass and a route trainer: every piece drawn when the Watch! hold starts', async ({ browser }) => {
@@ -495,6 +346,19 @@ async function yellowHome(browser: Browser): Promise<{ between: string[]; snorla
 }
 
 test.describe('idle preload by cartridge and save, Slow 4G cold', () => {
+  // Review, 14 Oct: the shelf and a guest (PLAY CHESS) preloaded nothing, so a guest's first board waited on all of
+  // its stills under the bars. The default teams' stills (about 11 KB) now load while the shelf is read.
+  test("no cartridge yet: the default teams' stills load while the shelf is read", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const { context, page } = await fresh(browser, {}, SLOW_4G, 4, 'no-preference', true);
+    await boot(page, ''); // a first launch
+    await page.getByTestId('screen-shelf').waitFor({ timeout: 60_000 });
+    const stills = () => page.evaluate(() => (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).filter((r) => /\/assets\/static\/front\/\d+\.png$/.test(r.name) && r.responseEnd > 0).length);
+    await expect.poll(stills, { timeout: 10_000 }).toBeGreaterThanOrEqual(10);
+    console.log(`shelf: ${await stills()} stills in (${JSON.stringify(await page.evaluate(() => performance.getEntriesByType('resource').filter((r) => /static\//.test(r.name)).map((r) => r.name.replace(/^.*?\/assets\//, ''))))})`);
+    await context.close();
+  });
+
   test('YELLOW never queues BLUE-only art and its home loads first', async ({ browser }) => {
     test.setTimeout(180_000);
     const { between, snorlax, reqs } = await yellowHome(browser);
@@ -562,63 +426,147 @@ test.describe('idle preload by cartridge and save, Slow 4G cold', () => {
 });
 
 test.describe('menu sprites, Slow 4G cold', () => {
+  // Review, 14 Oct: a computed background naming the placeholder is not proof it is drawn. Each frame, each king's box
+  // must be laid out, visible and filled (its sprite decoded, its retro stand-in loaded, or the drawn outline); and
+  // while a sprite is still loading, a screenshot of its box must show pixels that differ from the card behind it.
   test('the team picker never shows an empty box', async ({ browser }) => {
     test.setTimeout(180_000);
     const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
     await boot(page);
     await page.getByTestId('vs-computer').waitFor({ timeout: 60_000 });
-    // Each frame: both kings show their sprite, or a stand-in (the retro sprite or a drawn placeholder) behind it.
     await page.evaluate(() => {
       const w = window as unknown as { __boxes: { t: number; empty: string[] }[] };
       w.__boxes = [];
-      const loaded = (url: string) => performance.getEntriesByType('resource').some((r) => r.name === url);
+      const loaded = (url: string) => (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).some((r) => r.name === url && r.responseEnd > 0);
+      const opacity = (e: Element | null): number => (e ? Number(getComputedStyle(e).opacity) * opacity(e.parentElement) : 1);
       const tick = () => {
         const view = document.querySelector('[data-testid="screen-team"]');
         const cover = document.querySelector<HTMLElement>('.screen-cover');
         if (view && (!cover || cover.dataset.phase === 'open')) {
           const empty = [...view.querySelectorAll<HTMLImageElement>('.card img')].filter((i) => {
+            const r = i.getBoundingClientRect();
+            const cs = getComputedStyle(i);
+            if (r.width < 24 || r.height < 24 || cs.visibility !== 'visible' || cs.display === 'none' || opacity(i) < 0.5) return true;
             if (i.complete && i.naturalWidth > 0) return false;
-            const bg = getComputedStyle(i).backgroundImage;
-            const urls = [...bg.matchAll(/url\("?([^")]+)"?\)/g)].map((m) => m[1]!);
-            return !/gradient/.test(bg) && !urls.some(loaded);
+            const urls = [...cs.backgroundImage.matchAll(/url\("?([^")]+)"?\)/g)].map((m) => m[1]!);
+            return !urls.some(loaded) && !/gradient/.test(cs.backgroundImage);
           });
-          w.__boxes.push({ t: performance.now(), empty: empty.map((i) => i.alt) });
+          w.__boxes.push({ t: performance.now(), empty: empty.map((i) => i.alt || i.src) });
         }
         if (w.__boxes.length < 2000) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     });
+    // The kings' files come late on top of Slow 4G (the retro stand-in 1 s, the animated sprite 2 s), so the shots
+    // below see the drawn outline, then the retro sprite, never only the card.
+    await context.route(/\/assets\/(retro|front)\/\d+\.(png|gif|webp)$/, async (route) => {
+      await new Promise((r) => setTimeout(r, /\/retro\//.test(route.request().url()) ? 1000 : 2000));
+      await route.continue().catch(() => undefined);
+    });
     await page.getByTestId('vs-computer').click();
     await page.getByTestId('team-red').waitFor({ timeout: 60_000 });
+    // While a king is still loading (the screen's cover gone), what its box shows: the share of pixels unlike the card.
+    const kings = page.locator('[data-testid="screen-team"] .card img');
+    const samples: { n: number; varied: number }[] = [];
+    for (let i = 0; i < 60; i++) {
+      const state = await page.evaluate(() => ({ cover: !!document.querySelector('.screen-cover'), done: [...document.querySelectorAll<HTMLImageElement>('[data-testid="screen-team"] .card img')].map((img) => img.complete && img.naturalWidth > 0) }));
+      if (state.done.length && state.done.every(Boolean)) break;
+      if (!state.cover) {
+        for (const [n, done] of state.done.entries()) {
+          if (done) continue;
+          const png = await kings.nth(n).screenshot({ timeout: 5000 }).catch(() => null);
+          const still = await kings.nth(n).evaluate((img: HTMLImageElement) => !(img.complete && img.naturalWidth > 0)).catch(() => false);
+          if (!png || !still) continue; // drawn by now: this shot shows the sprite, not the stand-in
+          const varied = await page.evaluate(async (b64) => {
+            const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+            const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+            const c = document.createElement('canvas');
+            c.width = bmp.width;
+            c.height = bmp.height;
+            const g = c.getContext('2d')!;
+            g.drawImage(bmp, 0, 0);
+            const d = g.getImageData(0, 0, c.width, c.height).data;
+            const counts = new Map<number, number>();
+            for (let p = 0; p < d.length; p += 4) counts.set((d[p]! << 16) | (d[p + 1]! << 8) | d[p + 2]!, (counts.get((d[p]! << 16) | (d[p + 1]! << 8) | d[p + 2]!) ?? 0) + 1);
+            const bg = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]![0];
+            let differ = 0;
+            for (let p = 0; p < d.length; p += 4) if (Math.abs(d[p]! - (bg >> 16)) + Math.abs(d[p + 1]! - ((bg >> 8) & 255)) + Math.abs(d[p + 2]! - (bg & 255)) > 48) differ++;
+            return differ / (d.length / 4);
+          }, png.toString('base64'));
+          samples.push({ n, varied });
+        }
+      }
+      await page.waitForTimeout(100);
+    }
     await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('[data-testid="screen-team"] .card img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 60_000 });
     const boxes = await page.evaluate(() => (window as unknown as { __boxes: { t: number; empty: string[] }[] }).__boxes);
     const empty = boxes.filter((b) => b.empty.length);
-    console.log(`team picker: ${empty.length} of ${boxes.length} frames with an empty box (${empty.length ? `${Math.round(empty.at(-1)!.t - empty[0]!.t)} ms` : '0 ms'})`);
+    console.log(`team picker: ${empty.length} of ${boxes.length} frames with an empty box (${empty.length ? `${Math.round(empty.at(-1)!.t - empty[0]!.t)} ms` : '0 ms'}); boxes shot while loading: ${JSON.stringify(samples.map((x) => `${x.n}:${(x.varied * 100).toFixed(1)}%`))}`);
     expect(boxes.length).toBeGreaterThan(0);
     expect(empty.map((b) => b.empty.join(','))).toEqual([]);
+    expect(samples.length, 'shots of a king still loading').toBeGreaterThan(0);
+    for (const x of samples) expect(x.varied, `king ${x.n}: its box showed nothing but the card while it loaded`).toBeGreaterThanOrEqual(0.02);
     await context.close();
   });
 
-  test("the intro card's Pokémon is drawn whenever the card shows", async ({ browser }) => {
-    test.setTimeout(240_000);
-    for (const run of [1, 2, 3]) {
-      const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
-      await boot(page);
-      await page.getByTestId('vs-computer').click({ timeout: 60_000 });
-      await page.getByTestId('team-rocket').click({ timeout: 60_000 });
-      await arm(page);
-      await page.getByTestId('level-3').click({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ timeout: 60_000 });
-      await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
-      const l = await ld(page);
-      const shownFrames = l.frames.filter((f) => f.intro && Number(f.intro.op) > 0.05);
-      const bad = shownFrames.filter((f) => !f.intro!.ok);
-      console.log(`intro card run ${run}: visible in ${shownFrames.length} frames, sprite missing in ${bad.length}`);
-      expect(shownFrames.length).toBeGreaterThan(0);
-      expect(bad.length, `run ${run}: frames showing the intro card without its Pokémon`).toBe(0);
-      await context.close();
-    }
+  // Review, 14 Oct: the level picker's 24 to 32 px loadout chips loaded 12 animated sprites (about 350 KB) that still
+  // held the connections when a level was tapped, so its board's stills queued behind them (the cover held ~2.2 s).
+  test("the level picker's loadout chips are cropped stills, the files its board shows first", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const { context, page } = await fresh(browser, cartBlue, SLOW_4G);
+    await boot(page);
+    await page.getByTestId('vs-computer').click({ timeout: 60_000 });
+    await page.getByTestId('team-red').click({ timeout: 60_000 });
+    await page.getByTestId('level-2').waitFor({ timeout: 60_000 });
+    const chips = page.locator('[data-testid="screen-level"] [data-testid="loadout"] img');
+    await expect.poll(() => chips.evaluateAll((els) => (els as HTMLImageElement[]).every((i) => i.complete && i.naturalWidth > 0)), { timeout: 30_000 }).toBe(true);
+    const shown = await chips.evaluateAll((els) =>
+      (els as HTMLImageElement[]).map((i) => {
+        const box = (i.parentElement ?? i).getBoundingClientRect();
+        const r = i.getBoundingClientRect();
+        return { src: i.getAttribute('src') ?? '', species: i.dataset.species ?? '', box: Math.round(box.width), fills: Math.round(Math.max(r.width, r.height) / Math.max(box.width, 1) * 100) };
+      }),
+    );
+    console.log(`level picker loadouts: ${JSON.stringify(shown.map((x) => `${x.species}:${x.src.replace(/^.*?\/assets\//, '')}`))}`);
+    expect(shown.length).toBe(12); // King, Queen and Pawn of each of the four levels
+    expect(shown.filter((x) => !/assets\/static\/(front|shiny)\/\d+\.png$/.test(x.src)).map((x) => x.src)).toEqual([]);
+    // Cropped to the Pokémon (its still is a 96 px square with margins): the drawn image is at least the chip's size,
+    // and larger for those with margins.
+    expect(shown.filter((x) => x.fills < 99).map((x) => x.species)).toEqual([]);
+    expect(shown.filter((x) => x.fills > 110).length).toBeGreaterThan(6);
+    await context.close();
   });
+
+  // Classic piece style (review, 14 Oct): its board draws no sprite, so the card was held back ~0.5 s, then popped
+  // already skippable and still without its Pokémon. The card shows from its insertion, before it can be skipped.
+  for (const style of ['pokemon', 'classic'] as const) {
+    test(`the intro card's Pokémon is drawn whenever the card shows${style === 'classic' ? ' (Classic piece style)' : ''}`, async ({ browser }) => {
+      test.setTimeout(240_000);
+      for (const run of [1, 2, 3]) {
+        const { context, page } = await fresh(browser, { ...cartBlue, 'kc:v1:settings': { v: 2, pieceStyle: style } }, SLOW_4G);
+        await boot(page);
+        await page.getByTestId('vs-computer').click({ timeout: 60_000 });
+        await page.getByTestId('team-rocket').click({ timeout: 60_000 });
+        await arm(page);
+        await page.getByTestId('level-3').click({ timeout: 60_000 });
+        await page.getByTestId('intro').waitFor({ timeout: 60_000 });
+        await page.getByTestId('intro').waitFor({ state: 'detached', timeout: 60_000 });
+        const l = await ld(page);
+        const shownFrames = l.frames.filter((f) => f.intro && Number(f.intro.op) > 0.05);
+        const bad = shownFrames.filter((f) => !f.intro!.ok);
+        const inserted = l.intros[0]!.t;
+        const seen = shownFrames[0]?.t ?? Infinity;
+        const skip = l.frames.find((f) => f.intro && f.skip)?.t ?? Infinity;
+        console.log(`intro card (${style}) run ${run}: visible in ${shownFrames.length} frames, sprite missing in ${bad.length}; visible ${Math.round(seen - inserted)} ms and skippable ${Math.round(skip - inserted)} ms after it went in`);
+        expect(shownFrames.length).toBeGreaterThan(0);
+        expect(bad.length, `run ${run}: frames showing the intro card without its Pokémon`).toBe(0);
+        // Seen as it pops in (CARD_IN_MS), and well before a tap can skip it (HOLD_MIN_MS after the pop).
+        expect(seen - inserted, `run ${run}: the card was held back`).toBeLessThanOrEqual(150);
+        expect(skip - seen, `run ${run}: the card could be skipped as it appeared`).toBeGreaterThanOrEqual(200);
+        await context.close();
+      }
+    });
+  }
 });
 
 test.describe('Fast 4G', () => {

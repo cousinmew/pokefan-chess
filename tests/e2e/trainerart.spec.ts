@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Real trainer art (loading fix, 13 Oct): the trainer sprites (public/assets/trainers/) and the hub's item sheet
+// Real trainer art (loading fix, 14 Oct): the trainer sprites (public/assets/trainers/) and the hub's item sheet
 // (assets/items/hub-sheet.png) are fetched at build time; where the build ran without network they are 695-byte
 // stand-ins. These checks run in CI (process.env.CI) or with REAL_ART=1; on the stand-ins, the assertions that need
 // the real files (byte sizes, exact dimensions, opaque cells) are skipped with a note. Millisecond budgets under Slow
@@ -11,7 +11,7 @@ import { join } from 'node:path';
 test.skip(!process.env.CI && !process.env.REAL_ART, 'Real trainer art is in CI and production only (network policy here); REAL_ART=1 runs these on the stand-ins.');
 
 const SLOW_4G = { offline: false, latency: 562.5, downloadThroughput: 180_000, uploadThroughput: 84_375 };
-const RELAY = '&relay=http://localhost:8788';
+const RELAY = `&relay=${process.env.RELAY_URL ?? 'http://localhost:8788'}`; // the config's local relay; RELAY_URL for another one
 const ALL_THEMES = ['advancedPawn', 'advantage', 'backRankMate', 'capturingDefender', 'castling', 'deflection', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'fork', 'hangingPiece', 'mateIn1', 'mateIn2', 'pin', 'promotion', 'skewer', 'trappedPiece', 'xRayAttack'];
 const SAVE = { v: 2, name: 'JADE', starter: 'bulbasaur', introSeen: true, teamRules: 2, caught: { bulbasaur: 1, pidgey: 1 }, team: { p: 'pidgey' }, warmup: true, lessonsSeen: ALL_THEMES, tips: ['puzzle'], puzzlesStarted: 5, journey: { cleared: [], beaten: [], visited: ['route-1'] } };
 /** Mate in 1 by a capture (a battle): the set up a2-a3, then Re8xe1#. */

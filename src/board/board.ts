@@ -7,6 +7,7 @@ import { HOLD_MS, PIECE_FILL, type PieceStyle } from '../config';
 import trim from '../data/trim.json';
 import { fmt } from '../game/text';
 import { decodedSrc, decodeImage, onDecoded, stillUrl, warmBoard, type OnBoard } from '../battle/sprites';
+import { neededAtReveal } from '../ui/loader';
 
 const FILES = 'abcdefgh';
 
@@ -125,7 +126,7 @@ export class Board {
     const { glyphs, pieceStyle, animate, coords } = this.hooks.settings();
     const twins = this.twins();
     // Built before it is shown (the constructor), the board must not hold up the menus' images (load fix); on screen
-    // its pieces load first, as stills until each animated sprite has decoded (loading fix, 13 Oct).
+    // its pieces load first, as stills until each animated sprite has decoded (loading fix, 14 Oct).
     const live = this.el.isConnected;
     const mons: OnBoard[] = [];
     for (let r = 0; r < 8; r++) {
@@ -165,8 +166,12 @@ export class Board {
             star.textContent = '★'.repeat(sp.stars);
             cell.append(star);
           }
-          if (pieceStyle === 'classic') cell.append(classic(piece.color, piece.type));
-          else if (glyphs || pieceStyle === 'badge') cell.append(chip(piece.color, piece.type, pieceStyle === 'badge'));
+          if (pieceStyle === 'classic') {
+            cell.append(classic(piece.color, piece.type));
+            // No sprite here, but the intro card shows each king's: its still decodes now and the cover waits for it.
+            const still = stillUrl(sp.dex, sp.shiny);
+            if (live && piece.type === 'k' && !decodedSrc(still)) neededAtReveal(decodeImage(still));
+          } else if (glyphs || pieceStyle === 'badge') cell.append(chip(piece.color, piece.type, pieceStyle === 'badge'));
         } else {
           cell.setAttribute('aria-label', sq);
         }
@@ -213,7 +218,7 @@ export class Board {
   private select(sq: string): void {
     this.selected = sq;
     this.focus = sq;
-    this.hooks.onSelect?.(sq); // the pick up sound and the cry start with the tap, before the redraw (loading fix, 13 Oct)
+    this.hooks.onSelect?.(sq); // the pick up sound and the cry start with the tap, before the redraw (loading fix, 14 Oct)
     this.render();
     this.cells.get(sq)?.querySelector('.piece')?.classList.add('hop');
   }

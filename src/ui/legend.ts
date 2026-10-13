@@ -80,7 +80,7 @@ export class Legend {
         item.dataset.testid = `legend-${color}${role}${n > 1 ? n : ''}`;
         item.dataset.species = id;
         const img = el('img', 'legend-mon');
-        // After the board's own pieces (loading fix, 13 Oct): low priority, and only once no cover or dip is up.
+        // After the board's own pieces (loading fix, 14 Oct): low priority, and only once no cover or dip is up.
         img.loading = 'lazy';
         img.fetchPriority = 'low';
         const src = spriteUrl(sp.dex, 'retro');

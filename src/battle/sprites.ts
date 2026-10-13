@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Battle sprite preload and the bounded wait before a battle starts. Loading fix, 13 Oct: one cache of decoded images
+// Battle sprite preload and the bounded wait before a battle starts. Loading fix, 14 Oct: one cache of decoded images
 // for the board, the battles and the menus. The board warms what stands on it (warmBoard: cries, backs, fronts, in
-// the loader's priority lane), the idle preload follows the cartridge and the save (preloadBattleSprites), and a
-// battle slot never holds an image that has not decoded.
+// the loader's priority lane), the idle preload follows the cartridge and the save (preloadBattleSprites), the
+// Journey's next panels get their cries ahead (panelCries), and a battle slot never holds an image that has not
+// decoded.
 import roster from '../data/roster.gen1.json';
 import trainers from '../data/trainers.json';
 import { ASSET_BASE, BATTLE } from '../config';
 import { defaultSpecies, SKIN_ROLES, species, spriteUrl, type Color, type Role, type Species, type SpeciesId, type TeamSkin } from '../board/pieces';
 import { stageFor, stageSkin } from '../board/stages';
 import { idleDrained, whenFree, whenIdle } from '../ui/loader';
-import { preloadCries } from '../audio/audio';
+import { boardCries, preloadCries } from '../audio/audio';
 import { load } from '../store/persist';
-import { loadCampaign, type Campaign } from '../campaign/kanto';
-import { journeyState, nextGoal, teamOf, type Trainer } from '../campaign/journey';
+import { loadCampaign, ROUTES, routeSpecies, STARTERS, type Campaign } from '../campaign/kanto';
+import { journeyState, nextGoal, PLACES, placeUnlocked, teamOf, type Trainer } from '../campaign/journey';
 import { FIRST_CATCH } from '../campaign/warmup';
 import { myTrainer, trainerSpriteId } from '../look';
 import { trainerSrc } from '../ui/kanto';
@@ -20,6 +21,7 @@ import { trainerSrc } from '../ui/kanto';
 export const STAND_IN_MS = 300; // a battle slot with no decoded sprite at spriteWaitMs waits this much longer for a still or the retro sprite
 export const PLAN_RETRY_MS = 1000; // no cartridge yet (the shelf): the idle preload looks again this often
 export const PLAN_GIVE_UP_MS = 600_000; // ...for at most this long after the splash
+export const PANEL_CRIES_EVERY_MS = 1000; // a board drawn looks at the save for the Journey's next panel cries at most this often
 
 interface Entry {
   img: HTMLImageElement;
@@ -96,6 +98,7 @@ let boardSig = '';
  * colour's backs come last): its select cries, its backs, every front (the board's animated pieces), then the other
  * colour's cries and backs. */
 export function warmBoard(mons: OnBoard[], mine: Color | null): void {
+  panelCries();
   const sig = mons.map((m) => `${m.color}${m.sp.dex}${m.sp.shiny ? 's' : ''}`).sort().join();
   if (sig === boardSig) return;
   boardSig = sig;
@@ -108,11 +111,34 @@ export function warmBoard(mons: OnBoard[], mine: Color | null): void {
   const mineList = side(near);
   const theirs = side(near === 'w' ? 'b' : 'w');
   const queue = (urls: string[]) => urls.forEach((u) => whenFree(() => entry(u).ok));
-  preloadCries(mineList.map((s) => s.dex));
+  boardCries(mineList.map((s) => s.dex));
   queue(mineList.map((s) => spriteUrl(s.dex, 'back', s.shiny)));
   queue([...new Set([...mineList, ...theirs].map((s) => spriteUrl(s.dex, 'front', s.shiny)))]);
-  preloadCries(theirs.map((s) => s.dex));
+  boardCries(theirs.map((s) => s.dex));
   queue(theirs.map((s) => spriteUrl(s.dex, 'back', s.shiny)));
+}
+
+let panelAt = -Infinity;
+/** The cries the Journey's next panels play (src/audio/audio.ts lets a panel's cry come late, within limits, but a
+ * file not asked for ahead takes a round trip, so on a phone network it was never heard): the starters while the
+ * save has none, the wild Pokémon of the next goal's route and of every route walked, and the gift choices still to
+ * come. Only fetched (a few KB each), decoded when first heard. From the plan, and as boards are drawn (at most every
+ * PANEL_CRIES_EVERY_MS), so a route entered since is covered while its tall grass puzzle is solved. */
+function panelCries(c?: Campaign): void {
+  const at = performance.now();
+  if (!c && at - panelAt < PANEL_CRIES_EVERY_MS) return;
+  panelAt = at;
+  if (!c && load<string>('cartridge') !== 'blue') return;
+  const save = c ?? loadCampaign();
+  const state = journeyState(save);
+  const goal = nextGoal(state);
+  const names: string[] = save.starter ? [] : [...STARTERS];
+  PLACES.forEach((p, i) => {
+    const route = p.route && (p === goal?.place || save.journey.visited.includes(p.id)) ? ROUTES.find((r) => r.id === p.route) : undefined;
+    if (route) names.push(...routeSpecies(route));
+    if (p.reward?.choice && !save.rewards.includes(p.id) && placeUnlocked(state, i)) names.push(...p.reward.choice);
+  });
+  preloadCries(ids(names).map((s) => s.dex), true);
 }
 
 const PEOPLE = trainers.people as Record<string, string>;
@@ -132,12 +158,14 @@ const asSpecies = (id: SpeciesId): Species | null => {
     return null;
   }
 };
+const ids = (list: (string | null | undefined)[]) => list.filter((x): x is string => !!x).map(asSpecies).filter((s): s is Species => !!s);
 
-/** What this player sees next, in idle time after the menus (load fix), by cartridge and save (loading fix, 13 Oct):
- * no cartridge yet, nothing beyond the shelf (it looks again until one is chosen); YELLOW, its own boards' fronts
- * (stage 2 teams, YELLOW's My Team), no backs; BLUE, the player's trainer, the warm-up's first catch and its cry,
- * the next goal's trainer and team, the boards' stills, My Team's and the story stage's fronts with your backs; the
- * default teams' sprites come last. A battle that starts first loads its own two sprites straight away. */
+/** What this player sees next, in idle time after the menus (load fix), by cartridge and save (loading fix, 14 Oct):
+ * no cartridge yet (the shelf, a guest), only the default teams' stills (it looks again until one is chosen);
+ * YELLOW, its own boards' fronts (stage 2 teams, YELLOW's My Team), no backs; BLUE, the player's trainer, the
+ * warm-up's first catch and its cry, the Journey's next panel cries, the next goal's trainer and team, the boards'
+ * stills, My Team's and the story stage's fronts with your backs; the default teams' sprites come last. A battle that
+ * starts first loads its own two sprites straight away. */
 export function preloadBattleSprites(): void {
   plan(0);
 }
@@ -145,6 +173,8 @@ export function preloadBattleSprites(): void {
 function plan(tries: number): void {
   const cart = load<string>('cartridge');
   if (cart !== 'yellow' && cart !== 'blue') {
+    // The shelf or a guest (PLAY CHESS): the default teams' stills (about 11 KB), so a first board is drawn sooner.
+    if (!tries) for (const s of ids([...teamIds('w', {}), ...teamIds('b', {})])) whenFree(() => entry(stillUrl(s.dex, s.shiny), 'high').ok);
     if ((tries + 1) * PLAN_RETRY_MS <= PLAN_GIVE_UP_MS) window.setTimeout(() => plan(tries + 1), PLAN_RETRY_MS);
     return;
   }
@@ -154,7 +184,6 @@ function plan(tries: number): void {
   const front = (s: Species) => spriteUrl(s.dex, 'front', s.shiny);
   const back = (s: Species) => spriteUrl(s.dex, 'back', s.shiny);
   const still = (s: Species) => stillUrl(s.dex, s.shiny);
-  const ids = (list: (string | null | undefined)[]) => list.filter((x): x is string => !!x).map(asSpecies).filter((s): s is Species => !!s);
   if (cart === 'yellow') {
     // YELLOW (§B17): the final forms, YELLOW's own team on Red's side (its king is always PIKACHU); all in idle time,
     // after the home's images.
@@ -172,12 +201,13 @@ function plan(tries: number): void {
     const theirs = ids(teamIds('b', stageSkin('b', stage)));
     const first = [trainerSrc(trainerSpriteId(myTrainer())), trainerSrc('blue-gen1'), ...new Set([...mine, ...theirs].map(still))];
     for (const u of first) whenFree(() => entry(u, 'high').ok);
-    blue(c, ids, mine, theirs, add, { front, back });
+    panelCries(c);
+    blue(c, mine, theirs, add, { front, back });
   }
   for (const u of urls) whenIdle(() => entry(u).ok);
 }
 
-function blue(c: Campaign, ids: (list: (string | null | undefined)[]) => Species[], mine: Species[], theirs: Species[], add: (...u: (string | null | undefined)[]) => void, f: Record<'front' | 'back', (s: Species) => string>): void {
+function blue(c: Campaign, mine: Species[], theirs: Species[], add: (...u: (string | null | undefined)[]) => void, f: Record<'front' | 'back', (s: Species) => string>): void {
   if (!c.warmup) {
     const first = asSpecies(FIRST_CATCH);
     if (first) {

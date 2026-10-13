@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // A move's capture battle and evolution, before the board shows the result (moved out of main.ts with the pacing
-// pass, 12 Oct). The battle itself keeps its 1.9 s (owner decision T4). Loading fix, 13 Oct: the capture tap is
+// pass, 12 Oct). The battle itself keeps its 1.9 s (owner decision T4). Loading fix, 14 Oct: the capture tap is
 // answered on the board at once, before the bounded wait for the battle's sprites and trainers.
 import type { AnimMode } from '../config';
 import type { Board } from '../board/board';
