@@ -731,6 +731,17 @@ html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
   .big-level .loadout .loadout-mon { width: 24px; height: 24px; }
 }
 
+/* Controller, 14 Oct (C2, C5, C8, C9, C11, C13): Take back looks disabled while a battle or a slide plays; the end
+   panel's winner and YELLOW sticker; a drill's last moves; the intro card's second line; the promotion picker's Gen 1
+   stand-ins. Nothing here moves (the auto flip's fold is a Web Animation, src/game/flip.ts). */
+header.game-header button:disabled { opacity: 0.45; cursor: default; }
+.panel.end .end-winner { margin: 0 0 6px; font-weight: 700; }
+.end-sticker { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 8px; }
+.end-sticker p { margin: 0; font-weight: 700; }
+.end-sticker-sprite { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; background: center / contain no-repeat; }
+header.game-header .turn.moves-low { color: #c02020; }
+.intro .intro-note { margin: 6px 0 0; font-size: 13px; }
+.promo-row img.promo-sprite { background: center / contain no-repeat; }
 /* Polish, 12 Oct (W4): robustness, navigation and YELLOW polish. */
 /* START's CLOSE item (ux #14): a visible way out, set apart from the menu items above it. */
 .start-pop .start-item.start-close { margin-top: 4px; border-top: 2px solid var(--ink); }

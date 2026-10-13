@@ -49,7 +49,7 @@ test.describe('360x640', () => {
     await page.getByTestId('team-rocket').click();
     await page.getByTestId('level-1').click();
     await page.getByTestId('intro').click();
-    await expect(page.getByTestId('turn')).toHaveText('TEAM ROCKET to move', { timeout: 5000 });
+    await expect(page.getByTestId('turn')).toHaveText('Guest to move', { timeout: 5000 }); // the header names the plate (C8, 14 Oct)
     expect(await page.locator('.sq').first().getAttribute('data-square')).toBe('h1');
     await expect(page.getByTestId('takeback')).toBeVisible();
     await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)

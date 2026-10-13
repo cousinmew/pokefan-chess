@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Boot, screen routing and the game controller (Two Players and vs Computer).
 import './style.css';
-import { LEGEND_FIRST_GAMES, CARD_IN_MS, CHALLENGE_END_MS, END_HOLD_MS, HOLD_MIN_MS, INTRO_MS, MOVE_SLIDE_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, TAKE_BACK_LEVELS, THEIR_SLIDE_MS, YELLOW_BOARD_PX, type AiLevel } from './config';
+import { LEGEND_FIRST_GAMES, CARD_IN_MS, HOLD_MIN_MS, INTRO_MS, MOVE_SLIDE_MS, REFUTATION_LEVEL, DEFAULT_SETTINGS, SELECT_CRY_VOLUME, THEIR_SLIDE_MS, YELLOW_BOARD_PX, type AiLevel } from './config';
 import { Board } from './board/board';
-import { lookOf, setSkins, setWears, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role, type TeamSkin } from './board/pieces';
-import { withoutRival } from './campaign/rivalTeam';
+import { lookOf, setSkins, SPECIES, speciesFor, spriteUrl, teamOf, type Color, type Role } from './board/pieces';
 import { puzzleMoments } from './ui/puzzleMoments';
 import { Overlay } from './battle/overlay';
 import { preloadBattleSprites } from './battle/sprites';
@@ -16,12 +15,12 @@ import roster from './data/roster.gen1.json';
 import { Game, type Outcome } from './game/chess';
 import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine } from './ai/engine';
-import { computerTurn } from './ai/turn';
+import { cancelThink, computerTurn, thinkingNow } from './ai/turn';
 import { TextBox } from './ui/textBox';
-import { button, el, toast } from './ui/dom';
+import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
-import { currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
+import { currentSlot, enterGuest, isGuest, leaveGuest, load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -32,7 +31,6 @@ import { dexScreen, trainerSrc } from './ui/kanto';
 import type { Page } from './ui/manual';
 import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
-import { drillStatus, type DrillStatus } from './campaign/drill';
 import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
@@ -53,9 +51,8 @@ import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
 import { warmHubSheet } from './ui/icons';
 import { preloadNow, releaseIdle } from './ui/loader';
-import { endPanel, promotionPanel, quitPanel } from './ui/gamePanels';
 import { Plates } from './ui/plates';
-import { applyLooks, computerTeam, ladderFaces, myLook, puzzleTeam, standing, storyStage } from './look';
+import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { loadCampaign, STARTERS } from './campaign/kanto';
@@ -65,9 +62,14 @@ import { Away } from './game/away';
 import { cancelHold, guard, hold, installPace } from './ui/pace';
 import { Covers, dip, domCovers, kindFor, type CoverKind } from './ui/transitions';
 import { watchModal } from './ui/cards';
+import { EndGame } from './game/endGame';
+import { configure as configureGame } from './game/configure';
+import { Challenges } from './game/challenge';
+import { flipAfter } from './game/flip';
+import { introLine, turnLine as lineFor } from './game/lines';
 
 export type { App, Challenge, Mode, Setup } from './appTypes';
-import type { App, Challenge, Mode, SavedGame, Setup } from './appTypes';
+import type { App, Mode, SavedGame, Setup } from './appTypes';
 
 const QUICK_DEFAULT: Setup = { mode: 'computer', human: 'w', level: 1 };
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -78,13 +80,15 @@ function boot(): App {
   // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
   bootSaves(); // only a NEW GAME left empty is dropped, never a save from before (playtest, 12 Oct; data loss review)
   registerShell();
-  // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
+  // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time. YELLOW boots
+  // without BLUE's art: Oak and the starters are BLUE's first screens (C12, 14 Oct).
   warmHubSheet();
-  preloadNow([trainerSrc('oak'), ...STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)])], releaseIdle); // Oak first (§B22 item 1)
+  let cart = load<Cartridge>('cartridge');
+  if (cart === 'yellow') releaseIdle();
+  else preloadNow([trainerSrc('oak'), ...STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)])], releaseIdle); // Oak first (§B22 item 1)
   // An animated WebP the browser cannot show falls back to its GIF.
   document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
   applyLanguage(reviewFromUrl() ?? savedLang(), false); // ?review=<lang>: translation review mode (§B21 item 3)
-  let cart = load<Cartridge>('cartridge');
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   // v1 forced Quick (no battle screen) under reduced motion and could save it. Reduced motion now keeps Full, calmer.
@@ -136,13 +140,16 @@ function boot(): App {
     playMove,
     restart,
     setMode,
-    takeBack,
+    takeBack: () => endGame.takeBack(),
   };
   let gen = 0;
   let notice: Line | null = null;
   let introOpen = false;
+  let kept = false; // your bar keeps your promotion's line until your next move (C4)
+  let cardNote = ''; // a second line on the next "wants to battle!" card (C11: sides swapped)
   let red: Color = 'w'; // the colour wearing Red's look in the game on the board (W3: you, in puzzles and the Path)
-  const away = new Away(() => stage.firstElementChild === gameView); // leaving bumps `gen`, not the game (bugs #7)
+  // Leaving bumps `gen`, not the game (bugs #7); START open or a question over the board stops its clock too (C1).
+  const away: Away = new Away((): boolean => stage.firstElementChild === gameView && !startBtn.isOpen && !endGame.asking);
   // Pacing (12 Oct): holds a tap or Enter, Space or B can skip, cards that ignore a double tap, and screen changes
   // under one cover over #app (src/ui/pace.ts, transitions.ts, cards.ts).
   installPace(() => away.round);
@@ -151,12 +158,14 @@ function boot(): App {
   /** A new position on the game screen (§2 dip): the board dips, `swap` runs at the peak, the board refits there only. A dip behind OPTION (a review going on) is no transition: OPTION keeps its keys (fix, 13 Oct). */
   const boardDip = (swap: () => void | Promise<void>): Promise<void> => { const d = dip(boardWrap, swap, () => fmt('puzzle.loading')); return boardWrap.isConnected ? covers.track(d) : d; };
   const onBoard = () => stage.firstElementChild === gameView;
+  /** A check made now, true until another screen shows or another game starts: a game that starts under a cover or a dip asks it first (C14). */
+  const stay = (): (() => boolean) => { const g = gen, from = stage.firstElementChild; return () => g === gen && stage.firstElementChild === from; };
   /** The opponent's moves slide slower than yours (pacing, the owner's "when moves happen"). */
   const slideOf = (c?: Color) => (c && c !== app.human && app.mode !== 'two-players' ? THEIR_SLIDE_MS : MOVE_SLIDE_MS);
 
   const board = new Board(game, {
     onMove: (from, to) => {
-      if (game.isPromotion(from, to)) pickPromotion(from, to);
+      if (game.isPromotion(from, to)) endGame.pickPromotion(from, to);
       else submit(from, to);
     },
     // YELLOW: glyphs always on (§B17).
@@ -176,10 +185,10 @@ function boot(): App {
   const header = el('header', 'game-header');
   const turnEl = el('p', 'turn');
   turnEl.dataset.testid = 'turn';
-  const backBtn = button('game.takeBack', () => takeBack(), 'takeback');
+  const backBtn = button('game.takeBack', () => endGame.takeBack(), 'takeback');
   header.append(backBtn, turnEl); // START replaces Menu (§B24 item 1)
   // START (§B22 item 3), in the top bar on the game screen, in the corner or the top row elsewhere.
-  const startBtn = new StartButton(() => startActions(), () => yellow() || !!journey.campaign.starter || isGuest());
+  const startBtn = new StartButton(() => startActions(), () => yellow() || !!journey.campaign.starter || isGuest(), () => away.back(false));
   header.append(startBtn.inBar);
   const gameView = el('div', 'game-view');
   gameView.dataset.testid = 'screen-game';
@@ -188,21 +197,17 @@ function boot(): App {
     app,
     show,
     goTitle,
-    startBoard: (moves, human) => {
-      configure({ mode: 'online', human, level: 1 });
-      show(gameView);
-      restart(undefined, undefined, false, moves);
-      text.plain(fmt('online.you', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }));
-      lockForTurn();
-    },
+    startBoard: (moves, human) => onlineStart(moves, human),
     applyRemote: (uci) => playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined) !== null,
     endWith: (key) => {
       app.ended = true;
       board.locked = true;
+      updateTurn(); // no "{name} to move" over the end panel (review, 14 Oct)
       text.show([{ key }]);
       music.stop();
-      music.play(key.endsWith('Win') ? 'victory' : 'defeat');
-      showEnd({ key }, key.endsWith('Win') && !isGuest() ? journey.onlineWin() : []);
+      const won = key.endsWith('Win');
+      music.play(won ? 'victory' : 'defeat');
+      endGame.showEnd({ key }, won ? app.human : app.human === 'w' ? 'b' : 'w', won && !isGuest() ? journey.onlineWin() : []);
     },
     say: (key) => text.plain(fmt(key)),
     mySkin: () => journey.campaign.team,
@@ -243,7 +248,7 @@ function boot(): App {
     goTitle,
     gen: () => gen,
     evolveAnim: (from, to) => overlay.evolve(from, to),
-    startChallenge: (ch) => startChallenge(ch),
+    startChallenge: (ch) => challenges.start(ch),
     path: { run: (lesson, hooks) => path.run(lesson, hooks), stop: () => path.stop() }, // Oak's Route 1 warm-up (W5)
     cover: (kind) => covers.cover(kind), uncover: () => covers.reveal(),
     beat: (won) => plates.beat(won === (app.human === 'w') ? 'w' : 'b'),
@@ -279,11 +284,15 @@ function boot(): App {
   const look = () => (isGuest() ? { stage: 2 as const, trainer: 'red' as const } : myLook(!yellow(), journey.campaign.badges.length));
   let looks: Partial<Record<Color, Look>> = {};
   const showPlates = () =>
-    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo, them: puzzle.opponent() }, (k) => fmt(k as StringKey)), board.orientation);
+    plates.set(standing({ mode: app.mode, level: app.level, human: app.human, stage: storyStage(!yellow(), journey.campaign.badges.length), myName: isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), looks, duo, them: app.mode === 'challenge' ? challenges.side((k) => fmt(k as StringKey)) : puzzle.opponent() }, (k) => fmt(k as StringKey)), board.orientation);
   const yellowMode = new YellowMode({ show, home: () => goTitle(), saved: (c) => (journey.campaign = c) });
   const faces = (human: Color) => ladderFaces(human, isGuest() ? fmt('duo.guest') : journey.campaign.name || fmt('name.1'), // a guest is "Guest" (playtest, 12 Oct)
     (k) => fmt(k as StringKey), journey.campaign.starter);
   const unlockMeir = () => (journey.campaign = meirJoins(journey.campaign));
+  const endGame: EndGame = new EndGame({
+    app, away, modal, plates, yellow, guest: isGuest, onBoard, duoSlot: (c) => duo?.[c].slot, onlineWin: () => journey.onlineWin(), yellowWin: () => yellowMode.win(), cancelThink: () => cancelThink(app), undone: () => (kept = false),
+    drill: () => challenges.status(), endChallenge: (r) => challenges.end(r), startGame: (setup) => startGame(setup), goTitle, quit, submit, turnLine: (c) => turnLine(c), persist: persistGame, updateTurn, maybeAi: () => void maybeAi(),
+  });
 
   /** YELLOW or BLUE (§B17): the home, the text box, battles and the board follow the cartridge. Shared save. */
   function setCart(c: Cartridge): void {
@@ -371,35 +380,30 @@ function boot(): App {
   const vsComputer = (): void => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), vsComputer, faces(human))), goTitle)));
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
+    endGame.flush(); // what an ended game brought, if its end panel never came (C5)
     for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest, () => (journey.campaign = loadCampaign())]) stop();
     if ((load<Cartridge>('cartridge') ?? cart) !== cart) setCart(load<Cartridge>('cartridge')!); // the save's own cartridge after a guest game (bugs #9)
     return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
-  /** A guest's game in progress is lost on QUIT, so QUIT asks first (playtest, 12 Oct). */
-  const guestInGame = () => isGuest() && stage.firstElementChild === gameView && !app.ended && game.chess.history().length > 0;
-  function askQuit(): void {
-    const stay = () => ((modal.hidden = true), modal.replaceChildren(), (away.panel = null));
-    modal.onclick = null;
-    modal.replaceChildren(quitPanel(() => (stay(), quit()), stay));
-    modal.hidden = false;
-    away.panel = askQuit;
-  }
+  /** START's items that end a game in progress ask first (C7, 14 Oct). */
+  const ask = (go: () => void) => () => (endGame.inGame() ? endGame.askQuit(go, isGuest() ? 'quit.ask' : 'quit.leave') : go());
   /** What START offers here: the Journey only for a BLUE save, Online only in BLUE, the Pokédex only with a save. */
   const startActions = (): StartActions => ({
-    ...(!yellow() && !isGuest() ? { journey: () => journey.open() } : {}),
-    computer: vsComputer,
-    friend: twoPlayers,
+    ...(!yellow() && !isGuest() ? { journey: ask(() => journey.open()) } : {}),
+    computer: ask(vsComputer),
+    friend: ask(twoPlayers),
     ...(!yellow() ? { online: () => showOnline() } : {}),
     // POKéDEX's Back returns to where START was opened, like OPTION (ux #14).
     ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, returnHere(), true)) : journey.openFromHub('dex', returnHere())) } : {}),
     option: () => showSettings(),
-    quit: () => (guestInGame() ? askQuit() : quit()),
+    quit: () => (endGame.guestInGame() ? endGame.askQuit() : quit()),
     guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)
     next: yellow() || isGuest() ? null : goalLine(journey.campaign), // W5: the first line says what is next
   });
 
   function goTitle(): void {
     if (isGuest()) return quit(); // PLAY CHESS ends at the start menu, never at a save's hub (§B22 item 4)
+    endGame.flush();
     duo = null;
     journey.campaign = loadCampaign(); // YELLOW's path and team write the save directly
     online.close();
@@ -433,26 +437,7 @@ function boot(): App {
   }
 
   function configure(setup: Setup): void {
-    if (setup.mode !== 'path') path.stop(); // the warm-up's bar never stays under another game (W5)
-    red = setup.mode === 'puzzle' || setup.mode === 'path' ? setup.human : 'w';
-    setWears(red); // W3: there you are always TEAM RED, whatever colour you play
-    // Skins (§B5): your team on your side vs Computer; online sets both sides from the relay.
-    const ys = yellow() ? yellowMode.skins(setup.mode, setup.human) : null; // YELLOW's own team (fix 3)
-    const cpu: Color = setup.human === 'w' ? 'b' : 'w'; // vs Computer, the trainer brings their own team (change B)
-    const mine = (skin: TeamSkin) => withoutRival(skin, journey.campaign.starter, look().stage ?? 2); // no rival's starter on your side (playtest, 12 Oct)
-    const theirs = setup.mode === 'computer' ? { [cpu]: computerTeam(setup.level, cpu, journey.campaign.starter) } : {};
-    if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
-    else if (ys) setSkins({ ...theirs, ...ys });
-    else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: isGuest() ? {} : mine(journey.campaign.team) });
-    else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(isGuest() || !journey.campaign.starter ? {} : { [setup.human]: mine(puzzleTeam(journey.campaign.team, journey.campaign.starter, look().stage ?? 2)) }); // W3, design D; BLUE's warm-up (W5)
-    else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
-    if (setup.mode !== 'online') applyLooks({ w: look(), b: look() });
-    app.mode = setup.mode;
-    app.human = setup.mode === 'two-players' ? 'w' : setup.human;
-    board.mine = app.human;
-    board.groundAll = setup.mode === 'puzzle'; // a soft shadow under every one of your pieces (design D)
-    app.level = setup.level;
-    app.aiFailed = false;
+    red = configureGame({ app, stopPath: () => path.stop(), yellowSkins: (m, h) => (yellow() ? yellowMode.skins(m, h) : null), campaign: () => journey.campaign, look, guest: isGuest, duo: () => duo, puzzleOpponent: () => puzzle.opponent(), challengeTeam: (c) => challenges.team(c, journey.campaign.starter) }, setup);
   }
 
   /** A new game from a menu: the battle bars close first (pacing §2), then the game starts under them and they open on
@@ -460,9 +445,9 @@ function boot(): App {
    * change, and the harness (no intro) starts at once. */
   function startGame(setup: Setup, resume?: SavedGame, withIntro = true): void {
     if (resume || !withIntro) return begin(setup, resume, withIntro);
-    const g = gen; // at the dip's peak, only if no other screen or game took over meanwhile (fix, 13 Oct)
-    if (onBoard()) return void boardDip(() => (g === gen && onBoard() ? begin(setup, resume, withIntro) : undefined));
-    void covers.cover('battle').then(() => begin(setup, resume, withIntro));
+    const here = stay(); // at the dip's peak, only if no other screen or game took over meanwhile (fix, 13 Oct)
+    if (onBoard()) return void boardDip(() => (here() ? begin(setup, resume, withIntro) : undefined));
+    void covers.cover('battle').then(() => (here() ? begin(setup, resume, withIntro) : undefined)); // C14: START → OPTION while the bars close
   }
 
   function begin(setup: Setup, resume?: SavedGame, withIntro = true): void {
@@ -482,13 +467,17 @@ function boot(): App {
     else save('game', { mode: app.mode, human: app.human, level: app.level, fen: game.fen(), pgn: game.pgn() });
   }
 
-  const turnLine = (c: Color) => fmt(lookOf(c) === 'w' ? 'turn.red' : 'turn.rocket'); // by the team the colour wears (W3)
+  /** By the plate's name where plates show (C8), else by the team the colour wears (W3). */
+  const turnLine = (c: Color) => lineFor(plates.named(c), lookOf(c) === 'w' ? 'red' : 'rocket');
   function updateTurn(): void {
     // W3: a puzzle's goal always (design C); the Path never says "TEAM ROCKET to move" after a solve (ux #11).
-    const goal = app.mode === 'puzzle' ? puzzle.objective() : app.mode === 'path' ? path.objective() : ''; // BLUE's warm-up has its step goal (W5)
+    const left = challenges.movesLeft(); // a drill counts down (C9)
+    const goal = app.mode === 'puzzle' ? puzzle.objective() : app.mode === 'path' ? path.objective() : left !== null ? fmt('drill.moves', { n: String(left) }) : ''; // BLUE's warm-up has its step goal (W5)
     turnEl.textContent = goal || (app.ended || (app.mode === 'path' && game.turn() !== app.human) ? '' : turnLine(game.turn()));
     turnEl.classList.toggle('objective', !!goal);
-    backBtn.hidden = app.ended || !canTakeBack(); // the mate is final: none in the end hold (fix, 13 Oct)
+    turnEl.classList.toggle('moves-low', challenges.low);
+    backBtn.hidden = app.ended || !endGame.canTakeBack(); // the mate is final: none in the end hold (fix, 13 Oct)
+    backBtn.disabled = app.busy && !thinkingNow(); // a battle or a slide plays: it looks disabled, never a silent no-op (C2)
   }
 
   function playMove(from: string, to: string, promotion?: Role): Outcome | null {
@@ -497,6 +486,7 @@ function boot(): App {
     if (!out) return null;
     app.busy = true;
     board.locked = true;
+    backBtn.disabled = true;
     const r = away.round;
     void present(presenter, out, from, to).then(() => away.run(r, () => settle(out, from, to)));
     return out;
@@ -504,11 +494,12 @@ function boot(): App {
 
   function settle(out: Outcome, from: string, to: string): void {
     plates.quiet();
-    app.busy = false;
-    board.locked = false;
+    // Two Players' auto flip (C6): the move lands in the mover's view, then the board turns (src/game/flip.ts).
+    const flip = settings.autoFlip && app.mode === 'two-players' && !out.end && game.turn() !== board.orientation;
+    app.busy = flip;
+    board.locked = flip;
     board.setLastMove(from, to);
     legend.refresh(legendOn()); // clears the highlight; rebuilt when the species on the board changed (ux #13)
-    if (settings.autoFlip && app.mode === 'two-players' && !out.end) board.orientation = game.turn();
     plates.orient(board.orientation);
     if (out.battle) plates.capture(out.move.color);
     const slide = slideOf(out.move.color); // the opponent's moves slide slower (pacing, "when moves happen")
@@ -518,8 +509,10 @@ function boot(): App {
     notice = null;
     // Each side's move line goes to that side's plate; yours keeps your prompts (§B24 item 2).
     const said = lines.length ? lines.map((l) => fmt(l.key, l.vars)).join(' ') : fmt('moved', { piece: sp.name, square: to });
-    if (!plates.message(out.move.color, said)) text.show(lines.length ? lines : [{ key: 'moved', vars: { piece: sp.name, square: to } }]);
-    else if (app.mode !== 'puzzle') text.plain(turnLine(game.turn())); // your bar keeps a prompt; a puzzle says its own
+    if (!plates.message(out.move.color, said)) {
+      text.show(lines.length ? lines : [{ key: 'moved', vars: { piece: sp.name, square: to } }]);
+      kept = !!out.evolve; // your promotion's line stays until your next move (C4)
+    } else if (app.mode !== 'puzzle' && !out.end && !kept) text.plain(turnLine(game.turn())); // your bar keeps a prompt; a puzzle says its own; the mate line comes next (C4)
     announce([fmt('moved', { piece: sp.name, square: to }), ...out.lines.map((l) => fmt(l.key, l.vars))].join(' '));
     if (out.move.isKingsideCastle() || out.move.isQueensideCastle()) sound.castle();
     else if (!out.battle) sound.place();
@@ -527,7 +520,8 @@ function boot(): App {
     const checked = game.checkedKing();
     if (checked) sound.cry(speciesFor(game.turn(), 'k', checked).dex);
     plates.check(checked ? game.turn() : null);
-    if (out.end) finish(out, slide);
+    if (out.end) endGame.finish(out, slide);
+    challenges.settled(out.move.color); // a drill counts your move before the header shows what is left (C9)
     persistGame();
     updateTurn();
     void maybeAi();
@@ -535,10 +529,8 @@ function boot(): App {
       lockForTurn();
       online.drain();
     }
-    if (app.mode === 'challenge' && challenge && !app.ended) {
-      if (out.move.color === app.human) challenge.made++;
-      if (challenge.limit && drillStatus(game.chess, challenge.made, challenge.limit, app.human) === 'limit') endChallenge('limit');
-    }
+    if (flip) flipAfter({ app, away, wrap: boardWrap, plates, reduced: reducedMotion, done: updateTurn, turnLine }, said);
+    warmPromotions();
     if (app.mode === 'puzzle') puzzle.settled(slide);
     if (app.mode === 'path') path.settled(slide);
   }
@@ -546,33 +538,39 @@ function boot(): App {
   // A puzzle's set up move plays Quick, so the player sees the position, not a battle, first (W3, ux #6).
   const presenter: PresentHost = { overlay, plates, board, near: (c) => app.mode === 'two-players' || c === app.human, mode: () => (!onBoard() ? 'off' : app.mode === 'puzzle' && puzzle.phase === 'setup' && settings.anim === 'full' ? 'quick' : settings.anim) };
 
+  /** The promotion picker's sprites load once a pawn you play stands a step from promotion (C13). */
+  const warmPromotions = () => (app.mode === 'two-players' ? (['w', 'b'] as const) : [app.human]).forEach((c) => endGame.warmPromotion(c));
+
+  /** Online (C11): a start; a resume, the page's first board of a game in progress ("Welcome back!", the last move lit);
+   * a rematch, which dips the board and holds the "wants to battle!" card, saying so when the sides swapped. */
+  function onlineStart(moves: string[], human: Color): void {
+    const rematch = app.mode === 'online' && app.ended && onBoard();
+    const resumed = moves.length > 0 && !(app.mode === 'online' && onBoard());
+    const swapped = rematch && human !== app.human ? fmt('online.swapped', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }) : '';
+    const begin = () => {
+      cardNote = swapped;
+      configure({ mode: 'online', human, level: 1 });
+      show(gameView);
+      restart(undefined, undefined, rematch, moves);
+      const last = moves.at(-1);
+      if (resumed && last) {
+        board.setLastMove(last.slice(0, 2), last.slice(2, 4));
+        board.render();
+      }
+      text.plain(resumed ? fmt('online.back', { turn: turnLine(game.turn()) }) : swapped || fmt('online.you', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }));
+      lockForTurn();
+    };
+    if (!rematch) return begin();
+    app.busy = true; // the friend's moves wait in the queue for the new board (online.drain)
+    void boardDip(begin);
+  }
+
   /** Online: only the player whose turn it is may touch the board. */
   function lockForTurn(): void {
     board.locked = app.ended || app.busy || (app.mode === 'online' && game.turn() !== app.human);
   }
 
-  let challenge: (Challenge & { made: number }) | null = null;
-
-  function startChallenge(ch: Challenge): void {
-    void covers.cover('battle').then(() => {
-      configure({ mode: 'challenge', human: 'w', level: ch.level });
-      challenge = { ...ch, made: 0 };
-      show(gameView);
-      restart(ch.fen);
-    });
-  }
-
-  function endChallenge(result: DrillStatus): void {
-    const ch = challenge;
-    if (!ch || result === 'playing') return;
-    challenge = null;
-    app.ended = true;
-    board.locked = true;
-    music.play(result === 'mate' ? 'victory' : 'defeat');
-    const r = away.round;
-    // A hold on the final position (pacing): skippable after HOLD_MIN_MS, after OPTION on the way back.
-    void hold(CHALLENGE_END_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => ch.onEnd(result)));
-  }
+  const challenges = new Challenges({ app, away, cover: () => covers.cover('battle'), stay, configure, begin: (fen) => (show(gameView), restart(fen)) });
 
   function submit(from: string, to: string, promotion?: Role): void {
     if (app.mode === 'online') online.submit(from + to + (promotion ?? ''));
@@ -581,19 +579,16 @@ function boot(): App {
     else playMove(from, to, promotion);
   }
 
-  function canTakeBack(): boolean {
-    if (app.mode === 'online' || app.mode === 'puzzle' || app.mode === 'challenge' || app.mode === 'path') return false;
-    if (yellow()) return true; // YELLOW: take back always (§B17)
-    if (app.mode === 'two-players') return settings.takeBack;
-    return TAKE_BACK_LEVELS.includes(app.level);
-  }
-
   /** Computer turn (src/ai/turn.ts): Youngster or Stockfish, never faster than AI_MIN_THINK_MS, never hangs. */
   function maybeAi(): Promise<void> {
     return computerTurn({
       app, away,
       due: () => (app.mode === 'computer' || app.mode === 'challenge') && !app.ended && !introOpen && !app.busy && game.turn() !== app.human,
-      thinking: () => text.show([{ key: 'ai.loading', vars: { trainer: roster.teams[teamOf(game.turn())].label } }]),
+      thinking: () => {
+        const c = game.turn();
+        const line = fmt('ai.loading', { trainer: plates.nameOf(c) ?? roster.teams[teamOf(c)].label });
+        if (!plates.message(c, line)) text.plain(line); // in the opponent's bar, by the plate's name (C3)
+      },
       failed: () => text.show([(notice = { key: 'ai.failed' })]),
       play: (uci) => void playMove(uci.slice(0, 2), uci.slice(2, 4), (uci[4] as Role | undefined) || undefined),
     });
@@ -603,80 +598,14 @@ function boot(): App {
     startGame({ mode, level, human }, undefined, false);
   }
 
-  function takeBack(): boolean {
-    if (!canTakeBack() || app.busy || app.ended) return false;
-    const n = app.mode === 'computer' && game.turn() === app.human ? 2 : 1;
-    let undone = 0;
-    while (undone < n && game.undo()) undone++;
-    if (!undone) return false;
-    board.locked = false;
-    modal.hidden = true;
-    away.panel = null;
-    board.resetMarks();
-    text.plain(turnLine(game.turn()));
-    persistGame();
-    updateTurn();
-    void maybeAi();
-    return true;
-  }
-
-  /** Game over (pacing C6): what it counts for at once; at the slide's end the line, the plates, the sting and the
-   * blast-off or faint on the undimmed board; END_HOLD_MS later (or on a skip) the end panel. */
-  function finish(out: Outcome, slide = 0): void {
-    const end = out.end;
-    if (!end) return;
-    app.ended = true;
-    board.locked = true;
-    // A puzzle that ends in mate is finished by the puzzle player, not the end screen.
-    if (app.mode === 'puzzle' || app.mode === 'path') return; // the Path and the warm-up have their own Next (W5)
-    // YELLOW (§B17): no "blacked out"; a gentle line instead.
-    if (yellow()) end.line = { key: !end.winner ? 'yellow.draw' : end.winner === app.human || app.mode === 'two-players' ? 'yellow.win' : 'yellow.lose' };
-    const drill = app.mode === 'challenge' ? drillStatus(game.chess, challenge?.made ?? 0, challenge?.limit ?? 999, app.human) : null;
-    // An online win evolves trade Pokémon on your team (§B12): saved now, told with the end panel (fix, 13 Oct).
-    const evolved = app.mode === 'online' && end.winner === app.human && !isGuest() ? journey.onlineWin() : [];
-    const winner = end.winner && duo?.[end.winner].slot; // Two Players: the win counts on that player's save
-    if (winner) saveTo(winner, 'duoWins', (loadFrom<number>(winner, 'duoWins') ?? 0) + 1);
-    if (yellow() && app.mode === 'computer' && end.winner === app.human) yellowMode.win();
-    const r = away.round;
-    window.setTimeout(() => away.run(r, () => {
-      text.show([end.line]);
-      plates.end(end.winner ?? null);
-      music.stop();
-      if (drill) return endChallenge(drill);
-      if (end.winner) music.play(app.mode === 'two-players' || end.winner === app.human ? 'victory' : 'defeat');
-      if (end.reason === 'checkmate') {
-        const king = game.checkedKing();
-        const img = king ? board.squareEl(king)?.querySelector('.piece') : null;
-        img?.classList.add(end.winner === 'w' ? 'blast-off' : 'faint');
-      }
-      void hold(END_HOLD_MS, 'end', r).then((how) => how !== 'cancel' && away.run(r, () => showEnd(end.line, evolved)));
-    }), slide);
-  }
-
-  function showEnd(line: Line, evolved: [string, string][] = []): void {
-    // Gone on the first tap, so a second tap or Menu can't act too (fix, 13 Oct); away.panel stays if START cuts the dip.
-    const rematch = (swap: boolean) => ((modal.hidden = true), app.mode === 'online' ? ((away.panel = null), online.rematch(swap)) : startGame({ mode: app.mode, human: app.human, level: app.level }));
-    modal.onclick = null;
-    modal.replaceChildren(endPanel(line, { captions: settings.captions, online: app.mode === 'online', rematch, menu: goTitle }));
-    modal.hidden = false;
-    away.panel = () => showEnd(line); // back from OPTION, the end screen is still there (bugs #7)
-    for (const [from, to] of evolved) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
-  }
-
-  function pickPromotion(from: string, to: string): void {
-    const close = () => ((modal.hidden = true), (away.panel = null));
-    modal.onclick = null;
-    modal.replaceChildren(promotionPanel(game.turn(), to, (role) => (close(), submit(from, to, role)), () => (close(), board.clearSelection())));
-    modal.hidden = false;
-    away.panel = () => pickPromotion(from, to);
-  }
-
   /** New game in the current mode (or a FEN / PGN to restore), optionally with the intro card. */
   function restart(fen?: string, pgn?: string, withIntro = false, moves?: string[]): void {
     gen++;
     away.newRound();
     cancelHold();
+    endGame.flush(); // the game before ended without its panel: what it brought is told now (C5)
     introOpen = false;
+    kept = false;
     gameView.querySelectorAll('[data-testid="intro"]').forEach((n) => n.remove()); // a card from the game before
     reviewLayer.replaceChildren();
     notice = null;
@@ -693,24 +622,33 @@ function boot(): App {
     modal.hidden = true;
     board.resetMarks();
     legend.render(legendOn());
-    const opponent: Color = app.human === 'w' ? 'b' : 'w';
-    const introKey = app.mode === 'two-players' || app.human === 'w' ? 'intro.vsRocket' : 'intro.vsRed';
-    // The intro is the opponent's line, in their bar when they have one (change A). A puzzle and the Path say their own
-    // (W3; playtest, 12 Oct: a wrong Path move restarts the board, which said "TEAM ROCKET wants to battle!").
-    text.plain(app.mode === 'puzzle' || app.mode === 'path' || plates.message(introKey === 'intro.vsRocket' ? 'b' : 'w', fmt(introKey)) ? '' : fmt(introKey));
+    const opponent: Color = app.mode === 'two-players' || app.human === 'w' ? 'b' : 'w';
+    const introKey = opponent === 'b' ? 'intro.vsRocket' : 'intro.vsRed';
+    // The intro is the opponent's line by their plate's name (C8), in their bar when they have one (change A). A puzzle
+    // and the Path say their own (W3; playtest, 12 Oct: a wrong Path move restarts the board, which said "TEAM ROCKET
+    // wants to battle!"); in a drill PROF. OAK only watches, so your bar says whose move it is (C9).
+    const said = introLine(plates.named(opponent), introKey);
+    if (app.mode === 'challenge' && challenges.drill) text.plain(turnLine(game.turn()));
+    else text.plain(app.mode === 'puzzle' || app.mode === 'path' || plates.message(opponent, said) ? '' : said);
     persistGame();
     updateTurn();
+    warmPromotions();
     // The board keeps its size through a puzzle or a lesson (pacing R5): a new position refits it, nothing else does.
     if (app.mode === 'puzzle' || app.mode === 'path') fitter.freeze();
     if (withIntro) {
       introOpen = true;
       board.locked = true;
+      if (app.mode === 'online') app.busy = true; // the friend's first move waits for the card (C11)
+      const note = cardNote;
+      cardNote = '';
       const r = away.round;
       // After the reveal the card pops in and holds INTRO_MS, skippable after HOLD_MIN_MS (pacing C3). It can end while
       // OPTION is open (bugs #7): then the board unlocks and the computer moves on the way back.
       void covers.revealed().then(async () => {
         if (r !== away.round) return;
-        const card = intro(introKey, app.mode === 'two-players' ? 'b' : opponent);
+        const card = intro(introKey, opponent);
+        card.querySelector('p')!.textContent = said;
+        if (note) card.querySelector('.panel')?.append(Object.assign(el('p', 'intro-note'), { textContent: note }));
         gameView.append(card);
         guard(card, CARD_IN_MS);
         await sleep(CARD_IN_MS);
@@ -719,7 +657,14 @@ function boot(): App {
         guard(card, HOLD_MIN_MS); // a tap counts once the hold can be skipped
         const how = await held;
         card.remove();
-        if (how !== 'cancel') away.run(r, () => ((introOpen = false), lockForTurn(), void maybeAi()));
+        if (how === 'cancel' && r !== away.round) return;
+        away.run(r, () => {
+          introOpen = false;
+          if (app.mode === 'online') app.busy = false;
+          lockForTurn();
+          void maybeAi();
+          if (app.mode === 'online') online.drain();
+        });
       });
     } else {
       void maybeAi();

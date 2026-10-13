@@ -54,7 +54,8 @@ export interface Standing {
   looks?: Partial<Record<Color, Look>>;
   /** Two Players with saves (change C): each side's own trainer and name. */
   duo?: Record<Color, { name: string; trainer: PlayerTrainer }> | null;
-  /** Puzzles (W3): who you face, e.g. the route trainer; default the story stage's trainer. */
+  /** Puzzles (W3): who you face, e.g. the route trainer; the Journey's games (C9): Champion BLUE or PROF. OAK for a
+   * drill. Default the story stage's trainer. */
   them?: Side | null;
 }
 
@@ -92,7 +93,7 @@ export function standing(o: Standing, name: (key: string) => string): Record<Col
   }
   // Puzzles (W3): you always stand at the bottom with a YOU tag, facing the trainer who set the puzzle.
   if (o.mode === 'puzzle') return pair({ ...me, title: '', you: true }, o.them ?? npc(stageTrainer(o.stage)));
-  return pair(me, npc(stageTrainer(o.stage)));
+  return pair(me, o.them ?? npc(stageTrainer(o.stage)));
 }
 
 type SkinKey = (typeof SKIN_ROLES)[number];

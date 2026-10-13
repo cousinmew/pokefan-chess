@@ -173,7 +173,7 @@ test.describe('YELLOW My Team', () => {
       kc.loadFen('k7/8/1K6/8/8/8/8/7Q w - - 0 1');
       kc.move('h1h8');
     });
-    await expect(page.getByTestId('toast')).toHaveText('You got ABRA!');
+    await expect(page.getByTestId('end-sticker')).toHaveText('You got ABRA!'); // told with the end panel (controller C5, 14 Oct)
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).caught.abra)).toBe(1);
   });
 });
