@@ -93,27 +93,57 @@ for (const [w, h] of SIZES) {
   });
 }
 
-// Fix, 14 Oct: in the side column at 1280x800 a wrong move's review read "Show ansv" and "Try a nev" (cut).
-test("a wrong move's review shows each button's whole label at 1280x800", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off', legend: 'on' })));
-  await page.goto('./?debug=1');
-  await page.getByTestId('screen-splash').click();
-  await page.evaluate(() => {
-    const kc = (window as unknown as { __kc: { forcePuzzle(r: unknown, t: string): void; openPuzzles(): void } }).__kc;
-    kc.forcePuzzle(['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480], 'mateIn1'); // QUIET1, e2h2 is wrong
-    kc.openPuzzles();
+// Fix, 14 Oct: in the side column at 1280x800 a wrong move's review read "Show ansv" and "Try a nev" (cut); on narrow
+// phones long labels (de, fr, ru, it, nl) were cut and Continue pushed off screen. A second row of buttons covered the
+// board's bottom rank there instead, so narrow screens keep one row and a long label wraps inside its button.
+const REVIEW_SIZES: [string, number, number][] = [['en', 1280, 800], ['de', 360, 640], ['ru', 360, 640], ['de', 375, 667], ['ru', 375, 667], ['fr', 390, 844], ['de', 320, 480]];
+for (const [lang, w, h] of REVIEW_SIZES) {
+  test(`a wrong move's review shows each button's whole label, ${lang} ${w}x${h}`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.addInitScript((l) => {
+      localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off', legend: 'on' }));
+      localStorage.setItem('kc:v1:lang', JSON.stringify(l));
+    }, lang);
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.evaluate(() => {
+      const kc = (window as unknown as { __kc: { forcePuzzle(r: unknown, t: string): void; openPuzzles(): void } }).__kc;
+      kc.forcePuzzle(['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480], 'mateIn1'); // QUIET1, e2h2 is wrong
+      kc.openPuzzles();
+    });
+    await yourMove(page);
+    await page.click('[data-square="e2"]');
+    await page.click('[data-square="h2"]');
+    await expect(page.getByTestId('review-answer')).toBeVisible();
+    await expect(page.getByTestId('review-new')).toBeVisible();
+    await settled(page);
+    const cut = await page.locator('.review-btn:not([hidden])').evaluateAll((els) => {
+      const W = window.innerWidth;
+      return els.flatMap((e) => {
+        const r = e.getBoundingClientRect();
+        const row = e.parentElement!.getBoundingClientRect();
+        const out = e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight + 2 ? [`${e.textContent} cut: ${e.scrollWidth}x${e.scrollHeight} in ${e.clientWidth}x${e.clientHeight}`] : [];
+        if (r.left < row.left - 1 || r.right > row.right + 1 || r.left < -1 || r.right > W + 1) out.push(`${e.textContent} off its row or the screen`);
+        return out;
+      });
+    });
+    expect(cut).toEqual([]); // base: "Ein neues probi", "Weiter" off screen at 360x640
+    if (w <= 900) {
+      // One row of buttons (a second one covered the board's bottom rank), and the review stays under the board.
+      const fit = await page.evaluate(() => {
+        const acts = document.querySelector('.review .review-acts')!.getBoundingClientRect();
+        const tallest = Math.max(...[...document.querySelectorAll('.review .review-acts .review-btn:not([hidden])')].map((b) => b.getBoundingClientRect().height));
+        const review = document.querySelector('[data-testid="review"]')!.getBoundingClientRect();
+        const board = document.querySelector('[data-testid="board"]')!.getBoundingClientRect();
+        return { oneRow: acts.height <= tallest + 2, covers: Math.max(0, Math.round(board.bottom - review.top)) };
+      });
+      expect(fit.oneRow, 'the review buttons on one row').toBe(true);
+      // 320x480 floats the bar over the board's foot by design (W2); from 360x640 up it sits under the board.
+      if (w >= 360) expect(fit.covers, 'px of the board under the review').toBe(0); // second row: 33 to 38 px (a rank)
+    }
+    if (w >= 360) expect(await misfits(page, `${lang} ${w}x${h} review`)).toEqual([]);
   });
-  await yourMove(page);
-  await page.click('[data-square="e2"]');
-  await page.click('[data-square="h2"]');
-  await expect(page.getByTestId('review-answer')).toBeVisible();
-  await expect(page.getByTestId('review-new')).toBeVisible();
-  await settled(page);
-  const cut = await page.locator('.review-btn:not([hidden])').evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight + 2).map((e) => `${e.textContent} ${e.scrollWidth}x${e.scrollHeight} in ${e.clientWidth}x${e.clientHeight}`));
-  expect(cut).toEqual([]);
-  expect(await misfits(page, '1280x800 review')).toEqual([]);
-});
+}
 
 test('@both a live resize keeps the game on screen: 1280x720, 1280x500, 600x900', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });

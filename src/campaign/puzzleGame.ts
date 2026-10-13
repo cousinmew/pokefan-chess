@@ -437,12 +437,14 @@ export class PuzzleGame {
     return this.replay(3, { ms: OPPONENT_REPLY_MS, skip: 'step' }, t);
   }
 
-  /** Stockfish's punishing reply to a wrong move, or any legal one when the engine is out. */
+  /** Stockfish's punishing reply to a wrong move, or any legal one when the engine is out. A reply that isn't legal
+   * here is never played (fix, 14 Oct: another position's move threw in the review and stopped it at your move). */
   private async refutation(after: string, chess: Chess): Promise<Reply> {
     let reply: string;
     let source: Reply['source'] = 'stockfish';
     try {
       reply = await this.host.engineReply(after);
+      if (!chess.moves({ verbose: true }).some((m) => m.from + m.to + (m.promotion ?? '') === reply)) throw new Error(`${reply} is not legal here`);
     } catch (err) {
       console.warn('refutation engine unavailable:', err instanceof Error ? err.message : err);
       // Any legal reply keeps the review going: the biggest capture, else the first move.

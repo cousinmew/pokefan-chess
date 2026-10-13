@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Coach marks (W3, design F): a save's first puzzle points out your team, the goal and the opponent's set up move,
 // one bubble at a time. They never block: the layer ignores the pointer, so the board stays playable underneath;
-// any tap moves on, Escape skips them all, and your first move closes them. The first steps are read before the set
-// up move plays (fix, 14 Oct): start() resolves once they are gone (read, skipped, closed or the screen left).
+// any tap (or Enter, Space, B) moves on, Escape skips them all, and your first move closes them. The first steps are
+// read before the set up move plays (fix, 14 Oct): start() resolves once they are gone (read, skipped, closed or the
+// screen left).
 import { el } from './dom';
+import { CONTROL, skipKey } from './pace';
 
 export interface CoachStep {
   text: string;
@@ -24,12 +26,17 @@ export class Coach {
   private read: (() => void) | null = null;
   // Off screen (the game screen was left), the marks close and let the key or tap through (review fix).
   private readonly onTap = () => (this.el.isConnected ? this.next() : this.close());
+  // Escape skips them all; Enter, Space and B (the app's skip keys, with no control focused and START closed) move on
+  // like a tap (fix, 14 Oct: since the set up move waits for the marks, a keyboard player was stuck on the first one).
   private readonly onKey = (e: KeyboardEvent) => {
     if (!this.el.isConnected) return this.close();
-    if (e.key !== 'Escape') return;
+    const focus = document.activeElement;
+    const step = skipKey(e) && !(focus instanceof Element && focus !== document.body && focus.matches(CONTROL)) && !document.querySelector('.start-overlay');
+    if (e.key !== 'Escape' && !step) return;
     e.preventDefault();
     e.stopPropagation();
-    this.close();
+    if (e.key === 'Escape') this.close();
+    else if (!e.repeat) this.next();
   };
   private readonly onResize = () => this.place();
 

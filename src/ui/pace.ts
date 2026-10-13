@@ -26,7 +26,7 @@ interface Active {
 }
 
 /** What a tap on it does itself, so it never skips a hold. */
-const CONTROL = 'button, input, select, textarea, a, label, [role="menuitem"], .start-overlay';
+export const CONTROL = 'button, input, select, textarea, a, label, [role="menuitem"], .start-overlay';
 const GUARDED = '[data-guard]:not([data-ready])';
 
 let active: Active | null = null;

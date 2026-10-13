@@ -13,6 +13,8 @@ interface Script {
   errorAt?: number;
 }
 let script: Script = { loadMs: 0, searchMs: 200 };
+/** The fake's best move in each position (a real worker answers the position it was given; e2e4 elsewhere). */
+const BEST: Record<string, string> = {};
 
 class FakeWorker {
   static made: FakeWorker[] = [];
@@ -20,23 +22,37 @@ class FakeWorker {
   onerror: ((e: { message: string; preventDefault(): void }) => void) | null = null;
   terminated = false;
   readonly born = Date.now();
+  /** Searches started, by position. */
+  readonly searched: string[] = [];
+  /** A real (single threaded) worker runs its messages in order: nothing before the script arrived, and a search
+   * holds every message after it until its bestmove is out. */
+  private free: number;
+  private position = '';
   constructor(readonly url: string) {
     FakeWorker.made.push(this);
+    this.free = this.born + script.loadMs;
     if (script.errorAt !== undefined) setTimeout(() => !this.terminated && this.onerror?.({ message: 'load error', preventDefault: () => undefined }), script.errorAt);
   }
   postMessage(cmd: string): void {
-    // Messages wait until the script has arrived, as in a real worker.
-    const at = Math.max(0, this.born + script.loadMs - Date.now());
     if (script.errorAt !== undefined) return;
-    if (cmd === 'uci') setTimeout(() => this.reply('uciok'), at);
-    else if (cmd === 'isready') setTimeout(() => this.reply('readyok'), at);
-    else if (cmd.startsWith('go ')) setTimeout(() => this.reply('bestmove e2e4'), at + script.searchMs);
+    const at = Math.max(Date.now(), this.free);
+    if (cmd === 'uci') this.later(at, () => this.reply('uciok'));
+    else if (cmd === 'isready') this.later(at, () => this.reply('readyok'));
+    else if (cmd.startsWith('position fen ')) this.later(at, () => (this.position = cmd.slice(13)));
+    else if (cmd.startsWith('go ')) {
+      this.free = at + script.searchMs;
+      this.later(at, () => this.searched.push(this.position));
+      this.later(this.free, () => this.reply(`bestmove ${BEST[this.position] ?? 'e2e4'}`));
+    }
   }
   terminate(): void {
     this.terminated = true;
   }
+  private later(at: number, fn: () => void): void {
+    setTimeout(() => !this.terminated && fn(), at - Date.now());
+  }
   private reply(line: string): void {
-    if (!this.terminated) this.onmessage?.({ data: line });
+    this.onmessage?.({ data: line });
   }
 }
 
@@ -148,5 +164,75 @@ describe('warmEngine()', () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(w.result().ok).toBe('e2e4');
     expect(FakeWorker.made).toHaveLength(2);
+  });
+});
+
+describe('one request at a time (fix, 14 Oct: requests made while the engine loaded took each other\'s answers)', () => {
+  const ONE = '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 b - - 1 49';
+  const TWO = 'r4rk1/1p4pp/p7/P1p1p1Q1/2Pp4/3P2R1/2P1B1PP/5q1K b - - 7 29';
+  beforeEach(() => {
+    BEST[ONE] = 'e2e1';
+    BEST[TWO] = 'f1f3';
+  });
+
+  it('a second request during the load: the first gives way at once, the second gets its own position\'s move', async () => {
+    const { Engine } = await engine();
+    script = { loadMs: 6000, searchMs: 200 };
+    const e = new Engine();
+    const first = watch(e.bestMove(ONE, 4)); // a miss review the player left ("Try a new one")
+    await vi.advanceTimersByTimeAsync(1000);
+    const second = watch(e.bestMove(TWO, 4)); // the next puzzle's miss review
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(second.result().ok).toBe('f1f3'); // the earlier build: e2e1, the first position's move ("Invalid move")
+    expect(first.result()).toMatchObject({ err: expect.stringMatching(/superseded/), at: 1000 });
+    expect(FakeWorker.made).toHaveLength(1);
+    expect(FakeWorker.made[0]!.searched).toEqual([TWO]);
+    expect(e.loaded).toBe(true);
+  });
+
+  it('a request made during a search waits for it: each gets its own position\'s move, on the same worker', async () => {
+    const { Engine } = await engine();
+    script = { loadMs: 0, searchMs: 1200 };
+    const e = new Engine();
+    const first = watch(e.bestMove(ONE, 4));
+    await vi.advanceTimersByTimeAsync(500);
+    const second = watch(e.bestMove(TWO, 4));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(first.result().ok).toBe('e2e1');
+    expect(second.result().ok).toBe('f1f3');
+    expect(second.result().at).toBeGreaterThanOrEqual(1900); // its own search starts when the first's is out
+    expect(FakeWorker.made).toHaveLength(1);
+    expect(FakeWorker.made[0]!.terminated).toBe(false);
+  });
+
+  it('of three, the one waiting for a search gives way to the newest; the search under way still answers its own', async () => {
+    const { Engine } = await engine();
+    script = { loadMs: 0, searchMs: 1200 };
+    const e = new Engine();
+    const first = watch(e.bestMove(ONE, 4));
+    await vi.advanceTimersByTimeAsync(300);
+    const second = watch(e.bestMove(TWO, 4));
+    await vi.advanceTimersByTimeAsync(300);
+    const third = watch(e.bestMove(FEN, 4));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(second.result().err).toMatch(/superseded/);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(first.result().ok).toBe('e2e1');
+    expect(third.result().ok).toBe('e2e4');
+    expect(FakeWorker.made[0]!.searched).toEqual([ONE, FEN]);
+  });
+
+  it('a request that gave way leaves no timer behind: the newer one keeps the worker past the older one\'s load cap', async () => {
+    const { Engine, ENGINE_LOAD_MS } = await engine();
+    script = { loadMs: ENGINE_LOAD_MS + 2000, searchMs: 200 };
+    const e = new Engine();
+    const first = watch(e.bestMove(ONE, 4));
+    await vi.advanceTimersByTimeAsync(5000);
+    const second = watch(e.bestMove(TWO, 4));
+    await vi.advanceTimersByTimeAsync(ENGINE_LOAD_MS - 5000 + 100); // the first one's cap would have dropped the worker
+    expect(first.result().err).toMatch(/superseded/);
+    expect(FakeWorker.made[0]!.terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(second.result().ok).toBe('f1f3');
   });
 });

@@ -7,6 +7,7 @@
 // a new badge, and Route 1's trainers are in before its screen. Real timings, the patterns of pace.ts.
 import { readFileSync } from 'node:fs';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { Chess } from 'chess.js';
 import { settled, skipHold } from './pace';
 
 type Row = [string, string, string, number];
@@ -199,6 +200,73 @@ test.describe('the engine on a cold phone (P1: Slow 4G, 4x CPU, empty cache)', (
   });
 });
 
+test.describe("one engine request at a time (P1 follow-up: requests made while the engine loaded took each other's moves)", () => {
+  /** Lichess 0B66I, the next puzzle: a8b8 is a wrong move there. */
+  const NEXT: Row = ['0B66I', 'r4rk1/1p4pp/p7/P1p1p1Q1/2Pp4/3P2R1/2P1B1PP/5q1K w - - 6 29', 'e2f1 f8f1', 413];
+  /** The engine's script arrives late (a slow phone): every request below is made while it loads. */
+  const slowEngine = (page: Page, ms: number) =>
+    page.route('**/engine/*.js', async (r) => {
+      await new Promise((res) => setTimeout(res, ms));
+      await r.continue();
+    });
+  const legal = (fen: string, uci: string) => new Chess(fen).moves({ verbose: true }).some((m) => m.from + m.to + (m.promotion ?? '') === uci);
+
+  test("a miss review left for the next puzzle's: the second review gets its own reply, and nothing throws", async ({ page }) => {
+    test.setTimeout(90_000);
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await slowEngine(page, 10_000);
+    await plain(page);
+    await move(page, 'e2h2'); // the first review asks the engine, still loading
+    await kc(page, 'forcePuzzle', NEXT, 'mateIn1');
+    await page.locator('[data-testid="review-new"]:not([disabled])').click();
+    await expect.poll(() => phase(page), { timeout: 20_000 }).toBe('player');
+    const pre = new Chess((await state(page)).fen);
+    pre.move({ from: 'a8', to: 'b8' });
+    await move(page, 'a8b8'); // the second review asks too, before the load is over
+    await expect.poll(async () => (await kc<{ fen: string } | null>(page, 'refutation'))?.fen, { timeout: 40_000 }).toBe(pre.fen());
+    const r = (await kc<{ fen: string; uci: string; source: string }>(page, 'refutation'))!;
+    expect(r.source).toBe('stockfish');
+    expect(legal(r.fen, r.uci), r.uci).toBe(true); // the earlier build: a8d8, the first puzzle's reply
+    await expect(page.getByTestId('review-next')).toBeEnabled({ timeout: 10_000 }); // the reply and the right move joined
+    await expect(page.getByTestId('review-text')).not.toContainText('is thinking');
+    expect(errors).toEqual([]); // the earlier build: 'Invalid move: {"from":"a8","to":"d8"}'
+  });
+
+  test("a miss review left for a game vs Computer: the computer's first reply is its own, from the engine", async ({ page }) => {
+    test.setTimeout(90_000);
+    await slowEngine(page, 8000);
+    await plain(page);
+    await move(page, 'e2h2'); // the review asks the engine, still loading
+    await page.getByTestId('start-button').click();
+    await page.getByTestId('start-menu-computer').click();
+    await page.getByTestId('team-red').click();
+    await page.getByTestId('level-2').click();
+    await page.getByTestId('intro').click();
+    await expect(page.getByTestId('screen-game')).toBeVisible();
+    await settled(page);
+    await move(page, 'e2e4');
+    await expect.poll(async () => { const s = await state(page); return s.turn === 'w' && s.fen !== new Chess().fen(); }, { timeout: 40_000, intervals: [250] }).toBe(true); // the earlier build: the review's move, ignored, and the game hung on "thinking"
+    expect((await state(page)).aiFailed).toBe(false);
+  });
+
+  test('a reply that is not legal in its position never breaks a review: the neutral line and the right move', async ({ page }) => {
+    // A stand-in engine that answers every search with a move no position here allows.
+    await page.route('**/engine/*.js', (r) =>
+      r.fulfill({ contentType: 'text/javascript', body: "onmessage = (e) => { const c = String(e.data); if (c === 'uci') postMessage('uciok'); else if (c === 'isready') postMessage('readyok'); else if (c.startsWith('go')) postMessage('bestmove a1h8'); };" }),
+    );
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.addInitScript(lineLog);
+    await plain(page);
+    await move(page, 'e2h2');
+    await expect(page.getByTestId('review-text')).toContainText('checkmate!', { timeout: 15_000 });
+    expect((await kc<{ source: string }>(page, 'refutation')).source).toBe('fallback');
+    expect((await lines(page)).map((x) => x.text)).toContain('Here is one answer.');
+    expect(errors).toEqual([]); // the earlier build: "Invalid move", and the review stopped at your move
+  });
+});
+
 test.describe('a miss review at reading speed (P2, 4x CPU)', () => {
   test('the line that says why stays REFUTATION_READ_MS before the right move', async ({ page, context }) => {
     test.setTimeout(90_000);
@@ -277,6 +345,29 @@ test("P3: a new save's first puzzle shows its coach marks before the set up move
   const gone = f.find((x) => x.t > shown.at(-1)!.t && !x.bubble)!; // the frame bubble 2 went
   expect(moved.t - gone.t).toBeGreaterThanOrEqual(SETUP_MS - 40);
   expect(moved.t - gone.t).toBeLessThanOrEqual(SETUP_MS + 150);
+});
+
+test("P3: the coach marks move on with Enter, Space and B, as with a tap (the app's skip keys)", async ({ page }) => {
+  test.setTimeout(60_000);
+  await seed(page, { ...SAVE, tips: [], lessonsSeen: ['mateIn1'], journey: { cleared: [], beaten: [], visited: ['route-1'] } });
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  await page.getByTestId('kanto').click();
+  await page.getByTestId('route-route-1').click();
+  await kc(page, 'forcePuzzle', QUIET1, 'mateIn1');
+  await page.getByTestId('battle-trainer').click();
+  await page.getByTestId('trainer-intro').click();
+  await page.getByTestId('goal-card').click();
+  const coach = page.getByTestId('coach');
+  await expect(coach).toContainText('These are yours: TEAM RED, at the bottom.');
+  await page.keyboard.press('Enter');
+  await expect(coach).toContainText('Your goal is always up here.'); // base: Enter, Space and B did nothing (only Escape)
+  await page.keyboard.press('Space');
+  await expect.poll(() => phase(page), { timeout: 10_000 }).toBe('player'); // the set up move, PUZZLE_SETUP_MS later
+  await expect(coach).toContainText('They moved. Now find your move!');
+  await page.keyboard.press('b');
+  await expect(coach).toBeHidden();
+  expect((await state(page)).fen).not.toBe(QUIET1[1]);
 });
 
 test.describe('P4: puzzle holds wait for the player', () => {
