@@ -72,6 +72,9 @@ export class JourneyGame {
   private readonly ahead = new Map<string, Promise<void>>();
 
   constructor(private readonly host: JourneyHost) {
+    // J9 (review R2): My Team's placeholders from boot, as the hub opens MY TEAM straight from its tile (only the map
+    // fetched them, so a cold MY TEAM from the hub showed empty rows); 7 Gen 1 sprites of about 0.4 KB.
+    if (hasProgress(currentSlot()) && !isGuest()) void this.fetchAhead(teamArt(this.campaign));
     // Play time goes into the save as stored, so a rename or a YELLOW lesson written elsewhere is kept (bugs #6), and
     // every save with progress counts it (the start menu's TIME, ux #8); a guest's game is not saved.
     window.setInterval(() => {
@@ -564,7 +567,10 @@ export class JourneyGame {
     const blue = this.championOf();
     const modal = this.host.modal;
     music.play('battle');
-    modal.replaceChildren(trainerIntro(this.campaign, blue, personSprite('blue-champion')));
+    // The story hands over in this same tap (B2), by scale only, so BLUE never fades out (J13, review R2).
+    const card = trainerIntro(this.campaign, blue, personSprite('blue-champion'));
+    card.classList.add('handover');
+    modal.replaceChildren(card);
     modal.hidden = false;
     let stage = 0;
     modal.onclick = () => {
@@ -669,15 +675,18 @@ export class JourneyGame {
   private openDex(id: string, note?: string, changed: ('count' | 'candy' | 'stars')[] = []): void {
     const modal = this.host.modal;
     const c = this.campaign;
-    prefetchEvolutions(evolutionsOf(id).filter((e) => (c.candy[familyOf(id)] ?? 0) >= evolveCost(e)).map((e) => e.to));
+    const can = evolutionsOf(id).filter((e) => (c.candy[familyOf(id)] ?? 0) >= evolveCost(e));
+    prefetchEvolutions(can.length ? [id, ...can.map((e) => e.to)] : []); // the evolution's both sprites, decoded
     modal.replaceChildren(
       dexDetail(c, id, {
         evolve: (e) => {
           const next = evolve(this.campaign, e);
           if (!next) return;
           this.set(next);
-          modal.hidden = true;
+          modal.hidden = true; // the evolution screen comes up in this same task, over the grid (review R2)
+          const g = this.host.gen();
           void this.host.evolveAnim(e.from, e.to).then(() => {
+            if (g !== this.host.gen()) return; // a screen left meanwhile stays left (as win()'s evolutions do)
             const names = { from: SPECIES[e.from]!.name, to: SPECIES[e.to]!.name };
             toast('dex.evolved', names);
             this.showDex();

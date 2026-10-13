@@ -188,7 +188,15 @@ export function choiceScreen(ids: string[], pick: (id: string) => void): HTMLEle
     const b = el('button', 'card');
     b.dataset.testid = `choose-${id}`;
     b.append(mon(id, 'menu-sprite bounce', false, false, true), document.createTextNode(SPECIES[id]!.name));
-    b.onclick = () => pick(id);
+    b.onclick = () => {
+      // Review (R2): "You received …!" and the unlock card come over this screen, so it shows only the pick from now on
+      // (the other choice stayed on offer behind them); one pick, as the buttons go dead.
+      for (const x of row.querySelectorAll('button')) {
+        x.disabled = true;
+        x.hidden = x !== b;
+      }
+      pick(id);
+    };
     row.append(b);
   }
   return screen('choice', el('h2', '', 'reward.choose'), row);

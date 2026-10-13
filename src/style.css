@@ -937,8 +937,9 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 /* ===== Fix, 13 Oct (journey group). J3, the catch's beat: the ball flies to the wild Pokémon, which goes into it; the
    ball wobbles (three times, or twice before it breaks free) and clicks shut, or pops open and the Pokémon comes back
    out; then the result and what it gave. Straight up and down, so it needs no RTL mirror; under reduced motion the ball
-   fades in and the Pokémon fades out. J1: the Pokédex entry's line and the numbers OAK changed. J4: the gift card. J13:
-   "wants to battle!" after a story pops by scale only, so the trainer in it never fades out (B2). ===== */
+   fades in and the Pokémon fades out. J1: the Pokédex entry's line and the numbers OAK changed. J4: the gift card and
+   a picked choice. J13: "wants to battle!" after a story pops by scale only, so the trainer in it never fades out (B2).
+   ===== */
 .catch-stage { position: relative; display: flex; justify-content: center; }
 .catch-ball { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; box-sizing: border-box; border: 3px solid var(--ink); border-radius: 50%; background: linear-gradient(#e03030 0 44%, var(--ink) 44% 56%, #fff 56%); pointer-events: none; }
 .catch-ball::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border: 2px solid var(--ink); border-radius: 50%; background: #fff; }
@@ -956,6 +957,9 @@ html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hi
 .dex-detail .changed { border-radius: 4px; animation: journey-changed 1200ms ease-out both; }
 @keyframes journey-changed { from { background-color: rgba(255, 236, 120, 0.95); } to { background-color: rgba(255, 236, 120, 0); } }
 .gift-card .menu-sprite { align-self: center; }
+/* A choice once picked (review R2): the other one's place is kept but empty, the pick keeps its own colours. */
+.cards .card[hidden] { visibility: hidden; }
+.cards .card:disabled { color: inherit; }
 .overlay > .panel.handover { animation: journey-handover var(--card-in) ease-out both; }
 .overlay > .panel.handover .slide-in { animation: none; }
 @keyframes journey-handover { 0% { transform: scale(0.94); } 70% { transform: scale(1.03); } 100% { transform: none; } }

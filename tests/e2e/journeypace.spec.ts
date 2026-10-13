@@ -184,6 +184,95 @@ for (const run of [1, 2, 3]) {
   });
 }
 
+/** From the next click on Evolve: the frames before the evolution screen with neither a card nor it up (the bare grid,
+ * which takes taps), and each screen shown. */
+const watchEvolve = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __gap: { bare: number; screens: string[] } };
+    const g = (w.__gap = { bare: 0, screens: [] as string[] });
+    let on = false;
+    let evo = false;
+    document.addEventListener('click', (e) => (e.target as Element).closest('[data-testid^="evolve-"]') && (on = true), { capture: true });
+    const tick = () => {
+      const b = document.querySelector<HTMLElement>('[data-testid="battle"]');
+      const m = document.querySelector<HTMLElement>('#app > .overlay');
+      evo ||= !!b && !b.hidden;
+      if (on && !evo && (!m || m.hidden) && (!b || b.hidden)) g.bare++;
+      if (on && g.screens.at(-1) !== document.body.dataset.screen) g.screens.push(document.body.dataset.screen ?? '');
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+// Review (R2): Evolve hid the entry, then left the bare grid up for about 0.5 s while the sprites decoded; Back in that
+// gap went to the map, and the evolution's end then pulled the player back into the Pokédex.
+test('J1 Pokédex: Slow 4G cold, the evolution screen is up from the tap on Evolve; a tap 150 ms later does not leave', async ({ page }) => {
+  test.setTimeout(150_000);
+  await open(page, { ...SAVE, caught: { bulbasaur: 1 } });
+  await kc(page, 'grant', 'charmander', 9);
+  await page.getByTestId('kanto').click();
+  await expect(page.getByTestId('screen-map')).toBeVisible();
+  await settled(page);
+  await throttle(page, SLOW_4G, 4);
+  await page.getByTestId('open-dex').click();
+  await page.getByTestId('dex-charmander').click();
+  const back = (await page.getByTestId('back').boundingBox())!;
+  await watchEvolve(page);
+  await page.getByTestId('evolve-charmeleon').click({ timeout: 30_000 });
+  await page.waitForTimeout(150); // a player who changes their mind, as soon as the entry is gone
+  await page.mouse.click(back.x + back.width / 2, back.y + back.height / 2);
+  await expect(page.getByTestId('dex-detail')).toContainText('CHARMANDER evolved into CHARMELEON!', { timeout: 30_000 });
+  const gap = await page.evaluate(() => (window as unknown as { __gap: { bare: number; screens: string[] } }).__gap);
+  expect(gap).toEqual({ bare: 0, screens: ['screen-dex'] });
+});
+
+test('J1 Pokédex: a screen left during the evolution stays left (the Pokédex does not come back)', async ({ page }) => {
+  await open(page, { ...SAVE, caught: { bulbasaur: 1 } });
+  await kc(page, 'grant', 'charmander', 9);
+  await page.getByTestId('kanto').click();
+  await page.getByTestId('open-dex').click();
+  await page.getByTestId('dex-charmander').click();
+  await page.getByTestId('evolve-charmeleon').click();
+  await expect(page.getByTestId('battle')).toBeVisible();
+  await kc(page, 'setMode', 'computer', 1, 'w'); // as a new game would, while it plays
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  await page.waitForTimeout(3000); // longer than the evolution's whole sequence
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  expect(await page.evaluate(() => document.body.dataset.screen)).toBe('screen-game');
+});
+
+// Review (R2): the Gen 1 sprite was used only once the animation and the still had both failed, so a target whose files
+// stall showed an empty box at the reveal and the swap blinked against nothing.
+test('J1: a target whose animation and still stall shows its Gen 1 sprite in every frame of the evolution', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.route(/\/assets\/(front\/5\.(gif|webp)|static\/front\/5\.png)$/, async (r) => {
+    await new Promise((res) => setTimeout(res, 10_000));
+    await r.continue().catch(() => undefined);
+  });
+  await open(page, { ...SAVE, caught: { bulbasaur: 1 } });
+  await kc(page, 'grant', 'charmander', 9);
+  await page.getByTestId('kanto').click();
+  await page.getByTestId('open-dex').click();
+  await page.getByTestId('dex-charmander').click();
+  await expect(page.locator('[data-testid="dex-detail"] img')).toHaveJSProperty('complete', true);
+  await page.evaluate(() => {
+    const w = window as unknown as { __empty: string[] };
+    w.__empty = [];
+    const tick = () => {
+      const b = document.querySelector<HTMLElement>('[data-testid="battle"]');
+      const i = b && !b.hidden ? b.querySelector<HTMLImageElement>('.mon.def img') : null;
+      if (b && !b.hidden && !(i && i.complete && i.naturalWidth > 0)) w.__empty.push(i?.getAttribute('src') ?? 'none');
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('evolve-charmeleon').click();
+  await expect(page.getByTestId('dex-detail')).toContainText('CHARMANDER evolved into CHARMELEON!', { timeout: 15_000 });
+  const p = await probed(page);
+  expect(p.flash).toEqual([{ src: expect.stringMatching(/\/retro\/5\.png$/), ok: true }]);
+  expect(await page.evaluate(() => (window as unknown as { __empty: string[] }).__empty)).toEqual([]);
+});
+
 test('J1 vs Computer: a promotion holds "… evolved into …!" on the evolution screen for at least 1000 ms', async ({ page }) => {
   await open(page, SAVE, { settings: { v: 2, anim: 'full', sound: false } });
   await kc(page, 'setMode', 'computer', 1, 'w');
@@ -338,6 +427,64 @@ test.describe('J4: first clears and gifts in order', () => {
     expect(order.filter((x) => x.includes('Next: '))).toHaveLength(1);
     expect(order.at(-1)).toMatch(/^unlock-card\|/);
   });
+
+  // Review (R2): a choice's story and the unlock card came over the choice screen with both choices still on offer.
+  test('Mt. Moon\'s fossil: once picked, the screen under "You received" and the unlock card shows only the pick', async ({ page }) => {
+    test.setTimeout(120_000);
+    await open(page, upTo('mt-moon'));
+    await page.getByTestId('kanto').click();
+    await kc(page, 'enterPlace', 'mt-moon');
+    await toCard(page);
+    await play(page, ['e2e1', 'e2e1']); // 2 of 3
+    for (let i = 0; i < 8 && !(await page.getByTestId('screen-choice').count()); i++) {
+      const card = page.locator('#app > .overlay:not([hidden]) > .panel[data-ready]').first();
+      await Promise.race([card.waitFor({ timeout: 15_000 }), page.getByTestId('screen-choice').waitFor({ timeout: 15_000 })]);
+      if (!(await page.getByTestId('screen-choice').count())) await card.click();
+    }
+    await page.getByTestId('choose-omanyte').click();
+    for (const id of ['story', 'unlock-card']) {
+      await expect(page.getByTestId(id)).toBeVisible();
+      await expect(page.getByTestId('choose-kabuto')).toBeHidden();
+      await expect(page.getByTestId('choose-omanyte')).toBeVisible();
+      await expect(page.getByTestId('choose-omanyte')).toBeDisabled();
+      await ready(page, id);
+      await page.getByTestId(id).click();
+    }
+    await expect(page.getByTestId('screen-map')).toBeVisible();
+  });
+});
+
+// Review (R2, J13): the Champion's story handed over to "wants to battle!" with the card and BLUE fading in from 0.
+test('J13: the Champion\'s story hands over with BLUE seen in every frame', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const w = window as unknown as { __seen: { t: number; a: number; intro: boolean }[] };
+    w.__seen = [];
+    const shownAt = (s: Element) => { let a = 1; for (let e: Element | null = s; e; e = e.parentElement) a *= Number(getComputedStyle(e).opacity); return a; };
+    const tick = () => {
+      const o = document.querySelector<HTMLElement>('#app > .overlay');
+      if (o && !o.hidden) w.__seen.push({ t: performance.now(), a: Math.max(0, ...[...o.querySelectorAll('.trainer-sprite')].map(shownAt)), intro: !!o.querySelector('[data-testid="trainer-intro"]') });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await open(page, upTo('champion'));
+  await page.getByTestId('kanto').click();
+  await expect(page.getByTestId('screen-map')).toBeVisible();
+  await noTransition(page);
+  await kc(page, 'enterPlace', 'champion');
+  let t0 = 0;
+  while (!(await page.getByTestId('trainer-intro').count())) {
+    await ready(page, 'story');
+    t0 = await page.evaluate(() => performance.now());
+    await page.getByTestId('story').click();
+    await page.locator('[data-testid="trainer-intro"], [data-testid="story"]').first().waitFor();
+  }
+  await ready(page, 'trainer-intro');
+  const f = (await page.evaluate(() => (window as unknown as { __seen: { t: number; a: number; intro: boolean }[] }).__seen)).filter((x) => x.t >= t0);
+  expect(f.filter((x) => x.intro).length).toBeGreaterThan(5);
+  expect(f.filter((x) => x.a < 0.5)).toEqual([]);
+  await expect(page.getByTestId('trainer-intro')).toHaveClass(/handover/);
 });
 
 test('J5: a battle left half way keeps its pips: re-entering Brock shows the goal card and ●●○○○ need 1', async ({ page }) => {
@@ -476,23 +623,18 @@ test.describe('@perf J8: the first 24 Pokédex cells decode soon after the revea
       }
       const median = times.map((t) => t.first24).sort((a, b) => a - b)[1]!;
       console.log(`[perf J8] ${name} over ${base}: ${JSON.stringify(times)} ms after the reveal (first 24, all in view), median of the first 24 ${median}`);
+      // Review (R2): over vite preview's HTTP/1.1 the budgets do not apply (each request waits for one of 6 connections),
+      // so without an HTTP/2 front the numbers are logged and noted, not judged.
+      if (!process.env.PERF_H2_URL) return void info.annotations.push({ type: 'perf', description: `HTTP/1.1, not judged (set PERF_H2_URL): median ${median} ms, budget ${budget} ms` });
       expect(median).toBeLessThanOrEqual(budget);
     });
   }
 });
 
-test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every frame', async ({ page }) => {
-  test.setTimeout(60_000);
-  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey' } });
-  await throttle(page, SLOW_4G, 4);
-  await page.getByTestId('kanto').click();
-  await expect(page.getByTestId('screen-map')).toBeVisible();
-  await settled(page);
-  // A player looks at the map for a moment before MY TEAM (the map fetches its placeholders meanwhile; on HTTP/1.1, as
-  // here, 7 requests share 6 connections with the battle preload, about two round trips of 562 ms).
-  await page.waitForTimeout(1500);
-  await page.getByTestId('open-team').click();
-  const frames = await page.evaluate(async () => {
+/** From MY TEAM's first frame, 2.5 s of frames: in each, how many rows show no painted Pokémon (the animation, or its Gen 1
+ * placeholder fetched); 100 more while the 7 rows are not all there. */
+const teamFrames = (page: Page) =>
+  page.evaluate(async () => {
     while (!document.querySelector('[data-testid="screen-team"]')) await new Promise((r) => requestAnimationFrame(r));
     const loaded = (url: string) => performance.getEntriesByName(new URL(url, location.href).href).some((e) => (e as PerformanceResourceTiming).responseEnd > 0);
     const painted = (i: HTMLImageElement) => (i.complete && i.naturalWidth > 0) || loaded(/url\("?([^")]+)"?\)/.exec(i.style.backgroundImage)?.[1] ?? 'about:blank');
@@ -505,9 +647,36 @@ test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every fram
     }
     return out;
   });
+const noEmptyRow = (frames: number[]) => {
   expect(frames.length).toBeGreaterThan(10);
   expect({ frames: frames.length, withAnEmptyRow: frames.filter((n) => n > 0).length, mostEmpty: Math.max(...frames) }).toMatchObject({ withAnEmptyRow: 0 });
+};
+
+test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every frame', async ({ page }) => {
+  test.setTimeout(60_000);
+  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey' } });
+  await throttle(page, SLOW_4G, 4);
+  await page.getByTestId('kanto').click();
+  await expect(page.getByTestId('screen-map')).toBeVisible();
+  await settled(page);
+  // A player looks at the map for a moment before MY TEAM (the map fetches its placeholders meanwhile; on HTTP/1.1, as
+  // here, 7 requests share 6 connections with the battle preload, about two round trips of 562 ms).
+  await page.waitForTimeout(1500);
+  await page.getByTestId('open-team').click();
+  noEmptyRow(await teamFrames(page));
 });
+
+// Review (R2): only the map fetched the placeholders, so MY TEAM straight from the hub tile (the audit's own path) still
+// showed empty rows for about 0.8 s on a cold Slow 4G load.
+for (const cpu of [1, 4]) {
+  test(`J9: Slow 4G${cpu > 1 ? ' + 4x CPU' : ''} cold, MY TEAM straight from the hub tile: every row painted in every frame`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await throttle(page, SLOW_4G, cpu); // from the first request: a cold load
+    await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey', n: 'rattata' } });
+    await page.getByTestId('hub-team').click();
+    noEmptyRow(await teamFrames(page));
+  });
+}
 
 test('J10: Training shows the Trainer Level, and a solve says "Trainer Level +N"', async ({ page }) => {
   await open(page, SAVE, { trainer: { rating: { r: 900, rd: 150, vol: 0.06 }, solved: 12, missed: 3, assisted: 0, seen: [] } });
