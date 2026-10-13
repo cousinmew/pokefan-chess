@@ -19,7 +19,7 @@ import { TextBox } from './ui/textBox';
 import { button, el } from './ui/dom';
 import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
-import { bootProfiles, currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
+import { currentSlot, enterGuest, isGuest, leaveGuest, load, loadFrom, remove, save, saveTo } from './store/persist';
 import { installHarness } from './debug/harness';
 import { OnlineGame } from './net/onlineGame';
 import { PuzzleGame } from './campaign/puzzleGame';
@@ -35,7 +35,7 @@ import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
 import { applyLanguage, savedLang } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
-import { beingMade, endCreating, hasProgress, isCreating, slotCount, switchTo } from './profiles';
+import { bootSaves, endCreating, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
 import { saveSection } from './ui/saveSettings';
 import { decorateHome } from './ui/notices';
@@ -74,7 +74,7 @@ function boot(): App {
   setCssVars();
   const root = document.getElementById('app') as HTMLElement;
   // The save slot first (§B18 item 2), then its language (§B17) and cartridge (YELLOW simple or BLUE story).
-  bootProfiles((n) => !hasProgress(n) && !isCreating(n) && !beingMade(n)); // an empty save left behind is dropped (playtest, 12 Oct; not one another tab is making, review fix)
+  bootSaves(); // only a NEW GAME left empty is dropped, never a save from before (playtest, 12 Oct; data loss review)
   registerShell();
   // Load order (load fix): the hub sheet and the three starters first; battle sprites wait for idle time.
   warmHubSheet();

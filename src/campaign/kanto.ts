@@ -139,7 +139,7 @@ const fresh = (): Campaign => ({
 });
 
 /** A stored save that has solved a puzzle: a trainer beaten, or a solve recorded on a route (Training, tall grass). */
-const solvedBefore = (c: Partial<Campaign> | null): boolean =>
+export const solvedBefore = (c: Partial<Campaign> | null): boolean =>
   !!c?.journey?.beaten?.length || Object.values(c?.routes ?? {}).some((r) => (r?.streak ?? 0) > 0 || !!r?.last?.some(Boolean));
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
