@@ -18,8 +18,9 @@ export function installRow(): HTMLElement {
     const held = offlineHeld();
     const parts: HTMLElement[] = [];
     if (state === 'installed') {
-      // No "plays offline" claim above a line saying the offline files wait or could not be fetched (fix, 13 Oct).
-      const p = el('p', 'install-status', held || w === 'failed' ? 'install.installedOnly' : 'install.installed');
+      // "Plays offline" only once the worker said this build is ready (N4, 14 Oct): not above a line saying the offline
+      // files wait or could not be fetched (fix, 13 Oct), and not before the check answers or while it cannot be asked.
+      const p = el('p', 'install-status', w === 'ready' ? 'install.installed' : 'install.installedOnly');
       p.dataset.testid = 'install-installed';
       parts.push(p);
     } else if (state === 'none') {
