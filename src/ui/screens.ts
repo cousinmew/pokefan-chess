@@ -4,20 +4,26 @@ import { AI_LEVELS, SPLASH_AUTO_MS, type AiLevel } from '../config';
 import { hold } from './pace';
 import { faceoff, opponentTag } from './ladder';
 import type { Side } from '../look';
-import { speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
+import { parseVariant, SKIN_ROLES, species, speciesFor, speciesIdFor, spriteUrl, type Color, type Role, type TeamSkin } from '../board/pieces';
 import { fmt, type StringKey } from '../game/text';
 import { sound } from '../audio/audio';
 import { button, el, footer, screen, toast } from './dom';
 import { manualScreen, type Page } from './manual';
-import { trainerSprite } from './kanto';
+import { mon, trainerSprite, trainerSrc } from './kanto';
 import { levelNewVars, type ShownLevel } from '../campaign/trainer';
 import { itemIcon, pixelIcon, type PixelIcon } from './icons';
+import { decodedSrc, decodeImage, onDecoded, stillUrl } from '../battle/sprites';
 
-function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLElement {
-  const sp = speciesFor(color, role, square);
-  const img = el('img', cls);
-  img.src = spriteUrl(sp.dex);
-  img.alt = sp.name;
+export const INTRO_SPRITE_WAIT_MS = 400; // the intro card stays clear at most this long for its Pokémon to decode, then pops
+/** A Poké Ball outline drawn under a menu sprite's retro stand-in: its box is never empty while both load. */
+const WAITING = 'radial-gradient(circle, transparent 0 9%, rgba(128, 128, 128, 0.45) 9% 13%, transparent 13% 31%, rgba(128, 128, 128, 0.45) 31% 35%, transparent 35%)';
+
+/** A menu Pokémon (team picker, intro card) that is never an empty box (loading fix, 13 Oct): kanto.ts mon(), whose
+ * retro sprite stands in while the animated one loads, over a drawn outline while the retro one loads too. */
+function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLImageElement {
+  const { base, shiny } = parseVariant(speciesIdFor(color, role, square));
+  const img = mon(base, cls, false, shiny, true);
+  img.style.backgroundImage = [img.style.backgroundImage, WAITING].filter(Boolean).join(', ');
   return img;
 }
 
@@ -204,13 +210,32 @@ export interface Faces {
 
 export function levelSelect(pick: (l: AiLevel) => void, back: () => void, faces?: Faces): HTMLElement {
   const list = el('div', 'buttons');
+  let view: HTMLElement | null = null;
   for (const lvl of AI_LEVELS) {
-    const b = button(`level.${lvl.id}` as StringKey, () => pick(lvl.id), `level-${lvl.id}`, 'level');
+    const b = button(`level.${lvl.id}` as StringKey, () => (leaving(view, faces?.them(lvl.id), faces?.me), pick(lvl.id)), `level-${lvl.id}`, 'level');
     b.append(el('small', '', `level.${lvl.id}.feel` as StringKey));
     if (faces) b.append(opponentTag(faces.them(lvl.id), lvl.id));
     list.append(b);
   }
-  return screen('level', el('h2', '', 'level.pick'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
+  view = screen('level', el('h2', '', 'level.pick'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
+  return view;
+}
+
+/** A level is chosen (loading fix, 13 Oct): the picker's loads still going stop (the bars close over them), so the
+ * board gets the connections, and the chosen trainer's board starts loading while the bars close: its stills, then
+ * its animated fronts at low priority, behind the board's own pieces. */
+function leaving(view: HTMLElement | null, them: Side | undefined, me: Side | undefined): void {
+  // The two trainers stay decoded for the plates (a new <img> would ask the server again).
+  for (const side of [them, me]) if (side) void decodeImage(trainerSrc(side.sprite));
+  const team: TeamSkin | null | undefined = them?.team;
+  for (const img of view?.querySelectorAll('img') ?? []) {
+    if (img.complete) continue;
+    img.onerror = null;
+    img.style.backgroundImage = '';
+    img.removeAttribute('src');
+  }
+  const mons = SKIN_ROLES.map((key) => team?.[key]).filter((id): id is string => !!id).map((id) => species(id));
+  void Promise.all(mons.map((s) => decodeImage(stillUrl(s.dex, s.shiny), 'high'))).then(() => mons.forEach((s) => void decodeImage(spriteUrl(s.dex, 'front', s.shiny), 'low')));
 }
 
 /** How to Play is now the manual (§B16), open on `page`. */
@@ -223,7 +248,24 @@ export function intro(key: StringKey, opponent: Color): HTMLElement {
   const card = el('div', 'intro');
   card.dataset.testid = 'intro';
   const inner = el('div', 'panel');
-  inner.append(sprite(opponent, 'k', opponent === 'w' ? 'e1' : 'e8'), el('p', '', key));
+  const square = opponent === 'w' ? 'e1' : 'e8';
+  const img = sprite(opponent, 'k', square);
+  // Drawn the moment the card goes in (loading fix, 13 Oct): the animated king once it has decoded, else the still
+  // the board already shows (the animated one replaces it when it decodes). With neither, the card stays clear until
+  // its sprite decodes, at most INTRO_SPRITE_WAIT_MS, then pops.
+  const sp = speciesFor(opponent, 'k', square);
+  const front = spriteUrl(sp.dex, 'front', sp.shiny);
+  const now = decodedSrc(front) ?? decodedSrc(stillUrl(sp.dex, sp.shiny));
+  if (now) img.src = now;
+  if (!decodedSrc(front)) onDecoded(front, (src) => (img.src = src));
+  if (!img.complete) {
+    card.classList.add('intro-wait');
+    let cap = 0;
+    const pop = () => (window.clearTimeout(cap), card.classList.remove('intro-wait'));
+    cap = window.setTimeout(pop, INTRO_SPRITE_WAIT_MS);
+    img.decode().then(pop, pop);
+  }
+  inner.append(img, el('p', '', key));
   card.append(inner);
   sound.sparkle();
   return card;

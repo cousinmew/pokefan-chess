@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Cries from same origin files, and a tiny Web Audio synth for ticks and blips.
+// Cries from same origin files, and a tiny Web Audio synth for ticks and blips. Loading fix, 13 Oct: cries are
+// fetched once and decoded into the shared AudioContext (the board's species are preloaded when it is set), so a
+// ready cry starts with its event; one that is not ready within CRY_LATE_MS is skipped, never heard late.
 import { ASSET_BASE, CRY_VOLUME, SFX_VOLUME } from '../config';
+import { whenFree } from '../ui/loader';
+
+export const CRY_LATE_MS = 150; // a cry not ready this long after its event (a select, a faint) is skipped; its file is kept for next time
 
 let ctx: AudioContext | null = null;
 let unlocked = false;
@@ -22,14 +27,18 @@ export function onAudioUnlock(fn: (c: AudioContext) => void): void {
 export function prewarmAudio(): void {
   if (ctx || typeof AudioContext === 'undefined') return;
   const idle = (window as Window & { requestIdleCallback?: (f: () => void) => number }).requestIdleCallback ?? ((f: () => void) => window.setTimeout(f, 200));
-  idle(() => {
-    if (ctx) return;
-    try {
-      ctx = new AudioContext();
-    } catch (err) {
-      console.warn('audio context unavailable:', err instanceof Error ? err.message : err);
-    }
-  });
+  idle(() => void context());
+}
+
+/** The shared AudioContext, built (suspended) if it is not yet; null where Web Audio is missing. */
+function context(): AudioContext | null {
+  if (ctx || typeof AudioContext === 'undefined') return ctx;
+  try {
+    ctx = new AudioContext();
+  } catch (err) {
+    console.warn('audio context unavailable:', err instanceof Error ? err.message : err);
+  }
+  return ctx;
 }
 let blocked = false;
 const ext = (() => {
@@ -37,6 +46,44 @@ const ext = (() => {
   const probe = document.createElement('audio');
   return probe.canPlayType('audio/ogg; codecs=vorbis') ? 'ogg' : 'mp3';
 })();
+const cryUrl = (dex: number) => `${ASSET_BASE}cries/${dex}.${ext}`;
+
+/** Decoded cries, kept for the page's lifetime; 'media' where the file cannot be decoded here (an <audio> plays it). */
+const cries = new Map<number, { buffer: AudioBuffer | 'media' | null; ready: Promise<void> }>();
+
+/** Fetches and decodes a cry once (same origin, relative URL; decodeAudioData works while the context is suspended).
+ * A network failure forgets it, so a later call tries again. */
+function loadCry(dex: number): Promise<void> {
+  const known = cries.get(dex);
+  if (known) return known.ready;
+  const c = context();
+  const e: { buffer: AudioBuffer | 'media' | null; ready: Promise<void> } = { buffer: c ? null : 'media', ready: Promise.resolve() };
+  cries.set(dex, e);
+  if (!c) return e.ready;
+  e.ready = fetch(cryUrl(dex))
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${cryUrl(dex)} ${r.status}`))))
+    .then(
+      (data) =>
+        c.decodeAudioData(data).then(
+          (buf) => void (e.buffer = buf),
+          () => void (e.buffer = 'media'),
+        ),
+      (err: unknown) => {
+        console.warn('cry not loaded:', err instanceof Error ? err.message : err);
+        cries.delete(dex);
+      },
+    );
+  return e.ready;
+}
+
+/** Loads these species' cries ahead of their events, in the loader's priority lane (the board's species, the
+ * warm-up's first catch). */
+export function preloadCries(dexes: number[]): void {
+  for (const dex of new Set(dexes)) if (!cries.has(dex)) whenFree(() => loadCry(dex));
+}
+
+/** Audio may play: unlocked, or inside the tap that is about to unlock it (the board hears it before the window). */
+const mayPlay = () => unlocked || ((navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive ?? false);
 
 export const sound = {
   enabled: true,
@@ -52,9 +99,31 @@ export const sound = {
     // The music and the rest start after this frame, so the tap itself stays light.
     window.setTimeout(() => unlockListeners.splice(0).forEach((fn) => fn(c)), 0);
   },
+  /** A Pokémon's cry: at once when it is decoded, within CRY_LATE_MS of the call once it arrives, else not at all
+   * (still loading for next time). `rate` lowers the pitch (a faint). */
   cry(dex: number, volume = CRY_VOLUME, rate = 1): void {
-    if (!this.enabled || blocked) return;
-    const el = new Audio(`${ASSET_BASE}cries/${dex}.${ext}`);
+    if (!this.enabled || blocked || !mayPlay()) return;
+    const asked = performance.now();
+    const play = () => {
+      const buf = cries.get(dex)?.buffer;
+      if (!this.enabled || !buf || performance.now() - asked > CRY_LATE_MS) return;
+      if (buf === 'media') return this.media(dex, volume, rate);
+      if (!unlocked) this.unlock();
+      const c = ctx!;
+      const src = c.createBufferSource();
+      const gain = c.createGain();
+      src.buffer = buf;
+      src.playbackRate.value = rate;
+      gain.gain.value = Math.min(1, volume * this.volume);
+      src.connect(gain).connect(c.destination);
+      src.start();
+    };
+    if (cries.get(dex)?.buffer) play();
+    else void loadCry(dex).then(play);
+  },
+  /** Where a cry cannot be decoded into Web Audio: an <audio> element, as before. */
+  media(dex: number, volume: number, rate: number): void {
+    const el = new Audio(cryUrl(dex));
     el.volume = Math.min(1, volume * this.volume);
     el.preservesPitch = false;
     el.playbackRate = rate;

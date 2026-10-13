@@ -6,7 +6,7 @@ import { COVER_LABEL_MS, COVER_MAX_MS } from '../../src/config';
 
 const g = globalThis as unknown as Record<string, unknown>;
 g.window = { setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms), clearTimeout: (id: number) => clearTimeout(id) };
-const { Covers, kindFor } = await import('../../src/ui/transitions');
+const { Covers, kindFor, BATTLE_READY_MS, SCREEN_READY_MS } = await import('../../src/ui/transitions');
 type Kind = import('../../src/ui/transitions').CoverKind;
 
 /** A cover whose closing and opening take `close` and `open` ms on the fake clock; it logs what it does. */
@@ -133,5 +133,53 @@ describe('Covers', () => {
     await flush(1);
     expect(done).toBe(true);
     expect(busy).toEqual([true, false]);
+  });
+
+  it('reveal waits for fx.ready, capped', async () => {
+    // Loading fix, 13 Oct: a cover opens on a drawn screen. The board's images decode 300 ms after show().
+    const { fx, log } = fakeFx();
+    let drawn: () => void = () => undefined;
+    const c = new Covers({ ...fx, ready: (k: Kind) => (log.push(`ready ${k}`), new Promise<void>((r) => (drawn = r))) });
+    void c.cover('battle');
+    await flush(200);
+    c.reveal();
+    await flush(299);
+    expect(log).toEqual(['close battle', 'label false', 'ready battle']);
+    drawn();
+    await flush(0);
+    expect(log.at(-1)).toBe('open battle');
+    let revealed = false;
+    void c.revealed().then(() => (revealed = true));
+    await flush(420);
+    expect(revealed).toBe(true); // revealed() still waits for the open, so what follows starts on a drawn board
+    // Images that never come: a battle cover opens after BATTLE_READY_MS, a screen cover after SCREEN_READY_MS.
+    const never = fakeFx();
+    const d = new Covers({ ...never.fx, ready: () => new Promise<void>(() => undefined) });
+    void d.cover('battle');
+    await flush(200);
+    d.reveal();
+    await flush(BATTLE_READY_MS - 1);
+    expect(never.log).not.toContain('open battle');
+    await flush(1);
+    expect(never.log).toContain('open battle');
+    await flush(420);
+    d.reveal('screen');
+    await flush(SCREEN_READY_MS - 1);
+    expect(never.log).not.toContain('open screen');
+    await flush(1);
+    expect(never.log.at(-1)).toBe('open screen');
+    // A screen cover over a board (a YELLOW lesson, the warm-up) waits as long as a battle cover.
+    const lesson = fakeFx(0, 180);
+    const e = new Covers({ ...lesson.fx, ready: () => new Promise<void>(() => undefined), board: () => true });
+    e.reveal('screen');
+    await flush(BATTLE_READY_MS - 1);
+    expect(lesson.log).not.toContain('open screen');
+    await flush(1);
+    expect(lesson.log.at(-1)).toBe('open screen');
+    // An fx without ready() (the tests above) opens at once, as before.
+    const plain = fakeFx(0, 320);
+    new Covers(plain.fx).reveal('area');
+    await flush(0);
+    expect(plain.log).toEqual(['up area', 'label false', 'open area']);
   });
 });

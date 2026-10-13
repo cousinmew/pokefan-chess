@@ -31,3 +31,23 @@ test('battle sprites are drawn on Slow 3G with the cache disabled', async ({ pag
   // Animated WebP where it is smaller than the GIF (load fix).
   expect(imgs.map((i) => i.src?.replace(/\.(gif|webp)$/, ''))).toEqual(['back/133', 'front/19']);
 });
+
+// Loading fix, 13 Oct (real WebPs, CI check 9): board pieces swap their stills for the animated WebP once it has
+// decoded, the board's backs come as WebP too, and so does the Pokédex detail. RATTATA (19) and EEVEE's back (133)
+// have a smaller WebP; the board here is Two Players at BLUE's first story stage (Rocket's pawns are RATTATA).
+test('board pieces and the Pokédex detail use the animated WebP where one exists', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'RED', starter: 'squirtle', introSeen: true, teamRules: 2, caught: { squirtle: 1, rattata: 1 }, seen: ['squirtle', 'rattata'], journey: { cleared: [], beaten: [], visited: [] } })));
+  await page.goto('./?debug=1&start=two');
+  await expect(page.locator('[data-square="e7"] img.piece')).toHaveAttribute('src', /\/front\/19\.webp$/, { timeout: 15_000 });
+  const asked = () => page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name.replace(/^.*\/assets\//, '')).filter((u) => /^(front\/19|back\/133)\./.test(u)));
+  await expect.poll(asked, { timeout: 15_000 }).toEqual(expect.arrayContaining(['front/19.webp', 'back/133.webp']));
+  expect(await asked()).not.toContain('front/19.gif');
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  await page.getByTestId('kanto').click();
+  await page.getByTestId('open-dex').click();
+  await page.getByTestId('dex-rattata').click();
+  const img = page.getByTestId('dex-detail').locator('img[data-species="rattata"]');
+  await expect(img).toHaveAttribute('src', /\/front\/19\.webp$/);
+  await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0)).toBe(true);
+});

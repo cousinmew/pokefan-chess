@@ -11,7 +11,13 @@
 // until the next show(); "Finding a puzzle…" shows after COVER_LABEL_MS, and after COVER_MAX_MS (or on an error) the
 // cover reveals whatever is mounted. A dip covers the board only, for a new position on the same game screen.
 // While a cover or dip is up it takes the pointer and html[data-transition] is set (pace.ts drops keys then).
+// Loading fix, 13 Oct: a cover opens, and a dip fades down, on a drawn screen. They first wait (capped) until every
+// image the player would see has decoded or failed, and the idle loads wait with them (src/ui/loader.ts).
 import { AREA_IN_MS, BATTLE_CLOSE_MS, BATTLE_IN_MS, BATTLE_STAGGER_MS, BOARD_DIP_MS, COVER_LABEL_MS, COVER_MAX_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SPLASH_IN_MS } from '../config';
+import { pauseWhile } from './loader';
+
+export const BATTLE_READY_MS = 2500; // longest a battle cover or a board dip stays shut waiting for the board's images (Slow 4G on HTTP/1.1: three round trips of stills)
+export const SCREEN_READY_MS = 300; // longest a screen, area or splash cover waits for the screen's visible images
 
 export type CoverKind = 'screen' | 'area' | 'battle' | 'first';
 
@@ -34,6 +40,10 @@ export interface CoverFx {
   open(kind: CoverKind): Promise<void>;
   label(on: boolean): void;
   down(): void;
+  /** Resolves once the screen under it is drawn (its visible images decoded or failed); the cover caps the wait. */
+  ready?(kind: CoverKind): Promise<void>;
+  /** Whether the screen under it shows a board with pieces (it then waits as long as a battle cover). */
+  board?(): boolean;
 }
 
 /** The cover queue: cover() on a tap, reveal() from show(), revealed() for what starts after the reveal. */
@@ -73,12 +83,15 @@ export class Covers {
     this.waiting = false;
     this.clearTimers();
     this.fx.label(false);
-    void this.shut.then(() => (s === this.seq ? this.fx.open(k) : undefined)).then(() => {
-      if (s !== this.seq) return;
-      this.fx.down();
-      this.kind = null;
-      this.done();
-    });
+    void this.shut
+      .then(() => (s === this.seq ? this.drawn(k) : undefined))
+      .then(() => (s === this.seq ? this.fx.open(k) : undefined))
+      .then(() => {
+        if (s !== this.seq) return;
+        this.fx.down();
+        this.kind = null;
+        this.done();
+      });
   }
 
   /** Whether a cover is up and waiting for its screen. */
@@ -95,6 +108,15 @@ export class Covers {
   track<T>(p: Promise<T>): Promise<T> {
     this.enter();
     return p.finally(() => this.done());
+  }
+
+  /** The screen's images, at most BATTLE_READY_MS (a board: a new game, a lesson) or SCREEN_READY_MS (anything else). */
+  private drawn(kind: CoverKind): Promise<void> | undefined {
+    const ready = this.fx.ready?.(kind);
+    if (!ready) return undefined;
+    let cap = 0;
+    const ms = kind === 'battle' || this.fx.board?.() ? BATTLE_READY_MS : SCREEN_READY_MS;
+    return Promise.race([ready.catch(() => undefined), new Promise<void>((r) => (cap = window.setTimeout(r, ms)))]).finally(() => window.clearTimeout(cap));
   }
 
   private raise(kind: CoverKind): number {
@@ -121,6 +143,27 @@ export class Covers {
 }
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+/** The images in `root` a player would see now that are still loading (none inside `skip`, the cover itself). */
+function loadingImages(root: ParentNode, skip?: Element | null): HTMLImageElement[] {
+  const h = window.innerHeight;
+  const w = window.innerWidth;
+  return [...root.querySelectorAll('img')].filter((img) => {
+    if (img.complete || !img.getAttribute('src') || skip?.contains(img)) return false;
+    const r = img.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < h && r.left < w;
+  });
+}
+
+/** Resolves once every image in `root` a player would see has decoded or failed (uncapped). Idle loads wait meanwhile,
+ * so they never take the bandwidth these need, and the loader's priority lane for up to `holdMs` (the cover's cap). */
+export function imagesDrawn(root: ParentNode, skip: Element | null, holdMs: number): Promise<void> {
+  const imgs = loadingImages(root, skip);
+  if (!imgs.length) return Promise.resolve();
+  const all = Promise.all(imgs.map((img) => (typeof img.decode === 'function' ? img.decode() : Promise.reject(new Error('no decode'))).catch(() => (img.complete ? undefined : new Promise<void>((r) => (img.addEventListener('load', () => r(), { once: true }), img.addEventListener('error', () => r(), { once: true }))))))).then(() => undefined);
+  pauseWhile(all, holdMs);
+  return all;
+}
 const finished = (a: Animation | undefined) => (a ? a.finished.then(() => undefined, () => undefined) : Promise.resolve());
 /** Gen 1 fade: 1, .66, .33, .15 held for a quarter each, then gone. */
 const STEPS: Keyframe[] = [1, 0.66, 0.33, 0.15, 0].map((opacity) => ({ opacity, easing: 'step-end' }));
@@ -131,6 +174,7 @@ export function domCovers(root: HTMLElement, label: () => string): CoverFx {
   let el: HTMLElement | null = null;
   let text: HTMLElement | null = null;
   const bars = () => [...(el?.querySelectorAll<HTMLElement>('.cover-bar') ?? [])];
+  const onBoard = () => !!root.querySelector('.board [data-piece]');
   /** Odd bars (1st, 3rd...) go to the inline start, even ones to the inline end, mirrored in RTL (R6). */
   const side = (i: number) => (i % 2 === 0 ? -1 : 1) * (document.documentElement.dir === 'rtl' ? -1 : 1);
   const make = (kind: CoverKind) => {
@@ -170,6 +214,10 @@ export function domCovers(root: HTMLElement, label: () => string): CoverFx {
       if (kind === 'screen') return finished(c.animate([{ opacity: from }, { opacity: 0 }], { duration: SCREEN_IN_MS, easing: 'ease-out', fill: 'forwards' }));
       return finished(c.animate(STEPS, { duration: kind === 'first' ? SPLASH_IN_MS : AREA_IN_MS, fill: 'forwards' }));
     },
+    ready(kind) {
+      return imagesDrawn(root, el, kind === 'battle' || onBoard() ? BATTLE_READY_MS : SCREEN_READY_MS);
+    },
+    board: () => onBoard(),
     label(on) {
       if (!text) return;
       text.textContent = label();
@@ -204,6 +252,10 @@ export async function dip(wrap: HTMLElement, swap: () => void | Promise<void>, l
     window.clearTimeout(cap);
     text.hidden = true;
     wrap.append(d); // still on top of whatever the swap added
+    // The new position is drawn before the dip lifts (loading fix, 13 Oct).
+    let wait = 0;
+    await Promise.race([imagesDrawn(wrap, d, BATTLE_READY_MS), new Promise<void>((r) => (wait = window.setTimeout(r, BATTLE_READY_MS)))]);
+    window.clearTimeout(wait);
     await finished(d.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: half, easing: 'ease-in', fill: 'forwards' }));
     d.remove();
   }
