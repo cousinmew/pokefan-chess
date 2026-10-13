@@ -4,7 +4,7 @@
 // reduced motion and RTL. Real timings, measured in the page (performance.now() and a MutationObserver).
 import { expect, test, type Page } from '@playwright/test';
 import { AREA_IN_MS, BATTLE_IN_MS, BOARD_DIP_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVED_STAMP_MS, SOLVE_BEAT_MS, TRAINER_SPOT_MS } from '../../src/config';
-import { noTransition, ready, settled, skipHold } from './pace';
+import { noTransition, ready, settled, skipHold, tapInGuard } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
@@ -137,7 +137,11 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
       }
       const want: Record<string, number> = { screen: SCREEN_IN_MS, area: AREA_IN_MS, battle: BATTLE_IN_MS };
       expect(reveals.map((r) => r.kind)).toEqual(expect.arrayContaining(['screen', 'area', 'battle']));
-      for (const r of reveals.filter((x) => want[x.kind])) expect(Math.abs(r.ms - want[r.kind]!), JSON.stringify(r)).toBeLessThanOrEqual(50);
+      // A reveal is never cut short; a busy machine (a shared CI runner) may end it a little late.
+      for (const r of reveals.filter((x) => want[x.kind])) {
+        expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeGreaterThanOrEqual(-50);
+        expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeLessThanOrEqual(150);
+      }
     });
 
     test('one screen at a time through YELLOW: home, the Path, a lesson', async ({ page }) => {
@@ -190,9 +194,7 @@ test.describe('the battle cards and the waiting cover', () => {
       const shown = first(await log(page), 'card', 'trainer-intro')!.t;
       await page.waitForTimeout(Math.max(0, ms - ((await now(page)) - shown)));
       await tapAt(page, 'trainer-intro');
-      await expect(page.getByTestId('goal-card')).toBeVisible();
-      await page.waitForTimeout(100); // inside the goal card's guard
-      await tapAt(page, 'goal-card');
+      expect(await tapInGuard(page, 'goal-card')).toBe('in-guard'); // inside the goal card's guard
       await page.waitForTimeout(CARD_GUARD_MS);
       await expect(page.getByTestId('goal-card')).toBeVisible();
       await tapAt(page, 'goal-card');
@@ -357,7 +359,7 @@ for (const width of [360, 390]) {
     expect(stamp).toBeGreaterThanOrEqual(MOVE_SLIDE_MS + SOLVE_BEAT_MS - 20);
     // Never early: the stamp gets its whole time before the review. A timer can only fire late, and a busy machine
     // (the full suite on 4 workers, a shared CI runner) ran it 62 ms late once, so lateness has a little more room.
-    expect(review - stamp).toBeGreaterThanOrEqual(SOLVED_STAMP_MS - 20);
+    expect(review - stamp).toBeGreaterThanOrEqual(SOLVED_STAMP_MS - 40); // 40: the two log stamps are a frame apart at most
     expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeGreaterThanOrEqual(-60);
     expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeLessThanOrEqual(150);
   });

@@ -33,3 +33,16 @@ export async function skipHold(page: Page, timeout = 15_000): Promise<void> {
 export async function ready(page: Page, testid: string, timeout = 15_000): Promise<void> {
   await page.locator(`[data-testid="${testid}"][data-ready]`).first().waitFor({ state: 'attached', timeout });
 }
+
+/** Clicks a guarded card from inside the page within a frame of its appearing, while its guard is still on (no
+ * data-ready yet): a timed tap from the test can land after the guard on a busy machine. 'late' if it never could. */
+export async function tapInGuard(page: Page, testid: string): Promise<string> {
+  const tap = await page.waitForFunction((id) => {
+    const c = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+    if (!c) return false;
+    if (c.dataset.ready !== undefined) return 'late';
+    c.click();
+    return 'in-guard';
+  }, testid, { polling: 'raf' });
+  return (await tap.jsonValue()) as string;
+}
