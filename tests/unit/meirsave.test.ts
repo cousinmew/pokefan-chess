@@ -9,14 +9,23 @@ vi.mock('../../src/ui/dom', async (real) => ({ ...(await real<typeof import('../
 
 const store = new Map<string, string>();
 const session = new Map<string, string>();
+/** A full device: every write throws QuotaExceededError, while reads and removes still work. */
+let full = false;
 const storage = (m: Map<string, string>) =>
   new Proxy(
-    { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) },
+    {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        if (full) throw new DOMException('full', 'QuotaExceededError');
+        m.set(k, v);
+      },
+      removeItem: (k: string) => void m.delete(k),
+    },
     { ownKeys: () => [...m.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) },
   );
 (globalThis as unknown as { window: unknown }).window = { localStorage: storage(store), sessionStorage: storage(session), setTimeout: () => 0 };
 
-const { bootProfiles, profileData, useProfile } = await import('../../src/store/persist');
+const { bootProfiles, profileData, restoreProfile, useProfile } = await import('../../src/store/persist');
 const { packSave, unpackSave } = await import('../../src/store/backup');
 const { meirJoins, myLook, myTrainer } = await import('../../src/look');
 const { loadTrainer, record } = await import('../../src/campaign/trainer');
@@ -32,6 +41,7 @@ const meirEverywhere = () => [myTrainer(), myLook(true, 0).trainer, duoSide(1, '
 afterEach(() => {
   store.clear();
   session.clear();
+  full = false;
 });
 
 describe('MEIR and the puzzle record keep their own keys', () => {
@@ -89,5 +99,34 @@ describe('MEIR and the puzzle record keep their own keys', () => {
     // A file or code made before this fix: 'trainer' holds "meir".
     expect(unpackSave({ app: 'pokefan-chess', v: 1, data: { trainer: 'meir', campaign: { name: 'MEIR' } } }, 3)).toBe(true);
     expect(profileData(3)).toEqual({ playerTrainer: 'meir', campaign: { name: 'MEIR' } });
+  });
+});
+
+describe('MEIR repairs (fix, 14 Oct)', () => {
+  const rec = { rating: { r: 1450, rd: 200, vol: 0.06 }, solved: 3, missed: 1, assisted: 0, seen: ['00sHx'] };
+
+  it('a save whose MEIR unlock was already erased by a rated puzzle gets MEIR back at boot and on a restore', () => {
+    // Since 6 Oct: the name MEIR (set only together with the unlock), 'trainer' holding a puzzle record, no "meir".
+    store.set('kc:v1:profiles', JSON.stringify({ slots: [1, 2], current: 1 }));
+    store.set('kc:v1:p1:campaign', JSON.stringify({ name: 'MEIR', starter: 'squirtle' }));
+    store.set('kc:v1:p1:trainer', JSON.stringify(rec));
+    store.set('kc:v1:p2:campaign', JSON.stringify({ name: 'ASH' }));
+    bootProfiles();
+    expect(profileData(1)).toEqual({ campaign: { name: 'MEIR', starter: 'squirtle' }, trainer: rec, playerTrainer: 'meir' });
+    expect(profileData(2)).toEqual({ campaign: { name: 'ASH' } });
+    expect(meirEverywhere()).toEqual(['meir', 'meir', 'meir', 'meir']);
+    restoreProfile(2, { campaign: { name: 'MEIR' }, trainer: rec });
+    expect(profileData(2)).toEqual({ campaign: { name: 'MEIR' }, trainer: rec, playerTrainer: 'meir' });
+  });
+
+  it('a full device keeps the old MEIR key when the new one cannot be written', () => {
+    store.set('kc:v1:p1:trainer', '"meir"');
+    full = true;
+    bootProfiles();
+    expect(store.get('kc:v1:p1:trainer')).toBe('"meir"'); // base: removed, and the only copy of the unlock was lost
+    expect(store.has('kc:v1:p1:playerTrainer')).toBe(false);
+    full = false;
+    bootProfiles(); // room again: it moves at the next launch
+    expect(profileData(1)).toEqual({ playerTrainer: 'meir' });
   });
 });

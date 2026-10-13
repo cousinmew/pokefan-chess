@@ -118,11 +118,14 @@ export const removeFrom = (n: number, key: string) => drop(profilePrefix(n) + ke
  * and the MEIR code wiped the Trainer Level. */
 export const PLAYER_TRAINER = 'playerTrainer';
 /** An old save (boot) or backup (restore) with 'trainer' = "meir": MEIR moves to its own key and 'trainer' is left
- * to the puzzle record. A puzzle record there is never touched. */
+ * to the puzzle record. A puzzle record there is never touched. The old key goes only once the new one reads back
+ * (fix, 14 Oct: on a full device the write failed and the only copy of the unlock went). A save whose unlock a rated
+ * puzzle already erased (6 to 13 Oct) gets MEIR back from its name: the name MEIR only ever came with the unlock. */
 function moveMeir(n: number): void {
-  if (loadFrom(n, 'trainer') !== 'meir') return;
-  saveTo(n, PLAYER_TRAINER, 'meir');
-  removeFrom(n, 'trainer');
+  if (loadFrom(n, 'trainer') === 'meir') {
+    saveTo(n, PLAYER_TRAINER, 'meir');
+    if (loadFrom(n, PLAYER_TRAINER) === 'meir') removeFrom(n, 'trainer');
+  } else if (loadFrom<{ name?: unknown }>(n, 'campaign')?.name === 'MEIR' && loadFrom(n, PLAYER_TRAINER) === null) saveTo(n, PLAYER_TRAINER, 'meir');
 }
 
 /** Every key of a slot, for export, save codes and delete. */
