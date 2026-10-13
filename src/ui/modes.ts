@@ -25,12 +25,15 @@ export class Modes {
     show(
       onlineMenu(
         () => {
-          show(message('online.joining', goTitle, { code: '...' }));
+          // The player making the room reads so until the waiting room (N9, 14 Oct; it said "Joining room ......").
+          // Back meanwhile stays back: a room that arrives later is not joined.
+          const making = message('online.making', goTitle);
+          show(making);
           createRoom().then(
-            (code) => online.join(code),
+            (code) => making.isConnected && online.join(code, true),
             (err: unknown) => {
               console.warn('relay unavailable:', err instanceof Error ? err.message : err);
-              show(message('relay.down', goTitle));
+              if (making.isConnected) show(message('relay.down', goTitle));
             },
           );
         },

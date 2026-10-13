@@ -283,6 +283,18 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .tile-wrap { position: relative; }
 .tile { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 8px 44px 8px 10px; font: inherit; text-align: left; color: var(--ink);
   background: #fff; border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; transition: filter 120ms ease-out; }
+/* netboot (14 Oct): every plain button shows its press (N8: a reaction looked the same pressed and not); Online, your
+   move shows as sent until the relay lands it (N7); Give up asks inside the online bar, and once the game is over the
+   bar empties but keeps its place, so the board does not jump (N8); a friend's rematch request lights the end panel's
+   Rematch (N5), with a slow glow only where motion is welcome. */
+button:active:not(:disabled) { filter: brightness(0.9); }
+.sq .pending { opacity: 0.5; }
+.reactions.net-over { visibility: hidden; }
+.reactions .net-ask { align-self: center; font-weight: bold; padding: 0 4px; }
+.end-buttons button.asked { background: var(--sel); box-shadow: 0 0 0 3px var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .end-buttons button.asked { animation: netboot-asked 1200ms ease-in-out infinite alternate; } }
+@keyframes netboot-asked { from { box-shadow: 0 0 0 2px var(--ink); } to { box-shadow: 0 0 0 5px var(--ink); } }
+
 /* Press feedback: a slight darken (plus the blip), never a bounce. */
 .tile:active { filter: brightness(0.9); }
 .tile:hover { filter: brightness(0.97); }
