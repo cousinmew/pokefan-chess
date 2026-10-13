@@ -7,6 +7,8 @@
 const CONTROL_WAIT_MS = 10000;
 /** No word from the worker for this long: give up (it was stopped, or a newer one replaced it). */
 const QUIET_MS = 60000;
+/** How long the worker has to say whether it is ready (an older sw.js never answers). */
+const ASK_MS = 5000;
 
 /** The parts of the Network Information API read here (Chromium only; Safari and Firefox have none). */
 export interface Connection {
@@ -50,13 +52,36 @@ async function newest(): Promise<ServiceWorker | null> {
   return reg.active && sw.controller === reg.active ? reg.active : null;
 }
 
-/** Asks the service worker to cache every listed file; `progress` gets 0 to 100. Resolves to the worker's build when
- * all of them are cached (the page remembers it, src/pwa.ts), else null. */
+/** Asks the newest worker whether a complete warm up of its build is still in its cache (fix, 13 Oct: Chromium can
+ * evict Cache Storage and keep localStorage). Resolves to that build when so; null when not, when no worker controls
+ * the page, or when it does not answer (an older sw.js). The worker names its build: the page's code carries none. */
+export async function readyBuild(): Promise<string | null> {
+  try {
+    const worker = await newest();
+    if (!worker) return null;
+    return await new Promise<string | null>((done) => {
+      const { port1, port2 } = new MessageChannel();
+      const t = window.setTimeout(() => (port1.close(), done(null)), ASK_MS);
+      port1.onmessage = (e: MessageEvent<{ ready?: boolean; build?: string } | null>) => {
+        window.clearTimeout(t);
+        port1.close();
+        done(e.data?.ready === true && typeof e.data.build === 'string' ? e.data.build : null);
+      };
+      worker.postMessage({ type: 'ready?' }, [port2]);
+    });
+  } catch (err) {
+    console.warn('offline check failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Asks the service worker to cache every listed file; `progress` gets 0 to 100 from the worker's first answer on (fix,
+ * 13 Oct: nothing shows while no worker is found). Resolves to the worker's build when all of them are cached (the page
+ * remembers it, src/pwa.ts), else null. */
 export async function warmUp(progress: (pct: number) => void): Promise<string | null> {
   try {
     const worker = await newest();
     if (!worker) return null;
-    progress(0);
     return await new Promise<string | null>((done) => {
       const sw = navigator.serviceWorker;
       let quiet = 0;

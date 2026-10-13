@@ -923,6 +923,7 @@
   "relay.down": "いま サーバーに つながらないよ。あとで もういちど ためしてね。",
   "install.option": "オフラインであそぶためにインストール",
   "install.installed": "インストールずみ ✓ — オフラインであそべるよ",
+  "install.installedOnly": "インストールずみ ✓",
   "install.accepted": "インストールちゅう。アプリのなかにでてくるよ",
   "install.dismissed": "インストールしなかったよ。いつでもまたためせるよ",
   "install.unsupported": "インストールするにはChromeかEdgeでひらいてね",
@@ -931,6 +932,7 @@
   "install.ios3": "3. ホームがめんからゲームをひらいてね",
   "install.warming": "オフラインのじゅんびちゅう… {n}%",
   "install.ready": "オフラインであそべるよ",
-  "install.held": "データせつやくちゅうか、つうしんがおそいので、オフラインのじゅんびはまだだよ",
+  "install.warmFailed": "いまはオフラインのじゅんびができないよ。あとでもういちどためしてね",
+  "install.held": "データをせつやくするので、オフラインのファイルはまだダウンロードしていないよ",
   "install.warmNow": "いまオフラインのじゅんびをする"
 }

@@ -923,6 +923,7 @@
   "relay.down": "Impossible de joindre le serveur pour l'instant. Réessaie plus tard.",
   "install.option": "INSTALLER POUR JOUER HORS LIGNE",
   "install.installed": "Installé ✓ — fonctionne hors ligne",
+  "install.installedOnly": "Installé ✓",
   "install.accepted": "Installation en cours. Tu le trouveras parmi tes applis.",
   "install.dismissed": "Pas installé. Tu peux réessayer quand tu veux.",
   "install.unsupported": "Ouvre le jeu dans Chrome ou Edge pour l'installer",
@@ -931,6 +932,7 @@
   "install.ios3": "3. Ouvre le jeu depuis l'écran d'accueil",
   "install.warming": "Préparation pour jouer hors ligne… {n} %",
   "install.ready": "Prêt à jouer hors ligne",
-  "install.held": "Fichiers hors ligne en attente : économie de données ou réseau lent.",
+  "install.warmFailed": "Impossible de préparer le hors ligne pour l’instant. Réessaie plus tard.",
+  "install.held": "Fichiers hors ligne pas encore téléchargés, pour économiser les données.",
   "install.warmNow": "PRÉPARER LE HORS LIGNE MAINTENANT"
 }

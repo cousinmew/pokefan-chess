@@ -922,6 +922,7 @@
   "relay.down": "Can't reach the server right now. Please try again later.",
   "install.option": "INSTALL FOR OFFLINE PLAY",
   "install.installed": "Installed ✓ — plays offline",
+  "install.installedOnly": "Installed ✓",
   "install.accepted": "Installing. You will find it with your apps.",
   "install.dismissed": "Not installed. You can try again any time.",
   "install.unsupported": "Open in Chrome or Edge to install",
@@ -930,6 +931,7 @@
   "install.ios3": "3. Open the game from your Home Screen",
   "install.warming": "Getting ready for offline… {n}%",
   "install.ready": "Ready to play offline",
-  "install.held": "Offline files wait: data saver or slow network.",
+  "install.warmFailed": "Can't get ready for offline right now. Try again later.",
+  "install.held": "Offline files not downloaded yet, to save data.",
   "install.warmNow": "GET READY FOR OFFLINE NOW"
 }

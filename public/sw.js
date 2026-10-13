@@ -37,10 +37,15 @@ const keep = (e, cache, req, res) => {
 // a newer worker taking over halfway can never delete what an older page warmed up. A file already cached is not
 // downloaded again (considerate warm up): under assets/ when this build's cache has it, any other file when the shell
 // cache has it (normal loads still go to the network first and refresh that copy). The page that asked gets
-// { warm: 0..100 } as files land and { warm: 'done', ok, build } at the end, so it can remember which build is
-// ready on this device; one run at a time, later askers join it.
+// { warm: n } at once (fix, 13 Oct: it shows progress only once a worker answers), then as files land, and
+// { warm: 'done', ok, build } at the end, so it can remember which build is ready on this device; one run at a time,
+// later askers join it. A complete run ends with READY in this build's cache: the page asks { type: 'ready?' } before
+// it skips a warm up or says ready (Chromium can evict Cache Storage and keep localStorage), and the answer names this
+// build, so the page's code carries no build id and its chunks keep their hashes from build to build.
 const PARALLEL = 4;
+const READY = new URL('offline-ready', self.registration.scope).href;
 let warming = null;
+let pct = 0;
 const asked = new Set();
 const tell = (msg) => asked.forEach((c) => c.postMessage(msg));
 
@@ -59,21 +64,32 @@ async function warmUp() {
       if (r?.ok) await cache.put(url, r);
       else failed++;
     }
-    tell({ warm: Math.floor((++done * 100) / files.length) });
+    tell({ warm: (pct = Math.floor((++done * 100) / files.length)) });
   };
   const lane = async () => {
     while (next < files.length) await one(files[next++]);
   };
   await Promise.all(Array.from({ length: PARALLEL }, lane));
-  return failed === 0;
+  if (failed) return false;
+  await sprites.put(READY, new Response(BUILD));
+  return true;
 }
 
 self.addEventListener('message', (e) => {
+  const port = e.ports[0];
+  if (e.data?.type === 'ready?' && port) {
+    e.waitUntil(caches.match(READY, { cacheName: SPRITES }).then((r) => port.postMessage({ ready: !!r, build: BUILD })));
+    return;
+  }
   if (e.data?.type !== 'warm' || !e.source) return;
   asked.add(e.source);
-  warming ??= warmUp()
-    .catch(() => false)
-    .then((ok) => (tell({ warm: 'done', ok, build: BUILD }), asked.clear(), (warming = null), ok));
+  if (!warming) {
+    pct = 0;
+    warming = warmUp()
+      .catch(() => false)
+      .then((ok) => (tell({ warm: 'done', ok, build: BUILD }), asked.clear(), (warming = null), ok));
+  }
+  e.source.postMessage({ warm: pct });
   e.waitUntil(warming);
 });
 

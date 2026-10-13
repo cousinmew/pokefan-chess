@@ -164,9 +164,10 @@ test.describe('getting ready for offline', () => {
     });
   const remembered = (page: Page) => page.evaluate(() => localStorage.getItem('kc:v1:dev:offlineBuild'));
   const workerBuild = async (page: Page) => `"${/const BUILD = '(\w+)'/.exec(await (await page.request.get('./sw.js')).text())![1]}"`;
-  const openOption = async (page: Page) => {
+  /** OPTION in an installed app; while its offline files wait, the status line makes no "plays offline" claim. */
+  const openOption = async (page: Page, status = 'Installed ✓ — plays offline') => {
     await page.getByRole('menuitem', { name: 'OPTION' }).click();
-    await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓ — plays offline');
+    await expect(page.getByTestId('install-installed')).toHaveText(status);
   };
 
   test('an app launch gets ready once per build: the next launch of the same build downloads nothing', async ({ page, context }) => {
@@ -195,8 +196,9 @@ test.describe('getting ready for offline', () => {
     await controlled(page);
     await page.getByTestId('screen-splash').click();
     await page.waitForTimeout(3500); // past the launch timer
-    await openOption(page);
-    await expect(page.getByTestId('install-held')).toHaveText('Offline files wait: data saver or slow network.');
+    // Fix, 13 Oct: no "plays offline" claim right above a line saying the offline files wait, and plain words for kids.
+    await openOption(page, 'Installed ✓');
+    await expect(page.getByTestId('install-held')).toHaveText('Offline files not downloaded yet, to save data.');
     await expect(page.getByTestId('install-progress')).toHaveCount(0);
     await page.waitForTimeout(500);
     expect(lists(got)).toBe(0);
@@ -206,10 +208,114 @@ test.describe('getting ready for offline', () => {
     expect((await btn.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await btn.click();
     await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline', { timeout: 30000 });
+    await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓ — plays offline');
     await expect(page.getByTestId('install-warm')).toHaveCount(0);
     await expect(page.getByTestId('install-held')).toHaveCount(0);
     expect(lists(got)).toBe(1);
     expect(await remembered(page)).toBe(await workerBuild(page));
+  });
+
+  // Fix, 13 Oct: Chromium can evict an origin's Cache Storage under storage pressure and keep its localStorage, so the
+  // device note alone must not make an app launch skip the warm up, or OPTION say ready.
+  test('caches evicted, the device note kept: not ready, so OPTION offers it on data saver and a launch gets ready', async ({ page, context }) => {
+    test.slow(); // two warm ups
+    await asApp(context);
+    const got = workerRequests(context);
+    await page.goto('./');
+    const build = await workerBuild(page);
+    await expect.poll(() => remembered(page), { timeout: 30000 }).toBe(build);
+    await page.evaluate(async () => {
+      for (const k of await caches.keys()) await caches.delete(k);
+    });
+    await page.close();
+    got.length = 0;
+    // Data saver: OPTION must not claim ready; it offers the button.
+    const saver = await context.newPage();
+    await saver.addInitScript(() => Object.defineProperty(Navigator.prototype, 'connection', { get: () => ({ saveData: true }), configurable: true }));
+    await saver.goto('./');
+    await controlled(saver);
+    await saver.getByTestId('screen-splash').click();
+    await saver.waitForTimeout(3500); // past the launch timer
+    await saver.getByRole('menuitem', { name: 'OPTION' }).click();
+    await expect(saver.getByTestId('install-held')).toBeVisible();
+    await expect(saver.getByTestId('install-warm')).toBeVisible();
+    await expect(saver.getByTestId('install-progress')).toHaveCount(0);
+    await expect(saver.getByTestId('install-installed')).toHaveText('Installed ✓');
+    expect(lists(got)).toBe(0);
+    await saver.close();
+    // A normal launch gets ready again by itself, once, and puts the files back.
+    const again = await context.newPage();
+    await again.goto('./');
+    await again.getByTestId('screen-splash').click();
+    await expect.poll(() => lists(got), { timeout: 15000 }).toBe(1);
+    await openOption(again);
+    await expect(again.getByTestId('install-progress')).toHaveText('Ready to play offline', { timeout: 30000 });
+    expect(await remembered(again)).toBe(build);
+    const { files } = (await (await again.request.get('./offline.json')).json()) as { files: string[] };
+    const missing = await again.evaluate(async (fs) => (await Promise.all(fs.map(async (f) => ((await caches.match(f, { ignoreVary: true })) ? null : f)))).filter(Boolean), files);
+    expect(missing).toEqual([]);
+    expect(lists(got)).toBe(1);
+  });
+
+  // The per-build half (review, 13 Oct): a device that got ready for an earlier build gets ready again for this one.
+  test('ready for an older build: an app launch gets ready once for this one and remembers it', async ({ page, context }) => {
+    await context.addInitScript(() => {
+      // Once per tab, so the reload below sees what the warm up wrote.
+      if (sessionStorage.getItem('seeded')) return;
+      sessionStorage.setItem('seeded', '1');
+      localStorage.setItem('kc:v1:dev:offlineBuild', JSON.stringify('oldbuild1'));
+    });
+    await asApp(context);
+    const got = workerRequests(context);
+    await page.goto('./');
+    const build = await workerBuild(page);
+    expect(await remembered(page)).toBe('"oldbuild1"');
+    await expect.poll(() => remembered(page), { timeout: 30000 }).toBe(build);
+    expect(lists(got)).toBe(1);
+    await page.reload();
+    await page.getByTestId('screen-splash').click();
+    await page.waitForTimeout(4500); // past the launch timer
+    await openOption(page);
+    await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline');
+    expect(lists(got)).toBe(1);
+    expect(await remembered(page)).toBe(build);
+  });
+
+  // Fix, 13 Oct: progress shows only once a worker answers, and finding none says so instead of a line that vanishes.
+  test('no service worker to ask: no 0%, a plain "try again later" line', async ({ page }) => {
+    await page.addInitScript(() => {
+      // Registration fails (as in some private windows): nothing ever controls the page.
+      navigator.serviceWorker.register = () => Promise.reject(new Error('blocked for the test'));
+      if (localStorage.getItem('kc:v1:p1:campaign') === null) localStorage.setItem('kc:v1:campaign', JSON.stringify({ name: 'ASH' }));
+    });
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    await expect(page.getByTestId('install-box')).toBeVisible();
+    await page.evaluate(() => {
+      const seen: string[] = ((window as unknown as { seen: string[] }).seen = []);
+      const box = document.querySelector('[data-testid="install-box"]')!;
+      new MutationObserver(() => {
+        const t = box.querySelector('[data-testid="install-progress"]')?.textContent;
+        if (t && seen.at(-1) !== t) seen.push(t);
+      }).observe(box, { childList: true, subtree: true, characterData: true });
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await expect(page.getByTestId('install-failed')).toHaveText("Can't get ready for offline right now. Try again later.");
+    await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓');
+    expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
+  });
+
+  // Fix, 13 Oct: the page asks the worker for its build, so the code chunks name no build and keep their hashes
+  // across builds without a code change; only sw.js changes with every build.
+  test('no code chunk carries the build id', async ({ page }) => {
+    const build = JSON.parse(await workerBuild(page)) as string;
+    const { files } = (await (await page.request.get('./offline.json')).json()) as { files: string[] };
+    const chunks = files.filter((f) => /^assets\/[^/]+\.js$/.test(f));
+    expect(chunks.length).toBeGreaterThan(1);
+    const named: string[] = [];
+    for (const f of chunks) if ((await (await page.request.get(`./${f}`)).text()).includes(build)) named.push(f);
+    expect(named).toEqual([]);
   });
 
   test('a warm up downloads only the files that are not cached yet', async ({ page, context }) => {

@@ -923,6 +923,7 @@
   "relay.down": "Der Server ist gerade nicht erreichbar. Versuch es später noch einmal.",
   "install.option": "FÜR OFFLINE-SPIEL INSTALLIEREN",
   "install.installed": "Installiert ✓ — läuft offline",
+  "install.installedOnly": "Installiert ✓",
   "install.accepted": "Wird installiert. Du findest das Spiel bei deinen Apps.",
   "install.dismissed": "Nicht installiert. Du kannst es jederzeit erneut versuchen.",
   "install.unsupported": "Zum Installieren in Chrome oder Edge öffnen",
@@ -931,6 +932,7 @@
   "install.ios3": "3. Öffne das Spiel vom Home-Bildschirm",
   "install.warming": "Wird für offline vorbereitet… {n}%",
   "install.ready": "Bereit zum Offline-Spielen",
-  "install.held": "Offline-Dateien warten: Datensparmodus oder langsames Netz.",
+  "install.warmFailed": "Offline-Vorbereitung gerade nicht möglich. Versuch es später noch einmal.",
+  "install.held": "Offline-Dateien noch nicht geladen, um Daten zu sparen.",
   "install.warmNow": "JETZT FÜR OFFLINE VORBEREITEN"
 }
