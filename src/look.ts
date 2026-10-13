@@ -7,7 +7,7 @@ import { defaultSpecies, lookOf, parseVariant, setStages, setWears, SKIN_ROLES }
 import { ROCKET_STAGE_TRAINERS, stageFor, stageSkin, type Stage } from './board/stages';
 import { loadout } from './board/loadouts';
 import trainers from './data/trainers.json';
-import { load, save } from './store/persist';
+import { load, PLAYER_TRAINER, save } from './store/persist';
 import { saveCampaign, type Campaign } from './campaign/kanto';
 import { sound } from './audio/audio';
 import { toast } from './ui/dom';
@@ -15,7 +15,7 @@ import { toast } from './ui/dom';
 export type PlayerTrainer = 'red' | 'meir';
 const PEOPLE = trainers.people as Record<string, string>;
 
-export const myTrainer = (): PlayerTrainer => (load<string>('trainer') === 'meir' ? 'meir' : 'red');
+export const myTrainer = (): PlayerTrainer => (load<string>(PLAYER_TRAINER) === 'meir' ? 'meir' : 'red');
 /** Sprite id for a player trainer: MEIR is original art (public/art), the rest come from the fetched set. */
 export const trainerSpriteId = (t: PlayerTrainer | 'blue') => (t === 'meir' ? 'meir' : (PEOPLE[t] ?? 'red-gen1'));
 
@@ -132,7 +132,7 @@ export const computerTeam = (level: number, computer: Color, starter?: string | 
 
 /** The secret code worked (§B18 item 7): MEIR is this player's trainer and name. Returns the saved campaign. */
 export function meirJoins(c: Campaign): Campaign {
-  save('trainer', 'meir');
+  save(PLAYER_TRAINER, 'meir');
   const next = { ...c, name: 'MEIR' };
   saveCampaign(next);
   sound.shimmer();

@@ -88,7 +88,7 @@ test('MEIR: the code on the shelf keyboard, and three taps on the YELLOW label f
   await expect(page.getByTestId('dpad')).toBeVisible();
   for (const k of ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']) await page.getByTestId(`pad-${k}`).click();
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
-  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:trainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name])).toEqual(['"meir"', 'MEIR']);
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:playerTrainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name])).toEqual(['"meir"', 'MEIR']);
   await page.getByTestId('cart-blue').click();
   await page.getByTestId('hub-card').click();
   await expect(page.getByTestId('player-trainer').locator('img')).toHaveAttribute('src', 'art/meir.png');

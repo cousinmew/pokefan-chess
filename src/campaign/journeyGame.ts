@@ -19,7 +19,7 @@ import { pool, shownLevel } from './trainer';
 import trainers from '../data/trainers.json';
 import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
-import { currentSlot, isGuest, save } from '../store/persist';
+import { currentSlot, isGuest, PLAYER_TRAINER, save } from '../store/persist';
 import { addCatch, addPlayTime, awardMew, championLevel, chooseStarter, EVOLUTIONS, evolve, loadCampaign, markSeen, recordRoute, rollEncounter, saveCampaign, sendToOak, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
 import { beatTrainer, clearPlace, goalLine, nextGoal, nextTrainer, PLACES, placeCleared, RIVAL, routeOf, teamOf, themesFor, trainerName, trainingThemes, visit, WARMUP_PLACE, type Drill, type Place, type Trainer } from './journey';
 import { warmup, type WarmupHost } from './warmup';
@@ -95,7 +95,7 @@ export class JourneyGame {
       this.set({ ...this.campaign, introSeen: true });
       // Typing MEIR at the name step unlocks MEIR as your trainer too (fix 1).
       const meir = () => {
-        save('trainer', 'meir');
+        save(PLAYER_TRAINER, 'meir');
         sound.shimmer();
         toast('secret.meir');
       };

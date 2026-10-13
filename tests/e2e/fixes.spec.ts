@@ -20,7 +20,7 @@ const shelf = async (page: Page) => {
 };
 const unlocked = async (page: Page) => {
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
-  expect(await page.evaluate(() => localStorage.getItem('kc:v1:p1:trainer'))).toBe('"meir"');
+  expect(await page.evaluate(() => localStorage.getItem('kc:v1:p1:playerTrainer'))).toBe('"meir"');
 };
 
 test.describe('MEIR code @both', () => {
@@ -62,12 +62,12 @@ test.describe('MEIR code @both', () => {
       send('ש', 'KeyA');
     });
     await unlocked(page);
-    await page.evaluate(() => localStorage.removeItem('kc:v1:p1:trainer'));
+    await page.evaluate(() => localStorage.removeItem('kc:v1:p1:playerTrainer'));
     await page.evaluate(() => {
       const send = (key: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
       for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'и', 'ф']) send(k);
     });
-    expect(await page.evaluate(() => localStorage.getItem('kc:v1:p1:trainer'))).toBe('"meir"');
+    expect(await page.evaluate(() => localStorage.getItem('kc:v1:p1:playerTrainer'))).toBe('"meir"');
   });
 
   test('the touch D-pad fills the same dots', async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('MEIR code @both', () => {
     await expect(page.getByTestId('name-1')).toBeVisible();
     await page.keyboard.type('meir');
     await expect(page.getByTestId('screen-oak')).toBeVisible();
-    expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:trainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name])).toEqual(['"meir"', 'MEIR']);
+    expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:playerTrainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name])).toEqual(['"meir"', 'MEIR']);
   });
 });
 
