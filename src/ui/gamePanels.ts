@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The game's two modal panels: the promotion picker and the end screen (moved out of main.ts).
-import { GLYPHS, speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
-import { fmt, type Line } from '../game/text';
+import { GLYPHS, parseVariant, speciesFor, speciesIdFor, type Color, type Role } from '../board/pieces';
+import { fmt, type Line, type StringKey } from '../game/text';
 import { button, el } from './dom';
+import { mon } from './kanto';
 
 export function promotionPanel(color: Color, to: string, pick: (role: Role) => void, cancel: () => void): HTMLElement {
   const panel = el('div', 'panel promo');
@@ -14,8 +15,9 @@ export function promotionPanel(color: Color, to: string, pick: (role: Role) => v
     const btn = el('button');
     btn.dataset.role = role;
     btn.setAttribute('aria-label', sp.name);
-    const img = el('img');
-    img.src = spriteUrl(sp.dex);
+    // Never an empty box (C13, 14 Oct): the Gen 1 sprite stands in until the animated one is in.
+    const { base, shiny } = parseVariant(speciesIdFor(color, role, to));
+    const img = mon(base, 'promo-sprite', false, shiny, true);
     img.alt = '';
     const name = el('span');
     name.textContent = sp.name;
@@ -39,6 +41,10 @@ export interface EndActions {
   menu(): void;
   /** Online shows "swap sides" for the rematch. */
   online: boolean;
+  /** "{name} wins!" under the themed line, by the winner's plate name (C8). */
+  winner?: string;
+  /** What the game brought, after the lines: YELLOW's new stickers (C5). */
+  extra?: HTMLElement[];
 }
 
 export function endPanel(line: Line, a: EndActions): HTMLElement {
@@ -47,28 +53,45 @@ export function endPanel(line: Line, a: EndActions): HTMLElement {
   panel.dataset.endKey = line.key;
   const p = el('p', '', line.key);
   p.dataset.testid = 'end-text';
+  const won = el('p', 'end-winner');
+  won.dataset.testid = 'end-winner';
+  won.textContent = a.winner ?? '';
+  won.hidden = !a.winner;
   const cap = el('p', 'tb-caption');
   if (line.caption && a.captions) cap.textContent = fmt(line.caption);
   const row = el('div', 'end-buttons');
   const box = el('input');
   row.append(button('end.rematch', () => a.rematch(box.checked), 'rematch'), button('end.menu', a.menu, 'end-menu'));
+  panel.append(p, won, ...(a.extra ?? []), cap);
   if (a.online) {
     const swap = el('label', 'swap');
     box.type = 'checkbox';
     box.dataset.testid = 'swap-sides';
     swap.append(box, el('span', '', 'online.swap'));
-    panel.append(p, cap, swap, row);
-  } else panel.append(p, cap, row);
+    panel.append(swap);
+  }
+  panel.append(row);
   return panel;
 }
 
-/** QUIT in a guest game in progress (playtest, 12 Oct): nothing is saved, so ask first. */
-export function quitPanel(quit: () => void, stay: () => void): HTMLElement {
+/** A sticker the win brought (C5): its sprite and "You got {name}!", in the end panel. */
+export function stickerLine(id: string, name: string): HTMLElement {
+  const row = el('div', 'end-sticker');
+  row.dataset.testid = 'end-sticker';
+  const text = el('p');
+  text.textContent = fmt('yellow.unlocked', { name });
+  row.append(mon(id, 'end-sticker-sprite', false, false, true), text);
+  return row;
+}
+
+/** QUIT in a guest game in progress (playtest, 12 Oct): nothing is saved, so ask first. START's VS FRIEND, VS
+ * COMPUTER or JOURNEY over a game in progress asks too (C7, 14 Oct), a save with `ask` 'quit.leave'. */
+export function quitPanel(quit: () => void, stay: () => void, ask: StringKey = 'quit.ask'): HTMLElement {
   const panel = el('div', 'panel end');
   panel.setAttribute('role', 'dialog');
   panel.dataset.testid = 'quit-confirm';
   const row = el('div', 'end-buttons');
   row.append(button('quit.yes', quit, 'quit-yes'), button('quit.no', stay, 'quit-no', 'secondary'));
-  panel.append(el('p', '', 'quit.ask'), row);
+  panel.append(el('p', '', ask), row);
   return panel;
 }

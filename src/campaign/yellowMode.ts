@@ -2,11 +2,9 @@
 // YELLOW's My Team controller (fix 3): the picker screen, the skins for Play and Friend, and a win's unlock.
 // Reads and writes the shared save directly, so BLUE and YELLOW always see the same stickers and team.
 import type { Color, TeamSkin } from '../board/pieces';
-import { SPECIES } from '../board/pieces';
 import { loadCampaign, saveCampaign, type Campaign } from './kanto';
 import { classicTeam, countWin, grantUnlocks, pick, yellowSkin, type YellowSlot } from './yellowTeam';
 import { yellowTeamScreen } from '../ui/yellowTeam';
-import { toast } from '../ui/dom';
 
 export interface YellowHost {
   show(view: HTMLElement): void;
@@ -40,10 +38,11 @@ export class YellowMode {
     return { [mode === 'computer' ? human : 'w']: yellowSkin(loadCampaign()) };
   }
 
-  /** A win vs Computer after the 12 lessons unlocks the next sticker. */
-  win(): void {
+  /** A win vs Computer after the 12 lessons unlocks the next sticker: saved now, and returned for the end panel to
+   * show (C5, 14 Oct: a toast at the mate was gone before the panel came). */
+  win(): string[] {
     const { campaign, got } = grantUnlocks(countWin(loadCampaign()));
     this.store(campaign);
-    for (const id of got) toast('yellow.unlocked', { name: SPECIES[id]!.name });
+    return got;
   }
 }

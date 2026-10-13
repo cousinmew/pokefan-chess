@@ -6,7 +6,7 @@ import type { App, Mode, Setup } from '../appTypes';
 import { setSkins, setWears, type Color, type TeamSkin } from '../board/pieces';
 import type { Campaign } from '../campaign/kanto';
 import { withoutRival } from '../campaign/rivalTeam';
-import { applyLooks, computerTeam, puzzleTeam } from '../look';
+import { applyLooks, computerTeam, puzzleTeam, type Side } from '../look';
 import type { DuoSide } from '../startFlow';
 
 export interface ConfigureHost {
@@ -19,6 +19,10 @@ export interface ConfigureHost {
   look(): Look;
   guest(): boolean;
   duo(): Record<Color, DuoSide> | null;
+  /** Who set the puzzle; a `team` of theirs plays on their side (C10). */
+  puzzleOpponent(): Side | undefined;
+  /** A Journey game's computer side: Champion BLUE's party (C9); empty for a drill. */
+  challengeTeam(computer: Color): Partial<Record<Color, TeamSkin>>;
 }
 
 /** Returns the colour wearing Red's look in the game on the board (W3: you, in puzzles and the Path). */
@@ -37,8 +41,11 @@ export function configure(h: ConfigureHost, setup: Setup): Color {
   if (duo && setup.mode === 'two-players') setSkins({ w: duo.w.team, b: duo.b.team });
   else if (ys) setSkins({ ...theirs, ...ys });
   else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: h.guest() ? {} : mine(c.team) });
-  else if (setup.mode === 'puzzle' || setup.mode === 'path') setSkins(h.guest() || !c.starter ? {} : { [setup.human]: mine(puzzleTeam(c.team, c.starter, h.look().stage ?? 2)) }); // W3, design D; BLUE's warm-up (W5)
-  else if (setup.mode !== 'online') setSkins({}); // Journey games (challenge) use default teams (§B14).
+  else if (setup.mode === 'puzzle' || setup.mode === 'path') {
+    const them = setup.mode === 'puzzle' ? h.puzzleOpponent()?.team : null; // a rival brings their own team (C10)
+    setSkins({ ...(them ? { [cpu]: them } : {}), ...(h.guest() || !c.starter ? {} : { [setup.human]: mine(puzzleTeam(c.team, c.starter, h.look().stage ?? 2)) }) }); // W3, design D; BLUE's warm-up (W5)
+  } else if (setup.mode === 'challenge') setSkins(h.challengeTeam(cpu)); // your default team; Champion BLUE his party (§B14, C9)
+  else if (setup.mode !== 'online') setSkins({});
   if (setup.mode !== 'online') applyLooks({ w: h.look(), b: h.look() });
   app.mode = setup.mode;
   app.human = setup.mode === 'two-players' ? 'w' : setup.human;

@@ -25,7 +25,8 @@ export class StartButton {
   readonly roaming = this.make('start-button-corner');
   private menu: HTMLElement | null = null;
 
-  constructor(private readonly actions: () => StartActions, private readonly allowed: () => boolean) {
+  /** `closed`: the menu went (CLOSE, B, Escape, a tap outside or an item), so a game it paused goes on (C1, 14 Oct). */
+  constructor(private readonly actions: () => StartActions, private readonly allowed: () => boolean, private readonly closed: () => void = () => undefined) {
     window.addEventListener('keydown', (e) => {
       if (this.menu) {
         if (e.key === 'Escape' || e.code === 'KeyB' || e.key.toLowerCase() === 'b') {
@@ -139,8 +140,10 @@ export class StartButton {
   }
 
   close(): void {
-    this.menu?.remove();
+    if (!this.menu) return;
+    this.menu.remove();
     this.menu = null;
+    this.closed();
   }
 
   get isOpen(): boolean {

@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The Journey's games vs the computer (moved out of main.ts, 14 Oct): Victory Road drills (a move limit) and Champion
 // BLUE. A challenge starts under the battle bars, counts your moves, and hands its result to the Journey after a hold.
+// C9: the top plate is who you face, Champion BLUE with his Red/Blue Champion party answering your starter, or PROF.
+// OAK for a drill, never the story's Rocket trainer; a drill counts down its moves in the header.
 import { CHALLENGE_END_MS } from '../config';
-import type { Color } from '../board/pieces';
+import type { Color, TeamSkin } from '../board/pieces';
+import { loadout } from '../board/loadouts';
 import { music } from '../audio/music';
 import type { App, Challenge, Setup } from '../appTypes';
 import { drillStatus, type DrillStatus } from '../campaign/drill';
+import trainers from '../data/trainers.json';
+import type { Side } from '../look';
 import { hold } from '../ui/pace';
 import type { Away } from './away';
+
+const PEOPLE = trainers.people as Record<string, string>;
+export const MOVES_LOW = 3; // a drill's "Moves left" is highlighted from here down (C9)
 
 export interface ChallengeHost {
   app: App;
@@ -27,10 +35,39 @@ export class Challenges {
 
   start(ch: Challenge): void {
     void this.h.cover().then(() => {
+      this.current = { ...ch, made: 0 }; // before configure: the Champion's team is set there
       this.h.configure({ mode: 'challenge', human: 'w', level: ch.level });
-      this.current = { ...ch, made: 0 };
       this.h.begin(ch.fen);
     });
+  }
+
+  /** A drill (a position to mate from), not the Champion's full game. */
+  get drill(): boolean {
+    return !!this.current?.fen;
+  }
+
+  /** Who stands on the top plate: PROF. OAK for a drill, Champion BLUE for the full game. */
+  side(name: (key: string) => string): Side | null {
+    if (!this.current) return null;
+    return this.drill ? { sprite: PEOPLE.oak ?? 'oak', name: name('oak.title'), title: name('title.professor') } : { sprite: PEOPLE['blue-champion'] ?? 'blue-gen1champion', name: name('plate.blue'), title: name('title.champion') };
+  }
+
+  /** The Champion's side wears BLUE's Champion party, his starter answering yours; a drill keeps the default teams. */
+  team(computer: Color, starter: string | null | undefined): Partial<Record<Color, TeamSkin>> {
+    const t = this.current && !this.drill ? loadout(PEOPLE.blue ?? 'blue-gen1', starter) : null;
+    return t ? { [computer]: t } : {};
+  }
+
+  /** A drill's moves left (your moves), for the header; null outside a drill or without a limit. */
+  movesLeft(): number | null {
+    const ch = this.current;
+    return this.h.app.mode === 'challenge' && ch?.limit ? Math.max(0, ch.limit - ch.made) : null;
+  }
+
+  /** Few moves left: the header highlights the count. */
+  get low(): boolean {
+    const n = this.movesLeft();
+    return n !== null && n <= MOVES_LOW;
   }
 
   /** A drill's result for the position now (a Champion game has no limit), or null outside a challenge. */
