@@ -152,6 +152,21 @@ describe('hold()', () => {
     expect(end).toBe('');
   });
 
+  it('a hold owned by the game screen but started while OPTION shows leaves OPTION alone (fix, 13 Oct)', async () => {
+    let end = '';
+    body.dataset.screen = 'screen-settings'; // a puzzle review's next step starts behind OPTION
+    void hold(900, 'review', undefined, 'screen-game').then((h) => (end = h));
+    vi.advanceTimersByTime(HOLD_MIN_MS);
+    expect(tap()[0]!.stopped).toBe(false);
+    for (const k of [{ code: 'KeyB', key: 'b' }, { key: 'Enter' }, { code: 'Space', key: ' ' }]) expect(key(k).stopped).toBe(false);
+    await settle();
+    expect(end).toBe('');
+    body.dataset.screen = 'screen-game'; // back on the board it skips as usual
+    expect(key({ code: 'Space', key: ' ' }).stopped).toBe(true);
+    await settle();
+    expect(end).toBe('skip');
+  });
+
   it('a later game (round) or a new hold cancels it', async () => {
     let a = '';
     let b = '';
