@@ -63,10 +63,11 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
     await expect(page.getByTestId('coach')).toContainText('These are yours: TEAM RED, at the bottom.');
     await page.getByTestId('screen-game').locator('header').click({ position: { x: 2, y: 2 } });
     await expect(page.getByTestId('coach')).toContainText('Your goal is always up here.');
+    // The set up move waits until both are read (fix, 14 Oct), then plays; the third bubble follows it.
+    await page.getByTestId('screen-game').locator('header').click({ position: { x: 2, y: 2 } });
     // After the set up move: your turn, with how to move (first puzzles of a save).
     await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
     await expect(page.getByTestId('text-main')).toHaveText('Your turn! Tap your Pokémon, then a square.');
-    await page.getByTestId('screen-game').locator('header').click({ position: { x: 2, y: 2 } });
     await expect(page.getByTestId('coach')).toContainText('They moved. Now find your move!');
     await page.getByTestId('screen-game').locator('header').click({ position: { x: 2, y: 2 } });
     await expect(page.getByTestId('coach')).toBeHidden();

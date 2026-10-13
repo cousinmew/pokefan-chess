@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // §B22: Oak on the first intro box, BACK out of NEW GAME, the START button, and PLAY CHESS without a save.
 import { expect, test, type Page } from '@playwright/test';
-import { noTransition } from './pace';
+import { noTransition, settled } from './pace';
 
 const SHOTS = 'docs/start-flow';
 const camp = { v: 2, name: 'JADE', starter: 'charmander', introSeen: true, teamRules: 2, badges: ['boulder'], caught: { charmander: 1 }, playMs: 600_000 };
@@ -125,7 +125,13 @@ test('START during a puzzle pauses it without counting a fail', async ({ page })
   await page.getByTestId('screen-splash').click();
   await page.evaluate(() => (window as unknown as { __kc: { openPuzzles(): void } }).__kc.openPuzzles());
   const phase = () => page.evaluate(() => (window as unknown as { __kc: { puzzlePhase(): string } }).__kc.puzzlePhase());
-  await expect.poll(phase, { timeout: 10_000 }).toBe('player');
+  // JADE's first puzzle: its set up move waits for the coach marks (fix, 14 Oct); Escape skips them.
+  await expect
+    .poll(async () => {
+      if (await page.getByTestId('coach').isVisible()) await page.keyboard.press('Escape');
+      return phase();
+    }, { timeout: 10_000 })
+    .toBe('player');
   const rating = () => page.evaluate(() => localStorage.getItem('kc:v1:p1:puzzles'));
   const r0 = await rating();
   await page.getByTestId('start-button').click();
@@ -159,7 +165,7 @@ test('PLAY CHESS: straight into a game as a guest; nothing is saved and the Jour
   await expect(page.locator('[data-square="d1"]')).toHaveAttribute('aria-label', /CHARIZARD/); // the default team
   await page.click('[data-square="e2"]');
   await page.click('[data-square="e4"]');
-  await page.waitForTimeout(800);
+  await settled(page); // the computer's reply is in (was an 800 ms sleep)
   await page.getByTestId('start-button').click();
   await page.getByTestId('start-menu-quit').click();
   // A guest's game in progress is not saved, so QUIT asks first (playtest, 12 Oct); Keep playing stays.
@@ -227,6 +233,26 @@ test.describe('a brand-new device', () => {
     await expect(page.getByTestId('screen-oak')).toBeVisible();
     expect(await profiles(page)).toEqual({ slots: [1], current: 1 });
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name)).toBeTruthy();
+  });
+
+  test('BACK out of the first NEW GAME leaves only the slot list, so the next shelf BACK shows the menu in place (fix, 14 Oct)', async ({ page }) => {
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('cart-blue').click();
+    for (let i = 0; i < 3; i++) await page.getByTestId('story').click();
+    await expect(page.getByTestId('screen-name')).toBeVisible();
+    await page.getByTestId('newgame-back').click();
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('screen-start')).toBeVisible();
+    // As before 13 Oct: the save BACK left is as empty as the device was (base: its cartridge and campaign stayed).
+    expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual(['kc:v1:profiles']);
+    await page.evaluate(() => ((window as unknown as { __same: boolean }).__same = true));
+    await page.getByTestId('start-new').click();
+    await expect(page.getByTestId('screen-shelf')).toBeVisible();
+    await page.getByTestId('newgame-back').click();
+    await expect(page.getByTestId('screen-start')).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { __same?: boolean }).__same)).toBe(true); // no reload, no splash
+    expect(await menuItems(page)).toEqual(['start-new', 'start-play', 'start-option']);
   });
 
   test('first launch on YELLOW opens its home; its start menu shows lessons and stickers, not badges', async ({ page }) => {
@@ -341,6 +367,29 @@ test('bugs #2: a NEW GAME left unnamed can no longer delete another save', async
   await expect(page.getByTestId('screen-title')).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p2:campaign')!).name)).toBe('SKY');
   expect(await profiles(page)).toEqual({ slots: [1, 2], current: 2 });
+});
+
+test("two tabs: another tab's launch leaves a NEW GAME being made alone, and its ◀ BACK still works (fix, 14 Oct)", async ({ context }) => {
+  const a = await context.newPage();
+  await seedRaw(a, { 'kc:v1:profiles': { slots: [1], current: 1 }, 'kc:v1:p1:cartridge': 'blue', 'kc:v1:p1:campaign': camp, 'kc:v1:p1:settings': { v: 2, anim: 'off' } });
+  await startMenu(a);
+  await a.getByTestId('start-new').click();
+  await a.getByTestId('screen-splash').click();
+  await a.getByTestId('cart-blue').click();
+  for (let i = 0; i < 3; i++) await a.getByTestId('story').click();
+  await expect(a.getByTestId('screen-name')).toBeVisible();
+  // Tab B opens on the same device while A is at the name step.
+  const b = await context.newPage();
+  await b.goto('./?debug=1&menu=1');
+  await b.getByTestId('screen-splash').click();
+  await expect(b.getByTestId('screen-start')).toBeVisible();
+  expect(await profiles(b)).toEqual({ slots: [1, 2], current: 2 }); // base: B moved launch to JADE, and A's BACK died
+  await b.close();
+  await a.getByTestId('newgame-back').click();
+  await a.getByTestId('screen-splash').click();
+  await expect(a.getByTestId('start-continue')).toContainText('CONTINUE as JADE');
+  expect(await profiles(a)).toEqual({ slots: [1], current: 1 });
+  expect(await a.evaluate(() => Object.keys(localStorage).filter((k) => /^kc:v1:(p2:|dev:newGames)/.test(k)))).toEqual([]);
 });
 
 test('a double tap on NEW GAME makes one save', async ({ page }) => {

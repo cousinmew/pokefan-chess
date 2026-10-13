@@ -617,6 +617,7 @@
   "review.wrong.mate": "Danach kann {side} dich schachmatt setzen!",
   "review.wrong.check": "{side} antwortet mit Schach!",
   "review.wrong.move": "{side} antwortet, und das tut weh!",
+  "review.wrong.any": "Hier ist eine Antwort.",
   "review.wrong.over": "Dieser Zug beendet die Partie falsch herum.",
   "review.stamp.solved": "GELÖST!",
   "review.prev": "◀",

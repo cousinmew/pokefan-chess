@@ -9,6 +9,16 @@ const answer = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC })
 /** Lichess 0BLbM, mate in 1 (as in pacing.spec.ts): the set up Ra6-a8, then your Re2-e1#. */
 const MATE_IN_1: Row = ['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480];
 
+/** Your move. A save's first puzzle shows coach marks and its set up move waits for them (fix, 14 Oct): Escape skips them, as a player may. */
+async function yourMove(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      if (await page.getByTestId('coach').isVisible()) await page.keyboard.press('Escape');
+      return phase(page);
+    }, { timeout: 8000 })
+    .toBe('player');
+}
+
 /** Plain puzzles; `row` pins the first one (a mate in 1) instead of a random theme's. */
 async function openPuzzles(page: Page, row?: Row) {
   await page.goto('./?debug=1');
@@ -21,7 +31,7 @@ async function openPuzzles(page: Page, row?: Row) {
   await page.getByTestId('back').click();
   if (row) await page.evaluate((r) => (window as unknown as { __kc: KC }).__kc.forcePuzzle(r, 'mateIn1'), row);
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.openPuzzles());
-  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
+  await yourMove(page);
 }
 
 async function playAnswer(page: Page) {
@@ -90,9 +100,7 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
   await expect(page.locator(`[data-square="${uci.slice(0, 2)}"]`)).toHaveClass(/hint/);
   await page.getByTestId('hint').click();
   await expect(page.locator('.sq.hint')).toHaveCount(2);
-  // The next one is pinned: a random one can leave a piece selected that has no wrong move to try, and the next square
-  // tried then captures with it, so `played` stays false (about 1 run in 80, e.g. "SNORLAX to c1 SANDSLASH fainted!").
-  await page.evaluate((r) => (window as unknown as { __kc: KC }).__kc.forcePuzzle(r, 'mateIn1'), MATE_IN_1);
+  // A random next one (fix, 14 Oct: it was pinned, which left the random wrong move path untested).
   await page.getByTestId('next-puzzle').click();
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
   // Play a legal move that is not the answer: try each piece until one has another target.
@@ -101,6 +109,10 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
   const squares = await page.locator('.sq[data-piece]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
   let played = false;
   for (const sq of squares) {
+    // A piece left selected would make the next square tried a capture with it (about 1 run in 80, e.g. "SNORLAX to
+    // c1 SANDSLASH fainted!"): Escape drops the selection before each try.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.sq.dot, .sq.capture')).toHaveCount(0);
     await page.click(`[data-square="${sq}"]`);
     const targets = await page.locator('.sq.dot, .sq.capture').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square!));
     // Any mating move counts as solved (as on Lichess), so the "wrong" move must not mate.
@@ -124,4 +136,24 @@ test('hint outlines the piece, then its square; a wrong move shows the answer', 
   await expect(page.getByTestId('text-main')).toContainText('Not quite. Watch what happens, then the right move.');
   expect(await phase(page)).toBe('review');
   await expect(page.getByTestId('review-answer')).toBeVisible();
+});
+
+/** Lichess 8T2tS, a fork in 2 moves (Black, you): the set up Rg8-g6+, then Nd7-e5+ forks the king and the rook,
+ * the king steps away (their reply, after its hold) and Ne5xg6 takes the rook. It ends without mate. */
+const FORK: Row = ['8T2tS', '6R1/3n4/1kp5/8/2K5/8/8/8 w - - 3 62', 'g8g6 d7e5 c4c3 e5g6', 462];
+
+test('a puzzle that is not a mate: its goal and move count, their reply after its hold, "Solved! Well done." (fix, 14 Oct)', async ({ page }) => {
+  await page.goto('./?debug=1');
+  await page.getByTestId('screen-splash').click();
+  await page.evaluate((r) => (window as unknown as { __kc: KC }).__kc.forcePuzzle(r, 'fork'), FORK);
+  await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.openPuzzles());
+  await yourMove(page);
+  await expect(page.getByTestId('turn')).toHaveText('Goal: win material with a fork (2 moves)');
+  await playAnswer(page);
+  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('reply');
+  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
+  await expect(page.getByTestId('text-main')).toHaveText('Good! Keep going.');
+  await playAnswer(page);
+  await expect.poll(() => phase(page), { timeout: 8000 }).toBe('review');
+  await expect(page.getByTestId('text-main')).toHaveText('Solved! Well done.'); // never "Checkmate!" without a mate
 });

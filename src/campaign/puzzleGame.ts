@@ -12,13 +12,19 @@ import type { App } from '../main';
 import type { Side } from '../look';
 import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
 import { loadTrainer, pick, pickEasy, pool, record, shownLevel, THEMES } from './trainer';
-import { cancelHold, guard, hold, holding, type HoldEnd, type HoldKind } from '../ui/pace';
+import { cancelHold, guard, hold, holding, onScreen, type HoldEnd, type HoldKind } from '../ui/pace';
+import { warmEngine } from '../ai/engine';
+
+export const REFUTATION_READ_MS = 3000; // a miss review's line that says why (the engine's reply) stays this long, or until a tap after HOLD_MIN_MS
 
 /** The first puzzles of a save say how to move (W3). */
 const TAP_HELP_PUZZLES = 3;
 /** Every puzzle hold belongs to the game screen (fix, 13 Oct): one that starts while OPTION shows (a review step, the
- * solve) waits there on time but never takes OPTION's taps or keys. */
-const boardHold = (ms: number, kind: HoldKind): Promise<HoldEnd> => hold(ms, kind, undefined, 'screen-game');
+ * solve) waits there on time but never takes OPTION's taps or keys. `wait`: the "Watch!" and reply holds stop while
+ * OPTION or START is open and go on once the board is back (fix, 14 Oct), so no move is played unseen; reviews play on. */
+const boardHold = (ms: number, kind: HoldKind, wait = false): Promise<HoldEnd> => hold(ms, kind, undefined, 'screen-game', { pauseAway: wait });
+/** A reply to a wrong move: Stockfish's, or any legal one when the engine is out. */
+type Reply = { uci: string; source: 'stockfish' | 'fallback' };
 
 export interface PuzzleHost {
   app: App;
@@ -28,8 +34,9 @@ export interface PuzzleHost {
   them(): string;
   /** Counts a new puzzle on the save: how many were started before it, and whether the coach marks show (once). */
   firstSteps(): { n: number; coach: boolean };
-  /** Coach marks (W3, design F): start them, add the "they moved" step, or close them when you move. */
-  coach(event: 'start' | 'setup' | 'stop'): void;
+  /** Coach marks (W3, design F): start them, add the "they moved" step, or close them when you move. 'start' may
+   * return a promise that resolves once its bubbles are read, skipped or closed (fix, 14 Oct). */
+  coach(event: 'start' | 'setup' | 'stop'): void | Promise<void>;
   /** The solve moment (W3, design J): stamp (unless `stamp` is false), sound, the opponent's "Oh no!". */
   solvedMoment(stamp?: boolean): void;
   /** The SOLVED! stamp goes (its hold is over, the review opens, a new position). */
@@ -135,7 +142,8 @@ export class PuzzleGame {
       void this.start();
     };
     const row = el('div', 'puzzle-buttons');
-    this.leaveBtn = button('route.leave', () => this.context?.onLeave(), 'leave-grass');
+    // "Back" (fix, 14 Oct): it returns to the route or the Training list, not the map ('route.leave' read "Map").
+    this.leaveBtn = button('back', () => this.context?.onLeave(), 'leave-grass');
     this.nextBtn = button('puzzle.next', () => void this.start(), 'next-puzzle');
     row.append(sel, button('puzzle.hint', () => this.hint(), 'hint'), this.nextBtn, this.leaveBtn);
     this.banner = el('p', 'puzzle-banner');
@@ -181,9 +189,12 @@ export class PuzzleGame {
   /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one.
    * Pacing (§2): from another screen the battle bars close on the tap and open on the board; on the game screen the
    * board dips and the new position comes in at the peak. Either one waits there while the theme's puzzles load, and
-   * the "Watch!" hold starts once it is gone. */
+   * the "Watch!" hold starts once it is gone (after a first puzzle's coach marks are read, fix 14 Oct). A load that
+   * ends while OPTION shows leaves the new position for the way back, where it comes in with its own dip (fix, 14 Oct:
+   * it pulled the player off OPTION). */
   async start(ctx?: PuzzleContext | null): Promise<void> {
     if (ctx !== undefined) this.context = ctx;
+    warmEngine(); // a miss review asks the engine: its first load starts with the puzzle (fix, 14 Oct)
     const g = ++this.gen;
     this.phase = 'idle';
     this.hints = 0;
@@ -194,29 +205,41 @@ export class PuzzleGame {
     const theme = forced?.theme ?? choices[Math.floor(this.rng.next() * choices.length)] ?? THEMES[0]!;
     const load = forced ? Promise.resolve([forced.row]) : pool(theme);
     load.catch(() => undefined); // handled where it is awaited
-    let setup: { move: string; coach: boolean } | null = null;
-    const setUp = async () => {
+    const got: { setup: { move: string; coach: boolean } | null } = { setup: null };
+    /** `board`: only while the game screen shows (a dip's peak); the cover's own swap is how the board first shows. */
+    const setUp = async (board: boolean) => {
       const rows = await load;
-      if (g === this.gen) setup = this.setUp(rows, theme);
+      if (g === this.gen && !got.setup && (!board || this.host.onBoard())) got.setup = this.setUp(rows, theme);
     };
     // "Finding a puzzle…" only when the load is slow: on the cover or the dip after COVER_LABEL_MS (no 20 ms flash).
-    if (this.host.onBoard()) await this.host.dip(setUp);
-    else {
+    if (this.host.onBoard()) {
+      await this.host.dip(() => setUp(true));
+      // Not in yet: the load ended behind OPTION, or outlasted the dip (COVER_MAX_MS). It comes in on the board.
+      while (!got.setup) {
+        if (!(await load.then(() => true, () => false)) || g !== this.gen) return;
+        if (got.setup) break; // the first dip's swap got it in after all
+        if (!(await onScreen('screen-game', () => g !== this.gen)) || g !== this.gen) return;
+        await this.host.dip(() => setUp(true));
+        if (g !== this.gen) return;
+      }
+    } else {
       // A load that fails, or never shows the board, still lifts the cover (COVER_MAX_MS at the latest).
       try {
         await this.host.cover();
-        await setUp();
+        await setUp(false);
       } finally {
         this.host.uncover();
       }
     }
-    const s = setup as { move: string; coach: boolean } | null;
+    const s = got.setup;
     if (!s || g !== this.gen) return;
     await this.host.revealed();
     if (g !== this.gen) return;
-    if (s.coach) this.host.coach('start');
+    // The coach marks first, then the "Watch!" hold (fix, 14 Oct: the move played under the first bubble).
+    if (s.coach) await this.host.coach('start');
+    if (g !== this.gen) return;
     // The position first, then the opponent's set up move (W3, ux #6): the player sees what is about to happen.
-    if ((await boardHold(PUZZLE_SETUP_MS, 'setup')) === 'cancel' || g !== this.gen) return;
+    if ((await boardHold(PUZZLE_SETUP_MS, 'setup', true)) === 'cancel' || g !== this.gen) return;
     this.host.applyMove(s.move);
   }
 
@@ -309,7 +332,7 @@ export class PuzzleGame {
         this.phase = 'reply';
         board.locked = true;
         // Your move's line stays while they answer (A10, A18): a hold a tap can cut after HOLD_MIN_MS.
-        void boardHold(OPPONENT_REPLY_MS, 'reply').then((how) => how !== 'cancel' && g === this.gen && this.phase === 'reply' && res.reply && this.host.applyMove(res.reply));
+        void boardHold(OPPONENT_REPLY_MS, 'reply', true).then((how) => how !== 'cancel' && g === this.gen && this.phase === 'reply' && res.reply && this.host.applyMove(res.reply));
       }
     }
   }
@@ -348,9 +371,10 @@ export class PuzzleGame {
   }
 
   /** Wrong (pacing A14): your move in red (the piece shakes), then it slides in faded, then the punishing reply (at the
-   * earliest OPPONENT_REPLY_MS later; "{them} is thinking…" while the engine is still out), back to the position and
-   * the right move. Each step is a hold a tap can cut after HOLD_MIN_MS. ◀ ▶ ↺ stop only the playback: the reply and
-   * the right move join the line whenever the engine answers (fix, 13 Oct: a tap in the first second lost them). */
+   * earliest OPPONENT_REPLY_MS later; "{them} is thinking…" while the engine is still out) with the line that says why,
+   * held REFUTATION_READ_MS (fix, 14 Oct: it went after 0.9 s, under half the time to read it), back to the position
+   * and the right move. Each step is a hold a tap can cut after HOLD_MIN_MS. ◀ ▶ ↺ stop only the playback: the reply
+   * and the right move join the line whenever the engine answers (fix, 13 Oct: a tap in the first second lost them). */
   private async reviewMiss(pre: string, wrong: string, answer: string): Promise<void> {
     const g = this.gen;
     const chess = new Chess(pre);
@@ -374,44 +398,53 @@ export class PuzzleGame {
     const right = this.rightFrames(pre, answer);
     const over = chess.isGameOver();
     let answered = false;
+    const thinking = fmt('ai.loading', { trainer: this.host.them() });
     // The engine works while the player looks at the miss.
-    const built = (over ? Promise.resolve('') : this.refutation(after, chess)).then((uci) => {
+    const built = (over ? Promise.resolve<Reply>({ uci: '', source: 'fallback' }) : this.refutation(after, chess)).then(({ uci, source }) => {
       answered = true;
       if (!ours()) return false;
       if (uci) {
         const end = new Chess(after);
         end.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
-        // The opponent by name (W3): "That lets YOUNGSTER TOBY take your BULBASAUR", never your own team's name.
-        const said = refutationText(after, uci, you, this.host.them());
+        // The opponent by name (W3): "That lets YOUNGSTER TOBY take your BULBASAUR", never your own team's name. A
+        // fallback is just a legal move, so it never claims to hurt (fix, 14 Oct): "Here is one answer."
+        const said = source === 'stockfish' ? refutationText(after, uci, you, this.host.them()) : { key: 'review.wrong.any' as const, vars: {} };
         const m = { from: uci.slice(0, 2), to: uci.slice(2, 4) };
         frames.push({ fen: end.fen(), arrows: [{ ...m, color: 'blue' }], marks: [], slide: m, faded: [w.to], text: fmt(said.key, said.vars) });
       }
       frames.push(...right);
+      // The wait is over (fix, 14 Oct): "… is thinking" stayed after ◀ ▶ on a frame with no line of its own.
+      if (this.reviewText.textContent === thinking) this.setReviewText(r.frames[r.idx]?.text ?? fmt('puzzle.wrong'));
       this.nav(); // ▶ comes back on wherever the player is
-      return true;
+      return uci !== '';
     });
     if ((await boardHold(OPPONENT_REPLY_MS, 'miss')) === 'cancel' || !live()) return;
     this.show(1);
     if (over) {
-      if (!(await built) || !live()) return;
+      await built;
+      if (!ours() || !live()) return;
       this.setReviewText(fmt('review.wrong.over'));
       return this.replay(2, { ms: OPPONENT_REPLY_MS, wait: true, skip: 'step' }, t);
     }
-    const slow = window.setTimeout(() => !answered && live() && this.setReviewText(fmt('ai.loading', { trainer: this.host.them() })), THINKING_LINE_MS);
+    const slow = window.setTimeout(() => !answered && live() && this.setReviewText(thinking), THINKING_LINE_MS);
     if ((await boardHold(OPPONENT_REPLY_MS, 'miss')) === 'cancel' || !live()) return window.clearTimeout(slow);
-    const ok = await built;
+    const replied = await built;
     window.clearTimeout(slow);
-    if (!ok || !live()) return;
+    if (!ours() || !live()) return;
     this.show(2);
-    return this.replay(3, { ms: OPPONENT_REPLY_MS, wait: true, skip: 'step' }, t);
+    // Their reply and why it hurts: read, then the right move (a tap after HOLD_MIN_MS moves on).
+    if ((await boardHold(replied ? REFUTATION_READ_MS : OPPONENT_REPLY_MS, 'miss')) === 'cancel' || !live()) return;
+    return this.replay(3, { ms: OPPONENT_REPLY_MS, skip: 'step' }, t);
   }
 
-  /** Stockfish's punishing reply to a wrong move, or any legal one when the engine is out. */
-  private async refutation(after: string, chess: Chess): Promise<string> {
+  /** Stockfish's punishing reply to a wrong move, or any legal one when the engine is out. A reply that isn't legal
+   * here is never played (fix, 14 Oct: another position's move threw in the review and stopped it at your move). */
+  private async refutation(after: string, chess: Chess): Promise<Reply> {
     let reply: string;
-    let source: 'stockfish' | 'fallback' = 'stockfish';
+    let source: Reply['source'] = 'stockfish';
     try {
       reply = await this.host.engineReply(after);
+      if (!chess.moves({ verbose: true }).some((m) => m.from + m.to + (m.promotion ?? '') === reply)) throw new Error(`${reply} is not legal here`);
     } catch (err) {
       console.warn('refutation engine unavailable:', err instanceof Error ? err.message : err);
       // Any legal reply keeps the review going: the biggest capture, else the first move.
@@ -420,7 +453,7 @@ export class PuzzleGame {
       source = 'fallback';
     }
     if (reply) this.lastRefutation = { fen: after, uci: reply, source };
-    return reply;
+    return { uci: reply, source };
   }
 
   /** The right move (§B21 item 1): back to the position, then the piece slides in, both squares lit, the arrow stays,

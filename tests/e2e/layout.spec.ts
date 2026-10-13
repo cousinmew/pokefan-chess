@@ -8,6 +8,16 @@ const SIZES: [number, number][] = [[320, 480], [360, 640], [375, 667], [390, 844
 const SHOTS = new Set(['360x640', '390x844', '1024x768', '1280x720', '1920x1080']);
 type KC = { __kc: { move(u: string): string; openPuzzles(): void; battleTo(p: string): unknown } };
 
+/** Your move. A save's first puzzle shows coach marks and its set up move waits for them (fix, 14 Oct): Escape skips them, as a player may. */
+async function yourMove(page: Page, timeout = 15_000): Promise<void> {
+  await expect
+    .poll(async () => {
+      if (await page.getByTestId('coach').isVisible()) await page.keyboard.press('Escape');
+      return page.evaluate(() => (window as unknown as Phase).__kc.puzzlePhase());
+    }, { timeout })
+    .toBe('player');
+}
+
 async function noScroll(page: Page, what: string): Promise<void> {
   const s = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight, w: window.innerWidth, h: window.innerHeight, x: window.scrollX, y: window.scrollY }));
   expect(s.sw, `${what}: page wider than the window`).toBeLessThanOrEqual(s.w);
@@ -26,7 +36,7 @@ async function inView(page: Page, testid: string, what: string): Promise<void> {
 }
 
 async function checkGame(page: Page, what: string): Promise<void> {
-  await page.waitForTimeout(150);
+  await settled(page); // the moves' slides and any hold are over (was a 150 ms sleep, which measured mid slide)
   await noScroll(page, what);
   for (const id of ['board', 'plate-top', 'plate-bottom', 'takeback', 'text-main', 'start-button']) await inView(page, id, what);
   // START sits in the top bar row and is at least 44 px tall (§B22 item 3).
@@ -63,7 +73,9 @@ for (const [w, h] of SIZES) {
     await page.evaluate(() => (window as unknown as { __kc: { step(n: number): unknown } }).__kc.step(300));
     // A puzzle.
     await page.evaluate(() => (window as unknown as KC).__kc.openPuzzles());
-    await page.waitForTimeout(300);
+    // The puzzle as the player sees it (fix, 14 Oct): a 300 ms sleep measured it mid dip, before the plates settled.
+    await yourMove(page);
+    await settled(page);
     await noScroll(page, `${w}x${h} puzzle`);
     for (const id of ['board', 'plate-bottom', 'start-button']) await inView(page, id, `${w}x${h} puzzle`);
     // The level picker and the shelf.
@@ -78,6 +90,58 @@ for (const [w, h] of SIZES) {
     await page.getByTestId('screen-splash').click();
     await noScroll(page, `${w}x${h} shelf`);
     for (const id of ['cart-yellow', 'cart-blue', 'lang-zh-Hans']) await inView(page, id, `${w}x${h} shelf`);
+  });
+}
+
+// Fix, 14 Oct: in the side column at 1280x800 a wrong move's review read "Show ansv" and "Try a nev" (cut); on narrow
+// phones long labels (de, fr, ru, it, nl) were cut and Continue pushed off screen. A second row of buttons covered the
+// board's bottom rank there instead, so narrow screens keep one row and a long label wraps inside its button.
+const REVIEW_SIZES: [string, number, number][] = [['en', 1280, 800], ['de', 360, 640], ['ru', 360, 640], ['de', 375, 667], ['ru', 375, 667], ['fr', 390, 844], ['de', 320, 480]];
+for (const [lang, w, h] of REVIEW_SIZES) {
+  test(`a wrong move's review shows each button's whole label, ${lang} ${w}x${h}`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await page.addInitScript((l) => {
+      localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off', legend: 'on' }));
+      localStorage.setItem('kc:v1:lang', JSON.stringify(l));
+    }, lang);
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.evaluate(() => {
+      const kc = (window as unknown as { __kc: { forcePuzzle(r: unknown, t: string): void; openPuzzles(): void } }).__kc;
+      kc.forcePuzzle(['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480], 'mateIn1'); // QUIET1, e2h2 is wrong
+      kc.openPuzzles();
+    });
+    await yourMove(page);
+    await page.click('[data-square="e2"]');
+    await page.click('[data-square="h2"]');
+    await expect(page.getByTestId('review-answer')).toBeVisible();
+    await expect(page.getByTestId('review-new')).toBeVisible();
+    await settled(page);
+    const cut = await page.locator('.review-btn:not([hidden])').evaluateAll((els) => {
+      const W = window.innerWidth;
+      return els.flatMap((e) => {
+        const r = e.getBoundingClientRect();
+        const row = e.parentElement!.getBoundingClientRect();
+        const out = e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight + 2 ? [`${e.textContent} cut: ${e.scrollWidth}x${e.scrollHeight} in ${e.clientWidth}x${e.clientHeight}`] : [];
+        if (r.left < row.left - 1 || r.right > row.right + 1 || r.left < -1 || r.right > W + 1) out.push(`${e.textContent} off its row or the screen`);
+        return out;
+      });
+    });
+    expect(cut).toEqual([]); // base: "Ein neues probi", "Weiter" off screen at 360x640
+    if (w <= 900) {
+      // One row of buttons (a second one covered the board's bottom rank), and the review stays under the board.
+      const fit = await page.evaluate(() => {
+        const acts = document.querySelector('.review .review-acts')!.getBoundingClientRect();
+        const tallest = Math.max(...[...document.querySelectorAll('.review .review-acts .review-btn:not([hidden])')].map((b) => b.getBoundingClientRect().height));
+        const review = document.querySelector('[data-testid="review"]')!.getBoundingClientRect();
+        const board = document.querySelector('[data-testid="board"]')!.getBoundingClientRect();
+        return { oneRow: acts.height <= tallest + 2, covers: Math.max(0, Math.round(board.bottom - review.top)) };
+      });
+      expect(fit.oneRow, 'the review buttons on one row').toBe(true);
+      // 320x480 floats the bar over the board's foot by design (W2); from 360x640 up it sits under the board.
+      if (w >= 360) expect(fit.covers, 'px of the board under the review').toBe(0); // second row: 33 to 38 px (a rank)
+    }
+    if (w >= 360) expect(await misfits(page, `${lang} ${w}x${h} review`)).toEqual([]);
   });
 }
 
@@ -212,7 +276,7 @@ test('@both W2: the game, a puzzle review and its Continue fit every window', as
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
   const phase = () => page.evaluate(() => (window as unknown as Phase).__kc.puzzlePhase());
-  await expect.poll(phase, { timeout: 10_000 }).toBe('player');
+  await yourMove(page);
   out.push(...(await sweep(page, 'puzzle')));
   await page.setViewportSize({ width: 1280, height: 720 });
   for (let i = 0; i < 6 && (await phase()) === 'player'; i++) {

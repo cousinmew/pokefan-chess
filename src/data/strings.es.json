@@ -617,6 +617,7 @@
   "review.wrong.mate": "¡Así {side} te puede dar jaque mate!",
   "review.wrong.check": "¡{side} responde con jaque!",
   "review.wrong.move": "{side} responde, ¡y eso duele!",
+  "review.wrong.any": "Esta es una respuesta.",
   "review.wrong.over": "Esa jugada termina la partida de la peor manera.",
   "review.stamp.solved": "¡RESUELTO!",
   "review.prev": "◀",

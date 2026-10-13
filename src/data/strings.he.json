@@ -617,6 +617,7 @@
   "review.wrong.mate": "זה נותן ל־{side} לעשות לכם מט!",
   "review.wrong.check": "{side} עונה בשח!",
   "review.wrong.move": "{side} עונה, וזה כואב!",
+  "review.wrong.any": "הנה תשובה אחת.",
   "review.wrong.over": "המסע הזה מסיים את המשחק בדרך הלא נכונה.",
   "review.stamp.solved": "נפתר!",
   "review.prev": "◀",

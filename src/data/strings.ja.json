@@ -617,6 +617,7 @@
   "review.wrong.mate": "それだと、{side}にチェックメイトされる！",
   "review.wrong.check": "{side}はチェックでかえす！",
   "review.wrong.move": "{side}がかえしてきた。これはいたい！",
+  "review.wrong.any": "こういうかえしかたもある。",
   "review.wrong.over": "そのてだと、ゲームがわるいかたちでおわってしまう。",
   "review.stamp.solved": "とけた!",
   "review.prev": "◀",

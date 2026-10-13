@@ -11,6 +11,7 @@ import { pickEasy, pieceCount, shownLevel, type Trainer } from '../../src/campai
 import { createRng } from '../../src/game/rng';
 import { rivalStarter, withoutRival } from '../../src/campaign/rivalTeam';
 import type { PuzzleRow } from '../../src/campaign/puzzle';
+import { setLang } from '../../src/game/text';
 
 const store = new Map<string, string>();
 (globalThis as unknown as { window: unknown }).window = {
@@ -132,6 +133,30 @@ describe('nextGoal (W5, design H)', () => {
     expect(nextGoal(c)?.text).toMatch(/BROCK at /);
     c = { ...c, badges: ['boulder'] };
     expect(nextGoal(c)?.place.id).toBe('route-3');
+  });
+
+  it('a goal that names its trainer names the place without its ": BROCK" suffix (fix, 14 Oct)', () => {
+    // "▶ LEADER BROCK at PEWTER GYM: BROCK" took two lines on a phone; "ELITE FOUR … at INDIGO PLATEAU: ELITE FOUR".
+    const upTo = (id: string): Campaign => {
+      const before = PLACES.slice(0, PLACES.findIndex((p) => p.id === id)).filter((p) => !p.optional);
+      const c = started();
+      return { ...c, badges: before.flatMap((p) => (p.kind === 'gym' && p.badge ? [p.badge] : [])), journey: { ...c.journey, cleared: before.map((p) => p.id) } };
+    };
+    const gym = upTo('pewter-gym');
+    expect(nextGoal(gym)?.text).toBe('LEADER BROCK at PEWTER GYM');
+    expect(goalLine(gym)).toBe('Next: LEADER BROCK at PEWTER GYM');
+    expect(nextGoal(upTo('cerulean-gym'))?.text).toBe('LEADER MISTY at CERULEAN GYM');
+    expect(nextGoal(upTo('indigo-plateau'))?.text).toBe('ELITE FOUR LORELEI at INDIGO PLATEAU');
+    // A place on its own keeps its whole name ("Go to …"), and so does the map's own row.
+    expect(nextGoal(upTo('viridian'))?.text).toBe('Go to VIRIDIAN CITY');
+    // The French " : ", the Hebrew isolates and the full-width colon of Japanese and Chinese.
+    for (const [lang, name] of [['fr', "ARÈNE D'ARGENTA"], ['he', '⁨PEWTER GYM⁩'], ['ja', 'ニ⁠ビ⁠ジ⁠ム'], ['zh-Hans', '深⁠灰⁠道⁠馆']] as const) {
+      setLang(lang);
+      const text = nextGoal(gym)?.text ?? '';
+      expect(text, lang).toContain(name);
+      expect(text, lang).not.toMatch(/[:：]/);
+    }
+    setLang('en');
   });
 
   it('none before the starter or after the Champion; progress and the lock line follow the goal', () => {

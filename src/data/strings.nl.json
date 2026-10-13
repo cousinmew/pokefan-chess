@@ -617,6 +617,7 @@
   "review.wrong.mate": "Dan kan {side} jou schaakmat zetten!",
   "review.wrong.check": "{side} antwoordt met schaak!",
   "review.wrong.move": "{side} antwoordt, en die doet pijn!",
+  "review.wrong.any": "Dit is één antwoord.",
   "review.wrong.over": "Met die zet eindigt de partij verkeerd.",
   "review.stamp.solved": "OPGELOST!",
   "review.prev": "◀",

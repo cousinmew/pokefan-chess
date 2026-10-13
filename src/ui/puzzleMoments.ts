@@ -21,7 +21,8 @@ export interface MomentsHost {
 }
 
 export interface Moments {
-  coach(event: 'start' | 'setup' | 'stop'): void;
+  /** 'start' resolves once its bubbles are gone, so the set up move waits for them (fix, 14 Oct). */
+  coach(event: 'start' | 'setup' | 'stop'): void | Promise<void>;
   solved(stamp?: boolean): void;
   /** The SOLVED! stamp goes now (its hold ended or was skipped, the review opened, a new position). */
   unstamp(): void;
@@ -58,7 +59,7 @@ export function puzzleMoments(h: MomentsHost): Moments {
     coach(event) {
       if (event === 'stop') return coach.close();
       if (event === 'setup') return coach.add({ text: fmt('coach.them'), target: boardRect });
-      coach.start([
+      return coach.start([
         { text: fmt('coach.you', { team: fmt('team.red') }), target: mine },
         { text: fmt('coach.goal'), target: () => h.turnEl.getBoundingClientRect() },
       ], 1);

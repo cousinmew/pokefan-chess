@@ -4,8 +4,32 @@ import { REVIEW_COLORS } from '../config';
 import type { Board } from '../board/board';
 import type { Frame } from '../campaign/review';
 
+const ns = 'http://www.w3.org/2000/svg';
+/** The watcher waiting to draw a layer's frame once its board is back on screen. */
+const waiting = new WeakMap<SVGSVGElement, MutationObserver>();
+
+/** Draws a review frame. A review plays on behind OPTION (13 Oct), where the board is not in the document and measures
+ * 0 by 0: then the frame waits and is drawn when the board shows again (fix, 14 Oct: the right move's arrow came back
+ * with no length). A newer frame, or the layer cleared meanwhile, replaces it. */
 export function drawFrame(reviewLayer: SVGSVGElement, boardWrap: HTMLElement, board: Board, frame: Frame): void {
-  const ns = 'http://www.w3.org/2000/svg';
+  waiting.get(reviewLayer)?.disconnect();
+  waiting.delete(reviewLayer);
+  if (boardWrap.isConnected) return paint(reviewLayer, boardWrap, board, frame);
+  const mark = document.createElementNS(ns, 'g');
+  mark.dataset.pending = '';
+  reviewLayer.replaceChildren(mark);
+  const watch = new MutationObserver(() => {
+    if (!boardWrap.isConnected) return;
+    watch.disconnect();
+    waiting.delete(reviewLayer);
+    // A frame later, once the fitter has laid the board out again.
+    requestAnimationFrame(() => mark.parentNode === reviewLayer && paint(reviewLayer, boardWrap, board, frame));
+  });
+  watch.observe(document.body, { childList: true, subtree: true });
+  waiting.set(reviewLayer, watch);
+}
+
+function paint(reviewLayer: SVGSVGElement, boardWrap: HTMLElement, board: Board, frame: Frame): void {
   const box = boardWrap.getBoundingClientRect();
   reviewLayer.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
   const centre = (sq: string) => {

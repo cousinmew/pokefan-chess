@@ -617,6 +617,7 @@
   "review.wrong.mate": "这样{side}就能将死你！",
   "review.wrong.check": "{side}用将军回应！",
   "review.wrong.move": "{side}回应了，这步很疼！",
+  "review.wrong.any": "这是一种应对。",
   "review.wrong.over": "这步棋让对局结束了，但结果不对。",
   "review.stamp.solved": "解开了!",
   "review.prev": "◀",

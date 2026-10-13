@@ -347,8 +347,8 @@ describe('boot', () => {
   });
 
   it('BACK on a reused save removes keys only from a save NEW GAME made; boot drops only that one', async () => {
-    // A save from before (no note), with no progress anywhere: BACK keeps every key it has, My Team included, and
-    // undoes only the progress typed on the way, a name and the MEIR code (review, 13 Oct).
+    // A save from before (no note), with no progress anywhere: BACK keeps every key it had, My Team included, and
+    // undoes only what the NEW GAME wrote, a cartridge, a name and the MEIR code (review, 13 Oct; fix, 14 Oct).
     let m = await fresh();
     set('profiles', { slots: [1, 2], current: 2 });
     set('p1:settings', { v: 1 });
@@ -362,7 +362,8 @@ describe('boot', () => {
     m.abandonNewGame();
     m = await fresh();
     expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 2 }); // a save from before: kept
-    expect(m.profileData(2)).toEqual({ settings: { v: 2, sound: false }, campaign: { introSeen: true, team: { q: 'onix' } }, cartridge: 'blue' });
+    // As it was before this NEW GAME (fix, 14 Oct): the cartridge it picked goes too, so the shelf comes back.
+    expect(m.profileData(2)).toEqual({ settings: { v: 2, sound: false }, campaign: { introSeen: true, team: { q: 'onix' } } });
     expect(m.hasProgress(2)).toBe(false);
     // A reload in the middle of a NEW GAME reuses its save in place; BACK forgets what it wrote and leaves it for boot.
     m = await newGameFromAsh();
@@ -372,5 +373,132 @@ describe('boot', () => {
     expect(m.profileData(2)).toEqual({});
     m = await fresh();
     expect(m.bootSaves()).toEqual({ slots: [1], current: 1 });
+  });
+});
+
+// Fix, 14 Oct (known minors from the 13 Oct review): another tab moving launch off a save this tab is still making,
+// BACK on a fresh device's reused save, a restored backup with no progress, an old empty save holding a slot.
+describe('NEW GAME across tabs and reloads (fix, 14 Oct)', () => {
+  /** Swaps in another tab's session storage (local storage is the device's, shared). */
+  const tab = (s: Map<string, string>) => {
+    session.clear();
+    for (const [k, v] of s) session.set(k, v);
+  };
+
+  it("another tab's boot keeps the save this tab is making; BACK here still drops it after that tab moves away", async () => {
+    let a = await fresh();
+    set('profiles', { slots: [1], current: 1 });
+    set('p1:campaign', { name: 'JADE', starter: 'bulbasaur' });
+    a.bootSaves();
+    a.addProfile(); // tab A: NEW GAME, slot 2, then its reload
+    a = await fresh();
+    a.bootSaves();
+    a.saveTo(2, 'cartridge', 'blue'); // the shelf, Oak, the name step
+    const sessionA = new Map(session);
+    tab(new Map());
+    const b = await fresh(); // tab B opens
+    expect(b.bootSaves()).toEqual({ slots: [1, 2], current: 2 }); // the base build moved launch to JADE here
+    b.switchTo(1, 'continue'); // B's player picks JADE anyway
+    expect(meta()?.current).toBe(1);
+    tab(sessionA);
+    a.abandonNewGame(); // A's ◀ BACK: works, though the device's current save is JADE now
+    expect(meta()).toEqual({ slots: [1], current: 1 });
+    expect([...store.keys()].filter((k) => k.startsWith('kc:v1:p2:') || k === 'kc:v1:dev:newGames')).toEqual([]);
+    expect(a.isCreating(2)).toBe(false);
+  });
+
+  it('with session storage blocked, NEW GAME from a save with progress opens the new save instead of reloading back', async () => {
+    const g = globalThis as unknown as { window: { localStorage: unknown; sessionStorage: unknown } };
+    const was = g.window;
+    g.window = {
+      localStorage: was.localStorage,
+      get sessionStorage(): unknown {
+        throw new DOMException('blocked', 'SecurityError');
+      },
+    };
+    try {
+      let m = await fresh();
+      set('profiles', { slots: [1], current: 1 });
+      set('p1:campaign', { name: 'JADE' });
+      m.bootSaves();
+      m.addProfile();
+      m = await fresh();
+      expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 2 }); // base: back to JADE, and each tap added a slot
+      expect(m.currentSlot()).toBe(2);
+      expect(m.reuseEmpty()).toBe(true); // the shelf, straight into the new game
+    } finally {
+      g.window = was;
+    }
+  });
+
+  it("BACK on a fresh device's reused save leaves storage as it was, so the next shelf BACK needs no reload", async () => {
+    let m = await fresh();
+    m.bootSaves();
+    expect(m.reuseEmpty()).toBe(true); // splash, then the shelf
+    m.saveTo(1, 'cartridge', 'blue');
+    m.saveTo(1, 'campaign', { introSeen: true, name: 'JO' }); // Oak, then the name step
+    m.saveTo(1, 'playerTrainer', 'meir');
+    m.abandonNewGame(); // ◀ BACK
+    expect([...store.keys()]).toEqual(['kc:v1:profiles']); // base: the cartridge and the campaign stayed
+    m = await fresh();
+    m.bootSaves();
+    expect(m.reuseEmpty()).toBe(true); // NEW GAME from the menu: the shelf again, nothing chosen
+    expect(m.creatingInPlace()).toBe(true);
+    expect(m.loadFrom(1, 'cartridge')).toBeNull(); // so the shelf's ◀ BACK shows the menu in place
+  });
+
+  it('BACK on a save from before keeps every key it had, preferences included; only what NEW GAME wrote goes', async () => {
+    const m = await fresh();
+    set('profiles', { slots: [1], current: 1 });
+    set('p1:cartridge', 'blue');
+    set('p1:campaign', { introSeen: true, team: { q: 'onix' } });
+    set('p1:settings', { v: 2, sound: false });
+    const before = JSON.stringify([...store].sort());
+    m.bootSaves();
+    expect(m.reuseEmpty()).toBe(true);
+    m.saveTo(1, 'campaign', { introSeen: true, team: { q: 'onix' }, name: 'JO' });
+    m.saveTo(1, 'playerTrainer', 'meir');
+    m.abandonNewGame();
+    expect(JSON.stringify([...store].sort())).toBe(before);
+  });
+
+  it('a backup with no progress restored over this save stays this save at the next launch', async () => {
+    let m = await fresh();
+    set('profiles', { slots: [1, 2], current: 1 });
+    set('p1:campaign', { name: 'JADE', starter: 'bulbasaur' });
+    set('p2:campaign', { name: 'SKY', starter: 'squirtle' });
+    m.bootSaves();
+    // OPTION, Import a file holding only a cartridge, a language and settings: restored() in main.ts.
+    m.restoreProfile(1, { cartridge: 'blue', lang: 'de', settings: { v: 2, sound: false } });
+    m.forgetNewGame(1);
+    m.switchTo(1, 'continue');
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 1 }); // base: SKY's save opened
+    expect(m.currentSlot()).toBe(1);
+    // The choice is for that reload only: a later launch opens a save with progress, as before.
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 2 });
+  });
+
+  it('NEW GAME reuses an old empty save in place (nothing deleted) before taking a new slot; BACK leaves it as it was', async () => {
+    let m = await fresh();
+    set('profiles', { slots: [1, 2], current: 2 });
+    set('p1:cartridge', 'blue'); // an old empty save, from before the notes
+    set('p1:lang', 'de');
+    set('p2:campaign', { name: 'ASH', starter: 'squirtle' });
+    m.bootSaves();
+    const saves = () => JSON.stringify([...store].filter(([k]) => k !== 'kc:v1:profiles').sort());
+    const before = saves();
+    m.addProfile();
+    expect(meta()).toEqual({ slots: [1, 2], current: 1 }); // base: a third slot
+    expect(reloads).toBe(1);
+    expect(saves()).toBe(before);
+    m = await fresh();
+    expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 1 });
+    expect(m.isCreating()).toBe(true);
+    m.saveTo(1, 'campaign', { introSeen: true });
+    m.abandonNewGame(); // ◀ BACK: ASH again, the old save as it was
+    expect(meta()).toEqual({ slots: [1, 2], current: 2 });
+    expect(saves()).toBe(before);
   });
 });

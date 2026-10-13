@@ -118,7 +118,9 @@ export function nextGoal(c: JourneyState): Goal | null {
   const place = PLACES[index];
   if (!place) return null;
   const trainer = place.trainers?.length ? (nextTrainer(c, place) ?? place.trainers[0]!) : null;
-  const vars = { place: placeName(place), trainer: trainer ? trainerName(trainer) : '' };
+  // With the trainer named, the place without its ": BROCK" or ": ELITE FOUR" (fix, 14 Oct: "LEADER BROCK at PEWTER
+  // GYM: BROCK" took two lines on a phone). The French " : " and the full-width colon of Japanese and Chinese too.
+  const vars = { place: trainer ? placeName(place).replace(/\s*[:：].*$/u, '') : placeName(place), trainer: trainer ? trainerName(trainer) : '' };
   const key: StringKey = !trainer ? 'goal.go' : place.kind === 'rival' ? 'goal.battle' : 'goal.at';
   return { index, place, trainer, text: fmt(key, vars) };
 }

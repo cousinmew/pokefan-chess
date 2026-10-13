@@ -617,6 +617,7 @@
   "review.wrong.mate": "Ça permet aux {side} de te mettre échec et mat !",
   "review.wrong.check": "Les {side} répondent par un échec !",
   "review.wrong.move": "Les {side} répondent, et ça fait mal !",
+  "review.wrong.any": "Voici une réponse possible.",
   "review.wrong.over": "Avec ce coup, la partie finit mal pour toi.",
   "review.stamp.solved": "RÉSOLU !",
   "review.prev": "◀",

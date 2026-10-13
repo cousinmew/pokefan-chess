@@ -7,12 +7,22 @@ import { noTransition } from './pace';
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; openPuzzles(): void; dumpState(): string; refutation(): { fen: string; uci: string; source: string } | null };
 const kc = <T>(page: Page, f: keyof KC) => page.evaluate((name) => (window as unknown as { __kc: Record<string, () => unknown> }).__kc[name]!() as T, f);
 
+/** Your move. A save's first puzzle shows coach marks and its set up move waits for them (fix, 14 Oct): Escape skips them, as a player may. */
+async function yourMove(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      if (await page.getByTestId('coach').isVisible()) await page.keyboard.press('Escape');
+      return kc<string>(page, 'puzzlePhase');
+    }, { timeout: 10_000 })
+    .toBe('player');
+}
+
 async function open(page: Page) {
   await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ anim: 'off', v: 2 })));
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.openPuzzles());
-  await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 10_000 }).toBe('player');
+  await yourMove(page);
 }
 
 const fen = async (page: Page) => (JSON.parse(await kc<string>(page, 'dumpState')) as { fen: string }).fen;
@@ -139,7 +149,7 @@ for (const [label, settings, lang] of [
     await page.goto('./?debug=1');
     await page.getByTestId('screen-splash').click();
     await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.openPuzzles());
-    await expect.poll(() => kc<string>(page, 'puzzlePhase'), { timeout: 10_000 }).toBe('player');
+    await yourMove(page);
     const answer = (await kc<string>(page, 'puzzleAnswer'))!;
     await wrongMove(page);
     await expect(page.getByTestId('review')).toBeVisible({ timeout: 10_000 });

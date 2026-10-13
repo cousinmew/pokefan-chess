@@ -805,6 +805,23 @@ header.game-header .turn.objective { max-width: calc(100% - 2 * 80px); font-weig
   .puzzle-banner.pop { animation: none; }
 }
 
+/* ===== puzzle group (fix, 14 Oct): the map's new badge, and review buttons that keep their whole labels ===== */
+/* A gym just won: a ring pulses round its badge in the map's strip (two slow beats) before the map scrolls to the
+   gym's row for its stamp; under reduced motion the ring only fades in. */
+.map-strip .badge.badge-new { position: relative; }
+.map-strip .badge.badge-new::after { content: ''; position: absolute; inset: -7px; border: 3px solid #f8d030; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .map-strip .badge.badge-new::after { animation: puzzle-badge-pulse 600ms ease-in-out 4 alternate both; } }
+@media (prefers-reduced-motion: reduce) { .map-strip .badge.badge-new::after { animation: fade-in var(--reduced-fade) linear both; } }
+@keyframes puzzle-badge-pulse { from { transform: scale(0.85); opacity: 0.6; } to { transform: scale(1.25); opacity: 1; } }
+/* A wrong move's review in the wide side column (1280x800 read "Show ansv", "Try a nev"): each button is at least as
+   wide as its label, and they wrap onto a second row below instead of cutting it (equal widths when they fit). */
+html.fit-wide .review .review-acts { flex-wrap: wrap; }
+html.fit-wide .review .review-acts .review-btn { min-width: max-content; }
+/* Narrow screens keep one row, since a second one covered the board's bottom rank (de, fr, ru at 360x640): a long
+   label wraps inside its button instead of being cut or pushing Continue off screen. */
+html:not(.fit-wide) .review .review-acts .review-btn { flex: 1 1 0; min-width: 44px; white-space: normal; line-height: 1.1; overflow-wrap: break-word; }
+@media (max-width: 340px) { html:not(.fit-wide) .review .review-acts .review-btn { font-size: 12px; } }
+
 /* ===== W2: one frame for every screen, fitting any window or iframe with no page scroll ===== */
 /* The shell: the page never scrolls; #app keeps clear of notches and the home indicator (R9). */
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
