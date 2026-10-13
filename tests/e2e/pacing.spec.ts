@@ -355,7 +355,11 @@ for (const width of [360, 390]) {
     const stamp = first(l, 'stamp', undefined, click)!.t - click;
     const review = first(l, 'review', undefined, click)!.t - click;
     expect(stamp).toBeGreaterThanOrEqual(MOVE_SLIDE_MS + SOLVE_BEAT_MS - 20);
-    expect(Math.abs(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS))).toBeLessThanOrEqual(60);
+    // Never early: the stamp gets its whole time before the review. A timer can only fire late, and a busy machine
+    // (the full suite on 4 workers, a shared CI runner) ran it 62 ms late once, so lateness has a little more room.
+    expect(review - stamp).toBeGreaterThanOrEqual(SOLVED_STAMP_MS - 20);
+    expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeGreaterThanOrEqual(-60);
+    expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeLessThanOrEqual(150);
   });
 }
 
