@@ -452,12 +452,12 @@ export class JourneyGame {
     this.story([fmt('mew.line')], done, personSprite('oak'));
   }
 
-  /** After an online win, trade evolutions on your team (§B12). */
-  onlineWin(): void {
+  /** After an online win, trade evolutions on your team (§B12), saved at once. Returns them [from, to] for the end
+   * panel to tell, as it comes after the end hold (fix, 13 Oct: a toast here was gone before the panel showed). */
+  onlineWin(): [string, string][] {
     const { campaign, evolved } = tradeEvolve(this.campaign);
-    if (!evolved.length) return;
-    this.set(campaign);
-    for (const [from, to] of evolved) toast('trade.evolved', { from: SPECIES[from]!.name, to: SPECIES[to]!.name });
+    if (evolved.length) this.set(campaign);
+    return evolved;
   }
 
   /** Victory Road (§B2 row 10): mate a lone king within the limit, queen first, then rook. */

@@ -3,8 +3,8 @@
 // can skip after HOLD_MIN_MS, cards that ignore a double tap, the solve and win beats, the board that never moves,
 // reduced motion and RTL. Real timings, measured in the page (performance.now() and a MutationObserver).
 import { expect, test, type Page } from '@playwright/test';
-import { AREA_IN_MS, BATTLE_IN_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS, TRAINER_SPOT_MS } from '../../src/config';
-import { noTransition, ready, settled } from './pace';
+import { AREA_IN_MS, BATTLE_IN_MS, BOARD_DIP_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVED_STAMP_MS, SOLVE_BEAT_MS, TRAINER_SPOT_MS } from '../../src/config';
+import { noTransition, ready, settled, skipHold } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
@@ -557,6 +557,90 @@ test.describe('vs Computer', () => {
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await expect(page.getByTestId('end-screen')).toBeVisible();
     expect(first(await log(page), 'card', 'end-screen', tap)!.t - tap).toBeLessThan(100);
+  });
+
+  // The end of a game (fix, 13 Oct): a quiet mate, Ra8#, at level 1, where take back is offered.
+  const QUIET_MATE = '6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1';
+  const fen = async (page: Page) => (JSON.parse(await kc<string>(page, 'dumpState')) as { fen: string }).fen;
+  const gamesPlayed = (page: Page) => page.evaluate(() => Number(Object.entries(localStorage).find(([k]) => k.endsWith(':gamesPlayed'))?.[1] ?? 0));
+  const centre = async (page: Page, testid: string) => {
+    const b = (await page.getByTestId(testid).boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  /** Plays Ra8# and waits for the end hold; returns where take back was before the mate. */
+  async function quietMate(page: Page) {
+    await open(page);
+    await kc(page, 'setMode', 'computer', 1, 'w');
+    await kc(page, 'loadFen', QUIET_MATE);
+    await noTransition(page);
+    await expect(page.getByTestId('takeback')).toBeVisible();
+    const back = await centre(page, 'takeback');
+    await move(page, 'a1a8');
+    await page.locator('body[data-hold="end"]').waitFor({ state: 'attached' });
+    return back;
+  }
+  /** Ra8#, the hold skipped, the end panel taking taps; returns the mated position. */
+  async function endPanel(page: Page) {
+    await quietMate(page);
+    await skipHold(page);
+    await ready(page, 'end-screen');
+    return fen(page);
+  }
+
+  test('take back is gone from the mate on: a tap where it was during the hold never undoes the mate', async ({ page }) => {
+    const back = await quietMate(page);
+    const mated = await fen(page);
+    await page.mouse.click(back.x, back.y);
+    await expect(page.getByTestId('end-screen')).toBeVisible();
+    expect(await fen(page)).toBe(mated);
+    await expect(page.getByTestId('takeback')).toBeHidden();
+    expect(await kc<boolean>(page, 'takeBack')).toBe(false);
+    await page.getByTestId('rematch').click();
+    await expect(page.getByTestId('intro')).toBeVisible();
+    await expect(page.getByTestId('takeback')).toBeVisible(); // a new game has it again
+  });
+
+  test('a double tap on Rematch starts one game', async ({ page }) => {
+    await endPanel(page);
+    const before = await gamesPlayed(page);
+    const r = await centre(page, 'rematch');
+    await page.mouse.dblclick(r.x, r.y);
+    await expect(page.getByTestId('intro')).toBeVisible();
+    await settled(page);
+    expect(await gamesPlayed(page)).toBe(before + 1);
+  });
+
+  test('Menu tapped 40 ms after Rematch: the panel went with the first tap, so the menu never shows under the rematch', async ({ page }) => {
+    await endPanel(page);
+    const before = await gamesPlayed(page);
+    const r = await centre(page, 'rematch');
+    const m = await centre(page, 'end-menu');
+    const t = await now(page);
+    await page.mouse.click(r.x, r.y);
+    await page.waitForTimeout(40);
+    await page.mouse.click(m.x, m.y);
+    await expect(page.getByTestId('intro')).toBeVisible();
+    await settled(page);
+    expect((await log(page)).filter((e) => e.ev === 'screen' && e.t >= t && e.id !== 'screen-game')).toEqual([]);
+    await expect(page.getByTestId('screen-game')).toBeVisible();
+    expect(await gamesPlayed(page)).toBe(before + 1);
+  });
+
+  test('a screen chosen during the rematch dip stays: the rematch never pulls the player back into a game', async ({ page }) => {
+    const mated = await endPanel(page);
+    const before = await gamesPlayed(page);
+    // Rematch, then START → OPTION before the dip's peak (one task: as fast as it gets).
+    await page.evaluate(() => ['rematch', 'start-button', 'start-menu-option'].forEach((id) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`)!.click()));
+    await expect(page.getByTestId('screen-settings')).toBeVisible();
+    await page.waitForTimeout(BOARD_DIP_MS + 200);
+    await noTransition(page);
+    await expect(page.getByTestId('screen-settings')).toBeVisible();
+    await expect(page.getByTestId('screen-game')).toHaveCount(0);
+    expect(await gamesPlayed(page)).toBe(before);
+    // Back: the game that ended, with its end panel.
+    await page.getByTestId('back').click();
+    await expect(page.getByTestId('end-screen')).toBeVisible();
+    expect(await fen(page)).toBe(mated);
   });
 });
 
