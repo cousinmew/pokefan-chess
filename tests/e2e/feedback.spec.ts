@@ -26,6 +26,8 @@ test('OPTION has FEEDBACK: a preset button plus a short note, with version, scre
 test('?review=he: the game in Hebrew with a mark on each string; a suggestion goes to the relay; nothing is saved', async ({ page }) => {
   const better = `הצעה ${Date.now()}`;
   await page.goto(`./?debug=1&review=he${relay}`);
+  // Boot waits for the Hebrew table (N1, 14 Oct), which can land after the page's load event.
+  await expect(page.getByTestId('screen-splash')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.lang)).toBe('he');
   await page.getByTestId('screen-splash').click();
   await expect(page.locator('.i18n-mark').first()).toBeVisible();

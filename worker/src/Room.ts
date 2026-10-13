@@ -93,7 +93,7 @@ export class Room extends DurableObject<Env> {
     };
     for (const ws of this.ctx.getWebSockets()) {
       const you = this.seatOf(ws);
-      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch, skins: d.skins ?? {}, looks: d.looks ?? {} });
+      if (you) this.send(ws, { type: 'state', you, moves: d.moves, fen, seats, result: d.result, rematch: d.rematch, swap: d.swap, skins: d.skins ?? {}, looks: d.looks ?? {} });
     }
   }
 
@@ -211,7 +211,14 @@ export class Room extends DurableObject<Env> {
     d.swap = false;
   }
 
-  async webSocketClose(ws: WebSocket): Promise<void> {
+  /** The client closed: answer its close (N6, 14 Oct; with hibernation the runtime does not, and the socket stayed in
+   * CLOSING), then mark the seat away. 1005 and 1006 are never sent on the wire, so they are answered with 1000. */
+  async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    try {
+      ws.close(code === 1005 || code === 1006 ? 1000 : code, reason);
+    } catch (err) {
+      console.warn('close failed', err instanceof Error ? err.message : err);
+    }
     await this.leave(ws);
   }
 

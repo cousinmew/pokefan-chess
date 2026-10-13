@@ -35,13 +35,22 @@ function settled(reg: ServiceWorkerRegistration): Promise<void> {
   });
 }
 
-/** The newest active service worker of this page's registration, once it controls the page; null when there is none. */
-async function newest(): Promise<ServiceWorker | null> {
+/** readyBuild's answer when a worker is registered but none controls the page (a hard reload): nothing could be
+ * asked, which is not the same as "not ready" (N4, 14 Oct). */
+export const UNKNOWN = 'unknown';
+
+/** The newest active service worker of this page's registration, once it controls the page; null when there is none,
+ * UNKNOWN when one is registered but nothing controls the page. `quick`: no wait for a controller when the active
+ * worker has finished activating, as it claimed every page it will then (sw.js clients.claim in activate): a hard
+ * reload gets none, and the check answered only after 10 s (review, 14 Oct). Should its controllerchange come after
+ * all, pwa.ts asks again. A warm up asked for keeps the wait. */
+async function newest(quick = false): Promise<ServiceWorker | null | typeof UNKNOWN> {
   if (!warmable()) return null;
   const sw = navigator.serviceWorker;
   const reg = await sw.getRegistration();
   if (!reg) return null;
   await settled(reg);
+  if (quick && !sw.controller && reg.active?.state === 'activated') return UNKNOWN;
   if (!sw.controller || sw.controller !== reg.active) {
     // A fresh worker claims the page right after it activates (sw.js clients.claim).
     await new Promise<void>((done) => {
@@ -49,15 +58,18 @@ async function newest(): Promise<ServiceWorker | null> {
       sw.addEventListener('controllerchange', () => (window.clearTimeout(t), done()), { once: true });
     });
   }
+  if (!sw.controller) return UNKNOWN;
   return reg.active && sw.controller === reg.active ? reg.active : null;
 }
 
 /** Asks the newest worker whether a complete warm up of its build is still in its cache (fix, 13 Oct: Chromium can
- * evict Cache Storage and keep localStorage). Resolves to that build when so; null when not, when no worker controls
- * the page, or when it does not answer (an older sw.js). The worker names its build: the page's code carries none. */
+ * evict Cache Storage and keep localStorage). Resolves to that build when so; null when not, when there is no worker,
+ * or when it does not answer (an older sw.js); UNKNOWN when a worker is registered but none controls the page (a hard
+ * reload: ask again later). The worker names its build: the page's code carries none. */
 export async function readyBuild(): Promise<string | null> {
   try {
-    const worker = await newest();
+    const worker = await newest(true);
+    if (worker === UNKNOWN) return UNKNOWN;
     if (!worker) return null;
     return await new Promise<string | null>((done) => {
       const { port1, port2 } = new MessageChannel();
@@ -81,7 +93,7 @@ export async function readyBuild(): Promise<string | null> {
 export async function warmUp(progress: (pct: number) => void): Promise<string | null> {
   try {
     const worker = await newest();
-    if (!worker) return null;
+    if (!worker || worker === UNKNOWN) return null;
     return await new Promise<string | null>((done) => {
       const sw = navigator.serviceWorker;
       let quiet = 0;

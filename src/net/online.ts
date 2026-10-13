@@ -70,8 +70,11 @@ export class OnlineClient {
     this.connect();
   }
 
-  send(msg: ClientMsg): void {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
+  /** False when the link is down (reconnecting), so the caller can say so instead of waiting for an answer. */
+  send(msg: ClientMsg): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify(msg));
+    return true;
   }
 
   close(): void {

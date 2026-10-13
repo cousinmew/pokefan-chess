@@ -2,12 +2,6 @@
 // Species lookup: role + colour + square colour -> species (Part I §2, bishop species rule).
 import roster from '../data/roster.gen1.json';
 import kanto from '../data/kanto.json';
-import namesFr from '../data/names.fr.json';
-import namesEs from '../data/names.es.json';
-import namesDe from '../data/names.de.json';
-import namesIt from '../data/names.it.json';
-import namesJa from '../data/names.ja.json';
-import namesZh from '../data/names.zh-Hans.json';
 import { ASSET_BASE } from '../config';
 
 export type Color = 'w' | 'b';
@@ -28,9 +22,19 @@ export const MOVES: Record<MoveId, MoveInfo> = { ...(kanto.moves as Record<strin
 
 const EN_NAMES = { species: Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.name])), moves: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.name])) };
 // nl, pt, he and ru have no localized names in PokéAPI: they use the English ones, in Latin script (§B17, §B20 item 4).
-const LOCAL: Record<string, { species: Record<string, string>; moves: Record<string, string> }> = { fr: namesFr, es: namesEs, de: namesDe, it: namesIt, ja: namesJa, 'zh-Hans': namesZh };
+// N1 (14 Oct): each table is its own chunk, fetched once by loadNames (src/i18n.ts loadLanguage), not in the entry bundle.
+type Names = { species: Record<string, string>; moves: Record<string, string> };
+const NAMES = import.meta.glob<Names>('../data/names.*.json', { import: 'default' });
+const LOCAL: Record<string, Names> = {};
 
-/** Species and move names for a language (§B17): PokéAPI's names for fr, es, de, it, ja (kana) and zh-Hans; English otherwise. */
+/** Fetches a language's species and move names once (fr, es, de, it, ja, zh-Hans; the rest have none). */
+export async function loadNames(lang: string): Promise<void> {
+  const load = NAMES[`../data/names.${lang}.json`];
+  if (load && !LOCAL[lang]) LOCAL[lang] = await load();
+}
+
+/** Species and move names for a language (§B17): PokéAPI's names for fr, es, de, it, ja (kana) and zh-Hans; English
+ * otherwise, and until loadNames has fetched them. Synchronous. */
 export function applyNames(lang: string): void {
   const local = LOCAL[lang];
   for (const [id, s] of Object.entries(SPECIES)) s.name = local?.species[id] ?? EN_NAMES.species[id]!;

@@ -62,6 +62,8 @@ test('YELLOW in Hebrew: a full lesson of Pikachu\'s Path, board left to right, a
     localStorage.setItem('kc:v1:lang', JSON.stringify('he'));
   });
   await page.goto('./?debug=1');
+  // Boot waits for the Hebrew table (N1, 14 Oct), which can land after the page's load event.
+  await expect(page.getByTestId('screen-splash')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('yellow-play')).toBeVisible();

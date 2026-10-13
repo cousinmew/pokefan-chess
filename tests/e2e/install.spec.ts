@@ -2,6 +2,7 @@
 // INSTALL FOR OFFLINE PLAY in OPTION (owner, 12 Oct): Chromium's prompt, the installed state, iOS steps, the hint,
 // and the warm up that makes the first offline launch complete.
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { deployHost } from './host';
 
 const enter = async (page: Page, q = '?debug=1') => {
   await page.goto(`./${q}`);
@@ -53,7 +54,8 @@ test('the install prompt is kept, opened from OPTION, and its outcome shown', as
   expect(await prompted(page)).toBe(1);
   await expect(page.getByTestId('install-result')).toHaveText('Installing. You will find it with your apps.');
   await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
-  await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓ — plays offline');
+  // ?debug has no service worker, so nothing is ready offline: no "plays offline" claim (N4, 14 Oct).
+  await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓');
   await expect(page.getByTestId('install')).toHaveCount(0);
 });
 
@@ -65,7 +67,7 @@ test('opened as an installed app: Installed, no button', async ({ page }) => {
   await enter(page);
   await offerInstall(page, 'accepted');
   await option(page);
-  await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓ — plays offline');
+  await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓'); // no worker under ?debug (N4)
   await expect(page.getByTestId('install')).toHaveCount(0);
 });
 
@@ -124,13 +126,17 @@ test.describe('getting ready for offline', () => {
     for (const dex of [6, 77, 16]) expect(files).toContain(`assets/cries/${dex}.ogg`);
     const missing = await page.evaluate(async (fs) => (await Promise.all(fs.map(async (f) => ((await caches.match(f)) ? null : f)))).filter(Boolean), files);
     expect(missing).toEqual([]);
-    // The worker cached them itself, the sprites into its build's own cache.
-    const inBuild = await page.evaluate(async (fs) => {
-      const key = (await caches.keys()).find((k) => k.startsWith('pfc-assets-'))!;
-      const c = await caches.open(key);
-      return (await Promise.all(fs.filter((f) => f.startsWith('assets/')).map(async (f) => !!(await c.match(f, { ignoreVary: true }))))).every(Boolean);
+    // The worker cached them itself: sprites, cries, trainers and items into the asset set's cache (kept across
+    // deploys while the files stay the same, N2), code chunks into this build's own cache.
+    const placed = await page.evaluate(async (fs) => {
+      const keys = await caches.keys();
+      const all = async (key: string | undefined, list: string[]) => !!key && (await Promise.all(list.map(async (f) => !!(await (await caches.open(key)).match(f, { ignoreVary: true }))))).every(Boolean);
+      return {
+        sprites: await all(keys.find((k) => k.startsWith('pfc-assets-')), fs.filter((f) => /^assets\/[^/]+\//.test(f))),
+        code: await all(keys.find((k) => k.startsWith('pfc-code-')), fs.filter((f) => /^assets\/[^/]+$/.test(f))),
+      };
     }, files);
-    expect(inBuild).toBe(true);
+    expect(placed).toEqual({ sprites: true, code: true });
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByTestId('screen-splash')).toBeVisible();
@@ -258,16 +264,25 @@ test.describe('getting ready for offline', () => {
   });
 
   // The per-build half (review, 13 Oct): a device that got ready for an earlier build gets ready again for this one.
+  // N4 (14 Oct): a ready mark from another build sits in every cache this worker could look in by mistake (the shell
+  // cache, an old build's caches), so a check that is not tied to this build's own cache fails here.
   test('ready for an older build: an app launch gets ready once for this one and remembers it', async ({ page, context }) => {
     await context.addInitScript(() => {
       // Once per tab, so the reload below sees what the warm up wrote.
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.setItem('kc:v1:dev:offlineBuild', JSON.stringify('oldbuild1'));
+      if (localStorage.getItem('kc:v1:p1:campaign') === null) localStorage.setItem('kc:v1:campaign', JSON.stringify({ name: 'ASH' }));
+    });
+    const got = workerRequests(context);
+    await page.goto('./'); // in the browser first: the worker installs, nothing warms up
+    await controlled(page);
+    await page.evaluate(async () => {
+      const ready = new URL('offline-ready', location.href).href;
+      for (const k of ['pfc-shell-v1', 'pfc-assets-oldbuild1', 'pfc-code-oldbuild1']) await (await caches.open(k)).put(ready, new Response('oldbuild1'));
     });
     await asApp(context);
-    const got = workerRequests(context);
-    await page.goto('./');
+    await page.reload(); // now as the app
     const build = await workerBuild(page);
     expect(await remembered(page)).toBe('"oldbuild1"');
     await expect.poll(() => remembered(page), { timeout: 30000 }).toBe(build);
@@ -279,6 +294,87 @@ test.describe('getting ready for offline', () => {
     await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline');
     expect(lists(got)).toBe(1);
     expect(await remembered(page)).toBe(build);
+  });
+
+  // N4 (14 Oct): after a deploy the outgoing worker can still answer the first check; once the new one takes over,
+  // the page asks again, so a "ready" from the old build does not last the session.
+  test('a deploy while OPTION is open: the old worker\'s "ready" is asked again, and the new build gets ready once', async ({ page, context }) => {
+    test.slow(); // two warm ups
+    const host = await deployHost();
+    try {
+      await asApp(context);
+      await context.addInitScript(() => localStorage.getItem('kc:v1:p1:cartridge') ?? localStorage.setItem('kc:v1:cartridge', JSON.stringify('blue')));
+      const got = workerRequests(context);
+      host.build = 'deploya';
+      await page.goto(host.url);
+      await expect.poll(() => remembered(page), { timeout: 30000 }).toBe('"deploya"');
+      await page.close();
+      host.build = 'deployb';
+      host.delay = 3000; // a phone network's update check
+      got.length = 0;
+      const next = await context.newPage();
+      await next.goto(host.url);
+      await next.getByTestId('screen-splash').click();
+      await next.getByRole('menuitem', { name: 'OPTION' }).click(); // at once: the old worker is still in charge
+      await expect.poll(() => remembered(next), { timeout: 30000 }).toBe('"deployb"');
+      await expect(next.getByTestId('install-progress')).toHaveText('Ready to play offline');
+      await expect(next.getByTestId('install-installed')).toHaveText('Installed ✓ — plays offline');
+      expect(lists(got)).toBe(1);
+    } finally {
+      await host.close();
+    }
+  });
+
+  // N4 (14 Oct): a hard reload leaves the page without a controller, so nothing can be asked: that is no answer, not
+  // "not ready", and a ready device shows neither the held line nor the failure line.
+  test('a hard reload on a ready device: no held or failure line while no worker controls the page', async ({ page, context }) => {
+    await asApp(context, { saveData: true });
+    await page.goto('./');
+    await controlled(page);
+    await page.getByTestId('screen-splash').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    await page.getByTestId('install-warm').click();
+    await expect(page.getByTestId('install-progress')).toHaveText('Ready to play offline', { timeout: 30000 });
+    await page.addInitScript(() => {
+      const seen: string[] = ((window as unknown as { seen: string[] }).seen = []);
+      new MutationObserver(() => {
+        for (const id of ['install-held', 'install-failed', 'install-warm']) if (document.querySelector(`[data-testid="${id}"]`) && !seen.includes(id)) seen.push(id);
+      }).observe(document, { childList: true, subtree: true });
+    });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Page.reload', { ignoreCache: true });
+    await expect(page.getByTestId('screen-splash')).toBeVisible();
+    expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
+    await page.getByTestId('screen-splash').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    // The check ends at once with no answer: the active worker already claimed the pages it will (sw.js
+    // clients.claim), so no controller is coming for this one; it used to wait 10 s for one.
+    await expect(page.getByTestId('install-box')).toHaveAttribute('data-check', 'unknown', { timeout: 3000 });
+    expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
+    await expect(page.getByTestId('install-installed')).toHaveText('Installed ✓');
+    // Opening OPTION again asks again, with the same answer and still no held or failure line.
+    await page.getByTestId('screen-settings').getByTestId('back').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    await expect(page.getByTestId('install-box')).toHaveAttribute('data-check', 'unknown', { timeout: 3000 });
+    expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
+  });
+
+  // N4 (14 Oct): before the check answers, the status line claims nothing it cannot know yet.
+  test('OPTION right after launch: no "plays offline" before the check answers', async ({ page, context }) => {
+    await asApp(context, { saveData: true });
+    await context.addInitScript(() => {
+      localStorage.setItem('kc:v1:dev:offlineBuild', JSON.stringify('evicted1')); // the note kept, its caches gone
+      const seen: string[] = ((window as unknown as { seen: string[] }).seen = []);
+      new MutationObserver(() => {
+        const t = document.querySelector('[data-testid="install-installed"]')?.textContent;
+        if (t && seen.at(-1) !== t) seen.push(t);
+      }).observe(document, { childList: true, subtree: true, characterData: true });
+    });
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByRole('menuitem', { name: 'OPTION' }).click();
+    await expect(page.getByTestId('install-held')).toBeVisible({ timeout: 15000 });
+    expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual(['Installed ✓']);
   });
 
   // Fix, 13 Oct: progress shows only once a worker answers, and finding none says so instead of a line that vanishes.
