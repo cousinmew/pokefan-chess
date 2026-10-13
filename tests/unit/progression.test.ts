@@ -12,6 +12,7 @@ import { createRng } from '../../src/game/rng';
 import { rivalStarter, withoutRival } from '../../src/campaign/rivalTeam';
 import type { PuzzleRow } from '../../src/campaign/puzzle';
 import { setLang } from '../../src/game/text';
+import { loadLanguage } from '../../src/i18n';
 
 const store = new Map<string, string>();
 (globalThis as unknown as { window: unknown }).window = {
@@ -135,7 +136,7 @@ describe('nextGoal (W5, design H)', () => {
     expect(nextGoal(c)?.place.id).toBe('route-3');
   });
 
-  it('a goal that names its trainer names the place without its ": BROCK" suffix (fix, 14 Oct)', () => {
+  it('a goal that names its trainer names the place without its ": BROCK" suffix (fix, 14 Oct)', async () => {
     // "▶ LEADER BROCK at PEWTER GYM: BROCK" took two lines on a phone; "ELITE FOUR … at INDIGO PLATEAU: ELITE FOUR".
     const upTo = (id: string): Campaign => {
       const before = PLACES.slice(0, PLACES.findIndex((p) => p.id === id)).filter((p) => !p.optional);
@@ -151,6 +152,7 @@ describe('nextGoal (W5, design H)', () => {
     expect(nextGoal(upTo('viridian'))?.text).toBe('Go to VIRIDIAN CITY');
     // The French " : ", the Hebrew isolates and the full-width colon of Japanese and Chinese.
     for (const [lang, name] of [['fr', "ARÈNE D'ARGENTA"], ['he', '⁨PEWTER GYM⁩'], ['ja', 'ニ⁠ビ⁠ジ⁠ム'], ['zh-Hans', '深⁠灰⁠道⁠馆']] as const) {
+      await loadLanguage(lang); // the language tables load lazily (netboot, 14 Oct)
       setLang(lang);
       const text = nextGoal(gym)?.text ?? '';
       expect(text, lang).toContain(name);
