@@ -8,7 +8,7 @@ import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
 import { abandonNewGame, addProfile, creatingInPlace, deleteProfile, hasProgress, isCreating, isFull, leaveCreating, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
-import { currentSlot, loadFrom } from './store/persist';
+import { currentSlot, loadFrom, PLAYER_TRAINER } from './store/persist';
 import { button, el, screen } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
 import { holdButton } from './ui/settings';
@@ -48,7 +48,7 @@ export function duoSide(slot: number | null, color: Color): DuoSide {
   const yellow = loadFrom<string>(slot, 'cartridge') === 'yellow';
   const team: TeamSkin = { ...(c?.team ?? {}) };
   if (yellow) delete team.k; // the King is always Pikachu in YELLOW
-  return { slot, name: c?.name || fmt('profiles.slot', { n: String(slot) }), trainer: loadFrom<string>(slot, 'trainer') === 'meir' ? 'meir' : 'red', team };
+  return { slot, name: c?.name || fmt('profiles.slot', { n: String(slot) }), trainer: loadFrom<string>(slot, PLAYER_TRAINER) === 'meir' ? 'meir' : 'red', team };
 }
 
 export class StartFlow {

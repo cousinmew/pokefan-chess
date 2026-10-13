@@ -65,6 +65,28 @@ test('puzzles work with storage blocked: solve one, the Trainer Rating moves', a
   expect(errors).toEqual([]);
 });
 
+test('MEIR from an old save survives a rated puzzle, and the puzzle still counts (data loss, 13 Oct)', async ({ page }) => {
+  // Until 13 Oct MEIR and the puzzle record shared the key 'trainer': the first rated puzzle put RED back.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('kc:v1:p1:trainer', '"meir"');
+    localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ v: 2, name: 'MEIR', starter: 'squirtle', introSeen: true }));
+  });
+  await openPuzzles(page);
+  for (let i = 0; i < 6 && (await phase(page)) !== 'review'; i++) {
+    await playAnswer(page);
+    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply|solved/);
+  }
+  await expect(page.getByTestId('review')).toBeVisible();
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('start-menu-quit').click();
+  await expect(page.getByTestId('hub-card-mini')).toContainText('Trainer Level: new (1/10)');
+  await page.getByTestId('hub-card').click();
+  await expect(page.getByTestId('player-trainer').locator('img')).toHaveAttribute('src', 'art/meir.png');
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:playerTrainer'), JSON.parse(localStorage.getItem('kc:v1:p1:trainer')!).solved])).toEqual(['"meir"', 1]);
+});
+
 test('hint outlines the piece, then its square; a wrong move shows the answer', async ({ page }) => {
   await openPuzzles(page);
   const uci = (await answer(page))!;

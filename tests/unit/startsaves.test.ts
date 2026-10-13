@@ -53,7 +53,7 @@ describe('hasProgress', () => {
     ['a Two Players win', 'duoWins', 2],
     ['a game in progress', 'game', { fen: '8/8/8/8/8/8/8/K6k w - - 0 1', pgn: '' }],
     // Data loss review: everything else a player earns.
-    ['the MEIR code', 'trainer', 'meir'],
+    ['the MEIR code', 'playerTrainer', 'meir'], // its own key since 13 Oct ('trainer' is the puzzle record)
     ['a puzzle result', 'trainer', { rating: { r: 1450, rd: 200, vol: 0.06 }, solved: 0, missed: 1, assisted: 0, seen: ['00sHx'] }],
     ['a badge', 'campaign', { badges: ['boulder'] }],
     ['a trainer beaten', 'campaign', { journey: { cleared: [], beaten: ['route1-youngster'], visited: [] } }],
@@ -172,7 +172,7 @@ describe('boot', () => {
     set('p2:cartridge', 'blue');
     set('p2:settings', { v: 2, sound: false });
     set('p2:lang', 'de');
-    set('p3:trainer', 'meir');
+    set('p3:playerTrainer', 'meir');
     set('p4:campaign', { introSeen: true });
     const before = JSON.stringify([...store].sort());
     // The sweep before this review dropped 2, 3 and 4 here.
@@ -260,7 +260,7 @@ describe('boot', () => {
     m.bootSaves();
     expect(m.reuseEmpty()).toBe(true);
     m.saveTo(2, 'cartridge', 'blue');
-    m.saveTo(2, 'trainer', 'meir'); // the MEIR code on the shelf
+    m.saveTo(2, 'playerTrainer', 'meir'); // the MEIR code on the shelf
     m.abandonNewGame();
     m = await fresh();
     expect(m.bootSaves()).toEqual({ slots: [1, 2], current: 2 }); // a save from before: kept, as it was

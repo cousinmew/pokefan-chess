@@ -6,7 +6,7 @@ import { DEX, solvedBefore } from './campaign/kanto';
 import { goalLine, journeyState } from './campaign/journey';
 import type { Trainer } from './campaign/trainer';
 import { fmt } from './game/text';
-import { bootProfiles, clearProfile, loadFrom, MAX_SLOTS, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
+import { bootProfiles, clearProfile, loadFrom, MAX_SLOTS, PLAYER_TRAINER, readDevice, readMeta, removeDevice, removeFrom, saveTo, writeDevice, writeMeta, type ProfileMeta } from './store/persist';
 import type { SlotSummary } from './ui/profiles';
 
 const PICKED = 'kc:v1:picked';
@@ -60,8 +60,8 @@ export const needsPicker = () => meta().slots.length > 1 && !session();
 export function hasProgress(n: number): boolean {
   const c = loadFrom<Partial<Campaign>>(n, 'campaign');
   const g = loadFrom<{ pgn?: unknown; fen?: unknown }>(n, 'game');
-  // 'trainer' holds the MEIR code, or the puzzle record (the first Puzzles mode had no name, starter or catches).
-  const t = loadFrom<'meir' | Partial<Trainer>>(n, 'trainer');
+  // The puzzle record (the first Puzzles mode had no name, starter or catches); MEIR has its own key (13 Oct).
+  const t = loadFrom<Partial<Trainer>>(n, 'trainer');
   const puzzles = typeof t === 'object' && t ? (t.solved ?? 0) + (t.missed ?? 0) + (t.assisted ?? 0) : 0;
   return (
     (!!g && typeof g.pgn === 'string' && typeof g.fen === 'string') ||
@@ -74,7 +74,7 @@ export function hasProgress(n: number): boolean {
     (loadFrom<number>(n, 'gamesPlayed') ?? 0) > 0 ||
     (loadFrom<number>(n, 'duoWins') ?? 0) > 0 ||
     Object.values(c?.caught ?? {}).some((x) => x > 0) ||
-    t === 'meir' ||
+    loadFrom<string>(n, PLAYER_TRAINER) === 'meir' ||
     puzzles > 0 ||
     !!c?.badges?.length ||
     solvedBefore(c)
@@ -90,7 +90,7 @@ export function summaries(all = false): SlotSummary[] {
       name: c?.name || fmt('profiles.slot', { n: String(n) }),
       named: !!c?.name,
       cart: loadFrom<'yellow' | 'blue'>(n, 'cartridge'),
-      trainer: loadFrom<string>(n, 'trainer') === 'meir' ? 'meir' : 'red-gen1',
+      trainer: loadFrom<string>(n, PLAYER_TRAINER) === 'meir' ? 'meir' : 'red-gen1',
       lang: loadFrom<string>(n, 'lang') ?? 'en',
       badges: c?.badges?.length ?? 0,
       dex: DEX.filter((s) => c?.caught?.[s]).length,
@@ -191,7 +191,7 @@ export function abandonNewGame(): void {
   if (c.from === c.slot) {
     // A reused empty save: forget the cartridge, the intro and a MEIR code typed on the way (it had no progress
     // before). The switch dates its note, if NEW GAME made it, so boot drops it while others exist; else it stays.
-    for (const key of ['cartridge', 'campaign', 'trainer']) removeFrom(c.slot, key);
+    for (const key of ['cartridge', 'campaign', PLAYER_TRAINER]) removeFrom(c.slot, key);
     return switchTo(c.slot, 'menu');
   }
   endCreating();

@@ -73,9 +73,10 @@ export function useProfile(n: number): void {
 }
 
 /** Boot: the slot list (slot 1 on a new device), and old style kc:v1:<key> data moved into the current slot.
- * That migrates a save from before profiles into slot 1 once, without losing anything. `abandoned(n)` says a save
- * is a NEW GAME left empty (profiles.ts bootSaves decides; a save it has no note for never is): it is dropped while
- * another save remains, and when it was the current one the first remaining save loads instead (playtest, 12 Oct). */
+ * That migrates a save from before profiles into slot 1 once, without losing anything; an old MEIR unlock moves to
+ * its own key in every save (moveMeir). `abandoned(n)` says a save is a NEW GAME left empty (profiles.ts bootSaves
+ * decides; a save it has no note for never is): it is dropped while another save remains, and when it was the
+ * current one the first remaining save loads instead (playtest, 12 Oct). */
 export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
   const m = readMeta() ?? { slots: [1], current: 1 };
   if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;
@@ -86,6 +87,7 @@ export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
     if (v !== null) set(prefix + k.slice(STORAGE_NS.length), v);
     drop(k);
   }
+  for (const n of m.slots) moveMeir(n);
   for (const n of abandoned ? [...m.slots] : []) {
     if (m.slots.length < 2 || !abandoned!(n)) continue;
     clearProfile(n);
@@ -111,6 +113,18 @@ export const loadFrom = <T>(n: number, key: string): T | null => parse<T>(get(pr
 export const saveTo = (n: number, key: string, value: unknown) => set(profilePrefix(n) + key, JSON.stringify(value));
 export const removeFrom = (n: number, key: string) => drop(profilePrefix(n) + key);
 
+/** The player's trainer: "meir" once the secret code is entered (§B18 item 7), else nothing (RED). Its own key since
+ * the data loss review (13 Oct): it shared 'trainer' with the puzzle record, so the first rated puzzle put RED back
+ * and the MEIR code wiped the Trainer Level. */
+export const PLAYER_TRAINER = 'playerTrainer';
+/** An old save (boot) or backup (restore) with 'trainer' = "meir": MEIR moves to its own key and 'trainer' is left
+ * to the puzzle record. A puzzle record there is never touched. */
+function moveMeir(n: number): void {
+  if (loadFrom(n, 'trainer') !== 'meir') return;
+  saveTo(n, PLAYER_TRAINER, 'meir');
+  removeFrom(n, 'trainer');
+}
+
 /** Every key of a slot, for export, save codes and delete. */
 export function profileData(n: number): Record<string, unknown> {
   const p = profilePrefix(n);
@@ -128,4 +142,5 @@ export function clearProfile(n: number): void {
 export function restoreProfile(n: number, data: Record<string, unknown>): void {
   clearProfile(n);
   for (const [k, v] of Object.entries(data)) if (/^[a-zA-Z0-9:_-]{1,60}$/.test(k)) saveTo(n, k, v);
+  moveMeir(n);
 }
