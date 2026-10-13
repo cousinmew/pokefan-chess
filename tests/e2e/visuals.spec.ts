@@ -3,10 +3,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
 async function allLoaded(page: Page, scope: string, min = 1) {
+  // Pacing (13 Oct): a card can pop in a beat after the tap (the trainer's "!" comes first), so wait for the screen's
+  // images to be there, then for every one of them to have loaded.
+  await expect.poll(() => page.locator(`${scope} img`).count(), { timeout: 8000, message: `${scope}: at least ${min} images` }).toBeGreaterThanOrEqual(min);
   const unloaded = () =>
     page.$$eval(`${scope} img`, (imgs) => imgs.filter((i) => !i.closest('[hidden]') && !((i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0)).map((i) => i.getAttribute('src')));
   await expect.poll(unloaded, { timeout: 8000, message: scope }).toEqual([]);
-  expect(await page.locator(`${scope} img`).count(), scope).toBeGreaterThanOrEqual(min);
 }
 
 test.use({ viewport: { width: 360, height: 640 } });

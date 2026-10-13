@@ -7,7 +7,8 @@ const pinned = '/opt/pw-browsers/chromium';
 const live = process.env.LIVE_URL;
 export default defineConfig({
   testDir: 'tests/e2e',
-  reporter: 'line',
+  // In CI the github reporter also turns each failure into an annotation on the PR (readable without the job log).
+  reporter: process.env.CI ? [['line'], ['github']] : 'line',
   retries: 0,
   use: {
     baseURL: live ?? 'http://localhost:4173',
