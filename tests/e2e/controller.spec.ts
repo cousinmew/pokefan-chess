@@ -195,12 +195,15 @@ test.describe('C2: Take back says what it undid and shows it', () => {
     // The reply's square: of the two lit, the one a black piece stands on.
     const to = (await page.locator('.sq.last[data-piece^="b"]').getAttribute('data-square'))!;
     await expect(page.getByTestId('plate-top-msg')).not.toHaveText('');
-    // 30 ms after the tap: what the player sees.
+    // Right after the tap (the next task, well within 50 ms): what the player sees.
     await page.evaluate(() =>
-      document.querySelector('[data-testid="takeback"]')!.addEventListener('click', () => window.setTimeout(() => {
-        const anims = [...document.querySelectorAll('#board .piece, #board .classic')].flatMap((e) => e.getAnimations()).map((a) => Number(a.effect?.getComputedTiming().duration ?? 0));
-        (window as unknown as { __tb: unknown }).__tb = { top: document.querySelector('[data-testid="plate-top-msg"]')!.textContent, text: document.querySelector('[data-testid="text-main"]')!.textContent, anims };
-      }, 30), { once: true, capture: true }),
+      document.querySelector('[data-testid="takeback"]')!.addEventListener('click', () => {
+        const t0 = performance.now();
+        window.setTimeout(() => {
+          const anims = [...document.querySelectorAll('#board .piece, #board .classic')].flatMap((e) => e.getAnimations()).map((a) => Number(a.effect?.getComputedTiming().duration ?? 0));
+          (window as unknown as { __tb: unknown }).__tb = { top: document.querySelector('[data-testid="plate-top-msg"]')!.textContent, text: document.querySelector('[data-testid="text-main"]')!.textContent, anims, ms: performance.now() - t0 };
+        }, 0);
+      }, { once: true, capture: true }),
     );
     await page.getByTestId('takeback').click();
     await expect.poll(() => page.evaluate(() => !!(window as unknown as { __tb?: unknown }).__tb)).toBe(true);
