@@ -3,6 +3,7 @@
 // a language picker in each language's own name, the three tile YELLOW home, Pikachu's Path and the sticker reward.
 import { LESSON_COUNT } from '../campaign/path';
 import { LANGS, fmt, type Lang, type StringKey } from '../game/text';
+import { loadLanguage } from '../i18n';
 import { button, el, screen } from './dom';
 import { pixelIcon } from './icons';
 import { codeDots, codeReader, dpad, listenForCode } from './secret';
@@ -41,12 +42,34 @@ function cartridge(kind: Cartridge, pick: () => void, secret?: () => void, dots?
   return b;
 }
 
+/** The newest language tap: an earlier one whose table arrives later must not win. */
+let asked = 0;
+
+/** Every language choice goes through here (the shelf, OPTION, the language button). Only English is in the entry
+ * bundle (N1, 14 Oct): the tapped language shows as chosen at once, its table is fetched, then `pick` applies it. */
 export function langPicker(current: Lang, pick: (l: Lang) => void): HTMLElement {
   const row = el('div', 'lang-row');
   row.setAttribute('role', 'radiogroup');
   row.setAttribute('aria-label', fmt('shelf.lang'));
+  const mark = (l: Lang) =>
+    row.querySelectorAll<HTMLElement>('.lang-btn').forEach((b) => {
+      b.classList.toggle('on', b.lang === l);
+      b.setAttribute('aria-checked', String(b.lang === l));
+    });
   for (const l of LANGS) {
-    const b = button(`lang.${l}` as StringKey, () => pick(l), `lang-${l}`, `lang-btn${l === current ? ' on' : ''}`);
+    const b = button(
+      `lang.${l}` as StringKey,
+      () => {
+        const n = ++asked;
+        mark(l);
+        void loadLanguage(l).then(
+          () => n === asked && pick(l),
+          (err: unknown) => (console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), n === asked && mark(current)),
+        );
+      },
+      `lang-${l}`,
+      `lang-btn${l === current ? ' on' : ''}`,
+    );
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(l === current));
     b.lang = l;
