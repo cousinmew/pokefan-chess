@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { COACH_EN, passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; journey(): { journey: { cleared: string[]; beaten: string[] }; name: string; starter: string } };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -20,8 +21,9 @@ async function solveOne(page: Page) {
 }
 
 /** A Route 1 trainer battle: the lesson the first time, intro card, goal card, then puzzles until "You won!" (pacing §5:
- * the win card comes first, then the defeat story). */
-async function beatTrainer(page: Page, who: string) {
+ * the win card comes first, then the defeat story). `first`: the save's first puzzle, whose coach marks come before
+ * its set up move (fix, 14 Oct). */
+async function beatTrainer(page: Page, who: string, first: boolean) {
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
   await expect(page.getByTestId('goal-card')).toBeVisible();
@@ -30,6 +32,7 @@ async function beatTrainer(page: Page, who: string) {
   // Route 1's trainers are easy, mate in 1 only (W5).
   await expect(page.getByTestId('puzzle-banner')).toHaveText(`${who} ○○○ need 2`);
   await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
+  if (first) expect(await passCoach(page)).toEqual(COACH_EN);
   for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solveOne(page);
     // After a short pause either the next puzzle starts or the win card shows.
@@ -74,7 +77,7 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
       await page.getByTestId('lesson-ok').click();
     }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
-    await beatTrainer(page, who);
+    await beatTrainer(page, who, who === 'YOUNGSTER TOBY');
     await page.getByTestId('win-card').click(); // W5: what you won, first (pacing §5)
     await readStory(page, 1); // the defeat line
     // "Next: …" once, last: on the unlock card when the route is cleared, else the story's last line.

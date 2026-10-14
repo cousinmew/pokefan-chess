@@ -2,6 +2,7 @@
 // §B17 gates: the shelf on first launch only; a 2 s hold to switch cartridge; a full YELLOW lesson and a BLUE
 // trainer battle in Hebrew with the board still left to right.
 import { expect, test, type Page } from '@playwright/test';
+import { passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -105,6 +106,9 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
   await boardIsLtr(page);
+  // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct), which read in Hebrew.
+  const marks = await passCoach(page);
+  for (const line of marks) expect(line, line).toMatch(/[\u0590-\u05FF]/);
   for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await expect.poll(() => phase(page), { timeout: 10_000 }).toBe('player');
     for (let j = 0; j < 6 && (await phase(page)) === 'player'; j++) {

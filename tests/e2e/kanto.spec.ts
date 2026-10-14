@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { COACH_EN, passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; seedEncounters(n: number): number; campaign(): { caught: Record<string, number>; team: Record<string, string> } };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -40,6 +41,8 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('walk-grass').click();
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.seedEncounters(7));
+  // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct).
+  expect(await passCoach(page)).toEqual(COACH_EN);
   await solve(page);
   await expect(page.getByTestId('encounter-text')).toHaveText(/^Wild (PIDGEY|RATTATA) appeared!$/, { timeout: 5000 });
   await page.getByTestId('throw-ball').click();

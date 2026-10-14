@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { passCoach } from './coach';
 import { noTransition, skipHold } from './pace';
 
 type Save = { badges: string[]; caught: Record<string, number>; journey: { cleared: string[] }; champion: boolean; hallOfFame: unknown[] };
@@ -24,13 +25,17 @@ async function onBoard(page: Page) {
   await noTransition(page);
 }
 
-/** Plays whatever the Journey shows (stories, cards, choices, puzzles) until the map is back with nothing over it. */
-async function playThrough(page: Page) {
+/** Plays whatever the Journey shows (stories, cards, choices, puzzles) until the map is back with nothing over it.
+ * Returns how many times the first puzzle's coach marks showed (and were tapped through). */
+async function playThrough(page: Page): Promise<number> {
+  let coached = 0;
   // The Elite Four is four battles in one go, so allow plenty of steps.
   for (let i = 0; i < 1500; i++) {
     const vis = (id: string) => page.getByTestId(id).first().isVisible();
+    // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct), tapped through as a player does.
     // A fast player skips the holds (the "Watch!" set up, replies, the solve beat, the review replay): pacing §6.
-    if (await page.locator('body[data-skippable]').count()) await skipHold(page).catch(() => undefined);
+    if (await vis('coach')) coached += await passCoach(page).then(() => 1);
+    else if (await page.locator('body[data-skippable]').count()) await skipHold(page).catch(() => undefined);
     else if (await vis('story')) await page.getByTestId('story').first().click();
     else if (await vis('goal-card')) await page.getByTestId('goal-card').click();
     else if (await vis('trainer-intro')) await page.getByTestId('trainer-intro').click();
@@ -43,7 +48,7 @@ async function playThrough(page: Page) {
       await page.click(`[data-square="${uci.slice(0, 2)}"]`);
       await page.click(`[data-square="${uci.slice(2, 4)}"]`);
       if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    } else if ((await vis('screen-map')) && !(await page.locator('#app > .overlay:not([hidden]), [data-testid="screen-cover"]').count())) return; // not under the "!" or the battle bars (pacing)
+    } else if ((await vis('screen-map')) && !(await page.locator('#app > .overlay:not([hidden]), [data-testid="screen-cover"]').count())) return coached; // not under the "!" or the battle bars (pacing)
     await page.waitForTimeout(150);
   }
   const state = await page.evaluate(() => ({ phase: (window as unknown as { __kc: { puzzlePhase(): string } }).__kc.puzzlePhase(), screens: [...document.querySelectorAll('[data-testid^="screen-"]')].map((e) => e.getAttribute('data-testid')), overlay: document.querySelector('.overlay:not([hidden])')?.textContent?.slice(0, 120), text: document.querySelector('[data-testid="text-main"]')?.textContent, banner: document.querySelector('[data-testid="puzzle-banner"]')?.textContent, beaten: (window as unknown as { __kc: { journey(): { journey: { beaten: string[] } } } }).__kc.journey().journey.beaten.filter((b) => b.startsWith('e4')) }));
@@ -59,14 +64,16 @@ test('@slow gyms 1 to 8 and the Elite Four complete via the harness; badges, gif
   for (const [i, gym] of gyms.entries()) {
     await kc(page, 'enterPlace', gym);
     await expect(page.locator('.overlay .story-trainer img')).toHaveAttribute('data-trainer', /-gen1$/);
-    await playThrough(page);
+    // The save has never started a puzzle (no tips, puzzlesStarted 0), so BROCK's first one is its first: coach marks
+    // once, then never again.
+    expect(await playThrough(page), `${gym}: coach marks`).toBe(i === 0 ? 1 : 0);
     expect((await kc<Save>(page, 'journey')).badges, gym).toHaveLength(i + 1);
   }
   const save = await kc<Save>(page, 'journey');
   expect(save.badges).toEqual(['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']);
   expect(save.caught).toMatchObject({ eevee: 1, lapras: 1, hitmonlee: 1 });
   await kc(page, 'enterPlace', 'indigo-plateau');
-  await playThrough(page);
+  expect(await playThrough(page), 'Elite Four: coach marks').toBe(0);
   expect((await kc<Save>(page, 'journey')).journey.cleared).toContain('indigo-plateau');
   await page.getByTestId('open-team').click();
   await expect(page.getByTestId('team-q')).toBeEnabled();
