@@ -1145,3 +1145,6 @@ html.fit-wide main { grid-template-rows: auto 1fr; }
   .win-card .pip, .panel.sticker img, .badge-card .badge-big::after, .piece.miss-shake, .cheer, .path-progress.pop, .path-step.path-new, .kanto-map .node.next-pulse, .kanto-map .node.stamp-now, .piece.hop { animation: none; }
   .piece.blast-off, .piece.faint { animation: fade-out var(--reduced-fade) linear forwards; }
 }
+
+/* Trust pass (14 Oct): the splash's quiet fan line under the credit. */
+.fan-line { margin: -6px 0 0; font-size: 12px; color: #505050; }
