@@ -12,6 +12,7 @@ type Ev = { t: number; ev: string; id?: string };
 const log = (page: Page) => page.evaluate(() => (window as unknown as { __pace: { log: Ev[] } }).__pace.log);
 const now = (page: Page) => page.evaluate(() => performance.now());
 const first = (l: Ev[], ev: string, id?: string, after = 0) => l.find((e) => e.ev === ev && (id === undefined || e.id === id) && e.t >= after);
+const fromPress = (l: Ev[], ev: string, id: string | undefined, after: number) => ((d: number) => first(l, ev, id, d)!.t - d)(first(l, 'down', undefined, after)!.t); // from the press as the page saw it
 // How late a timed step may end: timers only fire late, and later on a slow CPU (CI: a reveal 230 ms, a review 155 ms).
 const lateMs = () => (test.info().project.name.startsWith('webkit') ? 600 : 300);
 
@@ -59,11 +60,12 @@ function recorder(): void {
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
-  // The time of each release on a square (a move's second tap makes the move on release).
+  // The time of each release on a square (a move's second tap makes the move on release) and on a story box.
   window.addEventListener('pointerup', (e) => {
-    const sq = (e.target as Element | null)?.closest?.('[data-square]') as HTMLElement | null;
-    if (sq) add('click', sq.dataset.square);
+    const t = (e.target as Element | null)?.closest?.('[data-square], [data-testid="story"]') as HTMLElement | null;
+    if (t) add(t.dataset.square ? 'click' : 'tap', t.dataset.square);
   }, true);
+  window.addEventListener('pointerdown', () => add('down'), true); // before the app's own listener: a skip acts on the press
 }
 
 const ALL_THEMES = ['advancedPawn', 'advantage', 'backRankMate', 'capturingDefender', 'castling', 'deflection', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'fork', 'hangingPiece', 'mateIn1', 'mateIn2', 'pin', 'promotion', 'skewer', 'trappedPiece', 'xRayAttack'];
@@ -266,17 +268,16 @@ async function play(page: Page, moves: string[]) {
   await page.getByTestId('review-continue').click();
 }
 
-/** Taps the story's lines until "wants to battle!" takes taps; the time of the last tap. */
+/** Taps the story's lines until "wants to battle!" takes taps; the page's time of the last tap, logged on release (a clock
+ * read before click() also counted Playwright's own checks before the tap: 237 ms once on CI). */
 async function toIntro(page: Page): Promise<number> {
-  let t0 = 0;
   while (!(await page.getByTestId('trainer-intro').count())) {
     await ready(page, 'story');
-    t0 = await now(page);
     await page.getByTestId('story').click();
     await page.locator('[data-testid="trainer-intro"], [data-testid="story"]').first().waitFor();
   }
   await ready(page, 'trainer-intro');
-  return t0;
+  return (await log(page)).filter((e) => e.ev === 'tap').at(-1)?.t ?? 0;
 }
 
 /** B2 (Fix, 13 Oct): the tap on a story's last line hands over to "wants to battle!" in the same frame, under the dim
@@ -384,8 +385,7 @@ test.describe('skipping the solve hold', () => {
     const tap = await now(page);
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await expect.poll(() => kc<string>(page, 'puzzlePhase')).toBe('review');
-    const review = first(await log(page), 'review', undefined, tap)!.t;
-    expect(review - tap).toBeLessThan(100);
+    expect(fromPress(await log(page), 'review', undefined, tap)).toBeLessThan(100);
     // The tap did not also select a piece.
     expect(await page.locator('.sq.selected').count()).toBe(0);
   });
@@ -564,7 +564,7 @@ test.describe('vs Computer', () => {
     const tap = await now(page);
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await expect(page.getByTestId('end-screen')).toBeVisible();
-    expect(first(await log(page), 'card', 'end-screen', tap)!.t - tap).toBeLessThan(100);
+    expect(fromPress(await log(page), 'card', 'end-screen', tap)).toBeLessThan(100);
   });
 
   // The end of a game (fix, 13 Oct): a quiet mate, Ra8#, at level 1, where take back is offered.
