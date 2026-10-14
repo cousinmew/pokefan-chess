@@ -89,7 +89,7 @@ for (const [w, h] of SIZES) {
     await page.reload();
     await page.getByTestId('screen-splash').click();
     await noScroll(page, `${w}x${h} shelf`);
-    for (const id of ['cart-yellow', 'cart-blue', 'lang-zh-Hans']) await inView(page, id, `${w}x${h} shelf`);
+    for (const id of ['cart-yellow', 'cart-blue', 'lang-zh-Hans', 'trust-about', 'trust-github']) await inView(page, id, `${w}x${h} shelf`); // trust row (14 Oct)
   });
 }
 
@@ -233,6 +233,11 @@ test('@both W2: the menus fit every window', async ({ page }) => {
   await seeded(page, 'blue', './?debug=1&menu');
   await expect(page.getByTestId('screen-start')).toBeVisible();
   out.push(...(await sweep(page, 'start menu')));
+  // About & privacy (trust pass, 14 Oct), from the start menu's trust row.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByTestId('trust-about').click();
+  await expect(page.getByTestId('screen-about')).toBeVisible();
+  out.push(...(await sweep(page, 'about')));
   for (const [tile, screen] of [['how-to', 'screen-howto'], ['settings', 'screen-settings'], ['hub-card', 'trainer-card'], ['kanto', 'screen-map']] as const) {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('./?debug=1');
