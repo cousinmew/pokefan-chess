@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Keeping progress safe (§B18 item 2): the save file format for Export and Import (and save codes), and
 // navigator.storage.persist(), asked once per profile.
+import { knownTeam } from '../board/pieces';
 import { currentSlot, load, profileData, restoreProfile, save } from './persist';
 
 export const SAVE_APP = 'pokefan-chess';
@@ -25,10 +26,13 @@ export function isSaveFile(x: unknown): x is SaveFile {
   return f.app === SAVE_APP && f.v === 1 && !!f.data && typeof f.data === 'object' && !Array.isArray(f.data);
 }
 
-/** Replaces the current profile with a save file. False if it isn't one. */
+/** Replaces the current profile with a save file. False if it isn't one. My Team keeps only the species this build
+ * knows (boot fix, 14 Oct: a file or code from another build, or an edited one, crashed the next boot). */
 export function unpackSave(x: unknown, slot = currentSlot()): boolean {
   if (!isSaveFile(x)) return false;
-  restoreProfile(slot, x.data);
+  const c = x.data.campaign;
+  const data = c && typeof c === 'object' && !Array.isArray(c) && 'team' in c ? { ...x.data, campaign: { ...c, team: knownTeam(c.team) } } : x.data;
+  restoreProfile(slot, data);
   return true;
 }
 

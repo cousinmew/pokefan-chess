@@ -4,7 +4,7 @@
 // The map and a route's screen moved to src/ui/journeyMap.ts (W5).
 import { ASSET_BASE, CARD_SPRITE_WAIT_MS, CATCH_BEAT_MS, DEX_EAGER_CELLS, DEX_LAZY_MARGIN_PX, LINE_GUARD_MS, STAR_STEPS } from '../config';
 import { guard, hold } from './pace';
-import { parseVariant, SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
+import { knownSpecies, parseVariant, SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
 import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type CatchGains, type Evolution } from '../campaign/kanto';
 import { levelNewVars, stepKey, type ShownLevel } from '../campaign/trainer';
 import { PLACES, placeName, teamOf, type Trainer } from '../campaign/journey';
@@ -437,7 +437,7 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
     // J9: a preview is a mon(), so the Gen 1 sprite shows while the animation loads, and a new one on a change (a src
     // swap kept the old Pokémon's frame until the new one came, about 790 ms on a slow phone).
     const previewOf = (v: string) => {
-      const { base, shiny } = parseVariant(v || speciesIdFor('w', piece, sq));
+      const { base, shiny } = parseVariant(knownSpecies(v) ? v : speciesIdFor('w', piece, sq));
       return Object.assign(mon(base, 'team-sprite', false, shiny), { alt: '' });
     };
     let preview = previewOf(team[role] ?? '');
@@ -460,9 +460,13 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }
 
-/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. */
+/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. A species this build does not
+ * know (a save from another build) stands for the default piece, as on the board (boot fix, 14 Oct: it threw at boot). */
 export const teamArt = (c: Campaign): string[] =>
-  SKIN_ROLES.map((role) => spriteUrl(SPECIES[parseVariant(c.team[role] || speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro'));
+  SKIN_ROLES.map((role) => {
+    const pick = c.team[role];
+    return spriteUrl(SPECIES[parseVariant(knownSpecies(pick) ? pick : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro');
+  });
 
 /** A gift for a first clear (J4): the Pokémon, the new Pokédex count and OAK's line under it, before the unlock card. */
 export function giftCard(id: string, caught: number, oak?: string): HTMLElement {

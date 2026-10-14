@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Language switching (§B17): strings, Pokémon and move names, and page direction. Hebrew is right to left,
 // but the chess board, coordinates and move notation stay left to right (see .board in style.css).
-import { STORAGE_NS } from './config';
+import { BOOT_LANG_MS, STORAGE_NS } from './config';
 import { applyNames, loadNames } from './board/pieces';
-import { LANGS, RTL, loadStrings, setLang, type Lang } from './game/text';
+import { currentLang, LANGS, RTL, loadStrings, setLang, type Lang } from './game/text';
 import { load, save } from './store/persist';
 
 export function savedLang(): Lang {
@@ -61,9 +61,30 @@ const storage = (): Storage | null => {
   }
 };
 
+/** The device's languages still on their way when boot stopped waiting for them (each resolves true once it is in). */
+const coming = new Map<Lang, Promise<boolean>>();
+
+/** Boot's language: `lang` at once, as the save says. A table still on its way when boot stopped waiting for it
+ * (BOOT_LANG_MS) reads in English until it lands; then, unless another language was picked meanwhile, `lang` applies
+ * again with its own words and `landed` redraws what shows (the splash; later screens are built in it anyway). */
+export function startLanguage(lang: Lang, landed: () => void): void {
+  applyLanguage(lang, false);
+  void coming.get(lang)?.then((ok) => ok && currentLang() === lang && (applyLanguage(lang, false), landed()));
+}
+
 // Before boot runs (main.ts imports this module, so it waits for this top level await): the device's languages are
 // fetched, so a French save's splash paints in French from its first frame and setLang stays synchronous. A table that
-// cannot be fetched (offline and not cached) leaves that language reading in English.
+// cannot be fetched (offline and not cached) leaves that language reading in English. Boot fix, 14 Oct: the wait is
+// capped at BOOT_LANG_MS, since a request that stalls (a dropped mobile connection) kept the splash away for good.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  await Promise.all(bootLangs(location.search, storage()).map((l) => loadLanguage(l).catch((err: unknown) => console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err))));
+  const loads = bootLangs(location.search, storage()).map((l) => {
+    const p = loadLanguage(l).then(
+      () => true,
+      (err: unknown) => (console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), false),
+    );
+    coming.set(l, p);
+    void p.then(() => coming.delete(l));
+    return p;
+  });
+  await Promise.race([Promise.all(loads), new Promise((r) => window.setTimeout(r, BOOT_LANG_MS))]);
 }

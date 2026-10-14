@@ -74,7 +74,7 @@ export class JourneyGame {
   constructor(private readonly host: JourneyHost) {
     // J9 (review R2): My Team's placeholders from boot, as the hub opens MY TEAM straight from its tile (only the map
     // fetched them, so a cold MY TEAM from the hub showed empty rows); 7 Gen 1 sprites of about 0.4 KB.
-    if (hasProgress(currentSlot()) && !isGuest()) void this.fetchAhead(teamArt(this.campaign));
+    if (hasProgress(currentSlot()) && !isGuest()) void this.fetchAhead(() => teamArt(this.campaign));
     // Play time goes into the save as stored, so a rename or a YELLOW lesson written elsewhere is kept (bugs #6), and
     // every save with progress counts it (the start menu's TIME, ux #8); a guest's game is not saved.
     window.setInterval(() => {
@@ -92,15 +92,22 @@ export class JourneyGame {
     story(this.host.modal, keys, done, sprite, ready);
   }
 
-  /** Starts loading `urls` now, ahead of the screen that shows them (J6, J9); resolves when they are all in. */
-  private fetchAhead(urls: string[]): Promise<void> {
+  /** Starts loading the files `art` names now, ahead of the screen that shows them (J6, J9); resolves when they are all
+   * in. A prefetch never stops boot or a screen (boot fix, 14 Oct): a list it cannot make fetches nothing. */
+  private fetchAhead(art: () => string[]): Promise<void> {
+    let urls: string[] = [];
+    try {
+      urls = art();
+    } catch (err) {
+      console.warn('prefetch skipped:', err instanceof Error ? err.message : err);
+    }
     const one = (u: string) => this.ahead.get(u) ?? this.ahead.set(u, new Promise<void>((done) => preloadNow([u], done))).get(u)!;
     return Promise.all(urls.map(one)).then(() => undefined);
   }
 
   /** A battle's card art (J6): the trainer and the team "wants to battle!" shows. */
   private fetchBattle(t: Trainer): Promise<void> {
-    return this.fetchAhead(battleArt(this.campaign, t, this.spriteOf(t)));
+    return this.fetchAhead(() => battleArt(this.campaign, t, this.spriteOf(t)));
   }
 
   /** Title > Kanto Journey: Oak on a fresh save, else the map at the furthest point reached. */
@@ -108,7 +115,7 @@ export class JourneyGame {
     this.campaign = loadCampaign();
     if (this.campaign.starter) return this.showMap();
     const red = personSprite('red');
-    if (red) void this.fetchAhead([trainerSrc(red)]); // J6: the name step's trainer, while Oak talks
+    if (red) void this.fetchAhead(() => [trainerSrc(red)]); // J6: the name step's trainer, while Oak talks
     // Oak's intro (§B14): Oak, three lines, Nidorino; your name beside RED; the starter, with its cry; then BLUE.
     const lines = PLACES[0]!.story!.map((k) => fmt(k));
     // While the NEW GAME is unnamed, Back drops it like ◀ BACK; afterwards it is the save's own way home (bugs #2).
@@ -169,7 +176,7 @@ export class JourneyGame {
       this.host.uncover();
     };
     void this.host.cover('screen');
-    void this.fetchAhead(teamArt(this.campaign)).then(show);
+    void this.fetchAhead(() => teamArt(this.campaign)).then(show);
     window.setTimeout(show, TEAM_PREVIEW_WAIT_MS);
   }
 
@@ -200,7 +207,7 @@ export class JourneyGame {
     );
     // Mew joins once 150 others are caught (§B12), whatever path got there.
     this.checkMew(() => undefined);
-    void this.fetchAhead(teamArt(this.campaign)); // J9: My Team's placeholders, before it is opened
+    void this.fetchAhead(() => teamArt(this.campaign)); // J9: My Team's placeholders, before it is opened
   }
 
   enterPlace(p: Place): void {

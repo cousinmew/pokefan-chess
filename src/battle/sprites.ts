@@ -186,7 +186,12 @@ const ids = (list: (string | null | undefined)[]) => list.filter((x): x is strin
  * stills, My Team's and the story stage's fronts with your backs; the default teams' sprites come last. A battle that
  * starts first loads its own two sprites straight away. */
 export function preloadBattleSprites(): void {
-  plan(0);
+  // The splash's tap runs this before it moves on: a save it cannot plan for must never keep the player there.
+  try {
+    plan(0);
+  } catch (err) {
+    console.warn('battle preload skipped:', err instanceof Error ? err.message : err);
+  }
 }
 
 function plan(tries: number): void {

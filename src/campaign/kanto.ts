@@ -8,7 +8,7 @@ import sources from '../data/sources.kanto.json';
 import { enforce, type SkinRole } from '../../worker/src/team';
 import type { Rng } from '../game/rng';
 import { load, save } from '../store/persist';
-import type { TeamSkin } from '../board/pieces';
+import { knownTeam, type TeamSkin } from '../board/pieces';
 
 export interface Encounter {
   species: string;
@@ -149,7 +149,8 @@ export function loadCampaign(): Campaign {
   const out: Campaign = {
     ...fresh(), ...c,
     caught: { ...c?.caught }, shiny: { ...c?.shiny }, oak: { ...c?.oak }, candy: { ...c?.candy }, seen: [...(c?.seen ?? [])],
-    caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: { ...c?.team },
+    // My Team keeps only the species this build knows (boot fix, 14 Oct): one it does not crashed boot.
+    caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: knownTeam(c?.team),
     badges: [...(c?.badges ?? [])], lessonsSeen: [...(c?.lessonsSeen ?? [])], teamNotice: [...(c?.teamNotice ?? [])],
     hallOfFame: [...(c?.hallOfFame ?? [])], rewards: [...(c?.rewards ?? [])],
     // Grandfathered queen (C3 quick fix): a save with a starter but no introSeen predates C2c's Oak intro.

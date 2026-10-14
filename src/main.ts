@@ -18,7 +18,7 @@ import { Engine } from './ai/engine';
 import { cancelThink, computerTurn, thinkingNow } from './ai/turn';
 import { TextBox } from './ui/textBox';
 import { button, el } from './ui/dom';
-import { howTo, intro, levelSelect, splash, teamSelect, title } from './ui/screens';
+import { howTo, intro, levelSelect, relabelSplash, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
 import { currentSlot, enterGuest, isGuest, leaveGuest, load, remove, save } from './store/persist';
 import { installHarness } from './debug/harness';
@@ -33,7 +33,7 @@ import { Modes } from './ui/modes';
 import { Legend, pieceCard } from './ui/legend';
 import type { Frame } from './campaign/review';
 import { drawFrame } from './ui/reviewLayer';
-import { applyLanguage, savedLang } from './i18n';
+import { applyLanguage, savedLang, startLanguage } from './i18n';
 import { langButton, yellowHome, yellowLevels, type Cartridge } from './ui/shelf';
 import { bootSaves, endCreating, forgetNewGame, slotCount, switchTo } from './profiles';
 import { duoSide, StartFlow, type DuoSide } from './startFlow';
@@ -88,7 +88,7 @@ function boot(): App {
   else preloadNow([trainerSrc('oak'), ...STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)])], releaseIdle); // Oak first (§B22 item 1)
   // An animated WebP the browser cannot show falls back to its GIF.
   document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
-  applyLanguage(reviewFromUrl() ?? savedLang(), false); // ?review=<lang>: translation review mode (§B21 item 3)
+  startLanguage(reviewFromUrl() ?? savedLang(), relabelSplash); // ?review=<lang>: translation review mode (§B21 item 3); a late table relabels the splash
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   // v1 forced Quick (no battle screen) under reduced motion and could save it. Reduced motion now keeps Full, calmer.
