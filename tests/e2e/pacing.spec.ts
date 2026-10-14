@@ -12,6 +12,8 @@ type Ev = { t: number; ev: string; id?: string };
 const log = (page: Page) => page.evaluate(() => (window as unknown as { __pace: { log: Ev[] } }).__pace.log);
 const now = (page: Page) => page.evaluate(() => performance.now());
 const first = (l: Ev[], ev: string, id?: string, after = 0) => l.find((e) => e.ev === ev && (id === undefined || e.id === id) && e.t >= after);
+// How late a timed step may end: timers only fire late, and later on a slow CPU (CI: a reveal 230 ms, a review 155 ms).
+const lateMs = () => (test.info().project.name.startsWith('webkit') ? 600 : 300);
 
 /** Records, in the page, what appears and when: screens, the cover and its reveal, cards, the stamp, the review, the
  * end panel, the battle, and each frame's count of screens (there is only ever one). */
@@ -137,12 +139,10 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
       }
       const want: Record<string, number> = { screen: SCREEN_IN_MS, area: AREA_IN_MS, battle: BATTLE_IN_MS };
       expect(reveals.map((r) => r.kind)).toEqual(expect.arrayContaining(['screen', 'area', 'battle']));
-      // Never cut short. A busy machine may end it late (first paint, then the fade's promise): CI's emulated iPhone
-      // painted the map 230 ms late; a 27-minute 4-worker run ended Chromium's 188 ms late (12/12 alone under load).
-      const late = test.info().project.name.startsWith('webkit') ? 600 : 300;
+      // Never cut short; a busy machine may end it late (first paint, then the fade's promise), up to lateMs().
       for (const r of reveals.filter((x) => want[x.kind])) {
         expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeGreaterThanOrEqual(-50);
-        expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeLessThanOrEqual(late);
+        expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeLessThanOrEqual(lateMs());
       }
     });
 
@@ -341,7 +341,7 @@ for (const width of [360, 390]) {
     await move(page, 'e2e1');
     const l1 = await log(page);
     const click = l1.filter((e) => e.ev === 'click' && e.id === 'e1').at(-1)!.t;
-    await expect(page.getByTestId('solved-stamp')).toBeAttached();
+    await page.waitForFunction(() => document.querySelector('[data-testid="solved-stamp"]'), null, { polling: 'raf' }); // a locator assertion's polling ran 250 ms of page work in this hold at 6× CPU throttle
     await page.waitForTimeout(400); // inside the stamp's hold
     const geo = await page.evaluate(() => {
       const s = document.querySelector('[data-testid="solved-stamp"]')!.getBoundingClientRect();
@@ -359,11 +359,11 @@ for (const width of [360, 390]) {
     const stamp = first(l, 'stamp', undefined, click)!.t - click;
     const review = first(l, 'review', undefined, click)!.t - click;
     expect(stamp).toBeGreaterThanOrEqual(MOVE_SLIDE_MS + SOLVE_BEAT_MS - 20);
-    // Never early: the stamp gets its whole time before the review. A timer can only fire late, and a busy machine
-    // (the full suite on 4 workers, a shared CI runner) ran it 62 ms late once, so lateness has a little more room.
+    // Never early: the stamp gets its whole time before the review. Late grows with a slow CPU (here 17-33 ms, at 4-6×
+    // throttle 72-279 ms, CI once 155 ms: the move's and the review's own work), so it gets the shared budget.
     expect(review - stamp).toBeGreaterThanOrEqual(SOLVED_STAMP_MS - 40); // 40: the two log stamps are a frame apart at most
     expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeGreaterThanOrEqual(-60);
-    expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeLessThanOrEqual(150);
+    expect(review - (MOVE_SLIDE_MS + SOLVE_BEAT_MS + SOLVED_STAMP_MS)).toBeLessThanOrEqual(lateMs());
   });
 }
 
