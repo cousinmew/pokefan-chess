@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // §B22: Oak on the first intro box, BACK out of NEW GAME, the START button, and PLAY CHESS without a save.
 import { expect, test, type Page } from '@playwright/test';
-import { noTransition, settled } from './pace';
+import { coldGoto, noTransition, settled, tapSplash } from './pace';
 
 const SHOTS = 'docs/start-flow';
 const camp = { v: 2, name: 'JADE', starter: 'charmander', introSeen: true, teamRules: 2, badges: ['boulder'], caught: { charmander: 1 }, playMs: 600_000 };
@@ -28,8 +28,8 @@ test('NEW GAME, cold cache on Slow 4G: Oak shows on the first intro box', async 
   await cdp.send('Network.enable');
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 562.5, downloadThroughput: 180_000, uploadThroughput: 84_375 });
-  await page.goto('./?debug=1&menu=1', { timeout: 120_000 });
-  await page.getByTestId('screen-splash').click({ timeout: 120_000 });
+  await coldGoto(page, '?debug=1&menu=1'); // not `load`: on a busy runner it came after the splash had moved on
+  await tapSplash(page);
   await page.getByTestId('start-new').click({ timeout: 60_000 });
   await page.getByTestId('screen-splash').click({ timeout: 120_000 });
   await page.getByTestId('cart-blue').click({ timeout: 60_000 });

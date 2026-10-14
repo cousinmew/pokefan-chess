@@ -53,6 +53,20 @@ export interface TeamSkin {
   bDark?: SpeciesId;
 }
 export const SKIN_ROLES = ['k', 'q', 'r', 'bLight', 'bDark', 'n', 'p'] as const;
+
+/** Whether this build knows a species, or a variant of one ("pidgey:s:2"): a save from another build or an edited
+ * backup can name one it does not ("missingno"), and an own key only (not "constructor"). */
+export const knownSpecies = (id: unknown): id is SpeciesId => typeof id === 'string' && Object.hasOwn(SPECIES, parseVariant(id).base);
+
+/** A save's My Team with only the slots this build can show (boot fix, 14 Oct): an unknown species crashed boot (the
+ * Journey's My Team prefetch), so its slot goes back to the default piece. The slots keep their order (the §B14
+ * migration's notice lists them in it). Anything else that is not a team: none. */
+export function knownTeam(team: unknown): TeamSkin {
+  const out: TeamSkin = {};
+  if (!team || typeof team !== 'object' || Array.isArray(team)) return out;
+  for (const [role, id] of Object.entries(team)) if ((SKIN_ROLES as readonly string[]).includes(role) && knownSpecies(id)) out[role as (typeof SKIN_ROLES)[number]] = id;
+  return out;
+}
 let skins: Partial<Record<Color, TeamSkin>> = {};
 let stages: Partial<Record<Color, TeamSkin>> = {};
 // Which team's look each colour wears (W3, playtest 12 Oct): Red on white and Rocket on black, except in puzzles,
@@ -122,7 +136,8 @@ export function speciesIdFor(color: Color, role: Role, square: string): SpeciesI
   const skin = skins[color];
   const key = role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role;
   const pick = skin?.[key] ?? stages[color]?.[key];
-  if (pick && SPECIES[parseVariant(pick).base]) return pick;
+  // An own key only (boot fix, 14 Oct): a stored team's "constructor" or "toString" named Object's members on the board.
+  if (knownSpecies(pick)) return pick;
   return defaultSpecies(wears[color], role, isDarkSquare(square));
 }
 
@@ -137,12 +152,12 @@ const variants = new Map<string, Species>();
 
 /** A species by id; a variant id ("pidgey:s:2") returns that species with its shiny and star flags. */
 export function species(id: SpeciesId): Species {
-  const direct = SPECIES[id];
+  const direct = Object.hasOwn(SPECIES, id) ? SPECIES[id] : undefined;
   if (direct) return direct;
   let v = variants.get(id);
   if (!v) {
     const { base, shiny, stars } = parseVariant(id);
-    const s = SPECIES[base];
+    const s = Object.hasOwn(SPECIES, base) ? SPECIES[base] : undefined;
     if (!s) throw new Error(`unknown species ${id}`);
     v = { ...s, shiny, stars };
     variants.set(id, v);

@@ -35,10 +35,21 @@ function heading(): HTMLElement {
 /** The title: moves on by itself after SPLASH_AUTO_MS, or on a tap, Enter, Space or B once HOLD_MIN_MS has passed
  * (a hold, pacing E1), so the tap that loaded the page never skips it. */
 export function splash(onDone: () => void): HTMLElement {
-  const s = screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
+  const s = splashScreen();
   // Started once the splash is on screen (the hold belongs to the screen showing then).
   queueMicrotask(() => void hold(SPLASH_AUTO_MS, 'splash').then((how) => how !== 'cancel' && s.isConnected && onDone()));
   return s;
+}
+
+const splashScreen = () => screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
+
+/** The splash on screen, in the language now in use: a saved language whose table landed after boot stopped waiting
+ * for it (boot fix, 14 Oct). Its words only, in place, so its hold runs on. */
+export function relabelSplash(): void {
+  const s = document.querySelector<HTMLElement>('[data-testid="screen-splash"]');
+  if (!s) return;
+  const fresh = splashScreen();
+  for (const part of ['.logo', '.menu-body']) s.querySelector(part)?.replaceWith(fresh.querySelector(part)!);
 }
 
 export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | 'online' | 'dex' | 'team' | 'card' | 'settings' | 'share';

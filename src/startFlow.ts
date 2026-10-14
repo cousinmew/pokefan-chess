@@ -3,7 +3,7 @@
 // start menu (CONTINUE, NEW GAME, OPTION, SWITCH TRAINER), the save list, the "replace which save?" list, and the
 // Two Players picker where each side plays as a save or as a guest. Moved out of main.ts.
 import { CARTRIDGE_HOLD_MS } from './config';
-import type { Color, TeamSkin } from './board/pieces';
+import { knownTeam, type Color, type TeamSkin } from './board/pieces';
 import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
@@ -46,7 +46,7 @@ export function duoSide(slot: number | null, color: Color): DuoSide {
   if (slot === null) return { slot, name: fmt(color === 'w' ? 'plate.red' : 'plate.blue'), trainer: 'red', team: {} };
   const c = loadFrom<Partial<Campaign>>(slot, 'campaign');
   const yellow = loadFrom<string>(slot, 'cartridge') === 'yellow';
-  const team: TeamSkin = { ...(c?.team ?? {}) };
+  const team = knownTeam(c?.team); // a stored team as Import keeps it: species this build knows (boot fix, 14 Oct)
   if (yellow) delete team.k; // the King is always Pikachu in YELLOW
   return { slot, name: c?.name || fmt('profiles.slot', { n: String(slot) }), trainer: loadFrom<string>(slot, PLAYER_TRAINER) === 'meir' ? 'meir' : 'red', team };
 }

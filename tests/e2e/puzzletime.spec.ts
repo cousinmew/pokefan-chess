@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { Chess } from 'chess.js';
-import { settled, skipHold } from './pace';
+import { coldGoto, settled, skipHold, tapSplash } from './pace';
 
 type Row = [string, string, string, number];
 type KC = Record<string, (...a: unknown[]) => unknown>;
@@ -149,8 +149,8 @@ test.describe('the engine on a cold phone (P1: Slow 4G, 4x CPU, empty cache)', (
   /** From the map's ▶ into a computer game (the Champion, a drill): story lines and cards tapped as they take input. */
   async function intoGame(page: Page, campaign: object): Promise<void> {
     await seed(page, campaign);
-    await page.goto('./?debug=1', { timeout: 120_000 });
-    await page.getByTestId('screen-splash').click({ timeout: 120_000 });
+    await coldGoto(page); // not `load`: see coldGoto (tests/e2e/pace.ts)
+    await tapSplash(page);
     await page.getByTestId('kanto').click({ timeout: 60_000 });
     await page.getByTestId('map-next').click({ timeout: 60_000 });
     for (let i = 0; i < 8 && (await page.locator('#app > .overlay:not([hidden]) > .panel').count()); i++) {
@@ -187,8 +187,8 @@ test.describe('the engine on a cold phone (P1: Slow 4G, 4x CPU, empty cache)', (
   test("a tall grass miss review's reply comes from the engine", async ({ page, context }) => {
     await throttle(page, context, true);
     await seed(page, SAVE);
-    await page.goto('./?debug=1', { timeout: 120_000 });
-    await page.getByTestId('screen-splash').click({ timeout: 120_000 });
+    await coldGoto(page); // not `load`: see coldGoto (tests/e2e/pace.ts)
+    await tapSplash(page);
     await page.getByTestId('kanto').click({ timeout: 60_000 });
     await page.getByTestId('route-route-1').click({ timeout: 60_000 });
     await kc(page, 'forcePuzzle', QUIET1, 'mateIn1');
@@ -578,8 +578,8 @@ test("P11: Slow 4G, cold: Route 1's trainer sprites are in when its screen is re
   test.setTimeout(180_000);
   await seed(page, { ...SAVE, journey: { cleared: [], beaten: [], visited: [] } });
   await throttle(page, context, true);
-  await page.goto('./?debug=1', { timeout: 120_000 });
-  await page.getByTestId('screen-splash').click({ timeout: 120_000 });
+  await coldGoto(page); // not `load`: see coldGoto (tests/e2e/pace.ts)
+  await tapSplash(page);
   await page.getByTestId('kanto').click({ timeout: 60_000 });
   await expect(page.getByTestId('screen-map')).toBeVisible({ timeout: 60_000 });
   await settled(page, 60_000);

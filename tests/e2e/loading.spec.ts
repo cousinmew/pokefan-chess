@@ -4,6 +4,7 @@
 // context (empty HTTP cache) with the service worker blocked. Real timings: no sleeps to wait out a guard.
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { arm, battleOver, blankFrames, blueSave, boot, cartBlue, FAST_4G, FEN_D5, firstFrame, fresh, kc, ld, median, now, QUIET1, SLOW_4G, type Frame, type Ld } from './loadwatch';
+import { tapSplash } from './pace';
 
 const BATTLE_READY_MS = 2500; // src/ui/transitions.ts: the longest a battle cover waits for its board's images
 
@@ -314,9 +315,9 @@ async function yellowHome(browser: Browser): Promise<{ between: string[]; snorla
   page.on('requestfinished', () => inflight--);
   page.on('requestfailed', () => inflight--);
   await boot(page, '?debug=1', false);
+  await arm(page); // from the splash on: the frame it leaves on, if it goes by itself before the tap below
   // A player reads the title while the first screen's own loads finish (at most 2 s: it moves on at 2.5 s).
   for (let i = 0; i < 20 && inflight > 0; i++) await page.waitForTimeout(100);
-  await arm(page);
   // In the page: when the splash is tapped and the first frame with every home image drawn.
   await page.evaluate(() => {
     const w = window as unknown as { __home: number | null };
@@ -328,8 +329,9 @@ async function yellowHome(browser: Browser): Promise<{ between: string[]; snorla
     };
     requestAnimationFrame(look);
   });
-  const tap = await now(page);
-  await page.getByTestId('screen-splash').click({ timeout: 60_000 });
+  const asked = await now(page);
+  // On a busy runner the splash can leave by itself first (SPLASH_AUTO_MS): the loads then count from that frame.
+  const tap = (await tapSplash(page, 60_000)) === 'tapped' ? asked : ((await ld(page)).frames.find((f) => f.scr !== '' && f.scr !== 'screen-splash')?.t ?? asked);
   await page.waitForFunction(() => (window as unknown as { __home: number | null }).__home !== null, null, { timeout: 60_000 });
   await page.waitForTimeout(8000); // what YELLOW queues next, in idle time
   const done = await page.evaluate(() => (window as unknown as { __home: number }).__home);
