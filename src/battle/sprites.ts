@@ -13,7 +13,8 @@ import { idleDrained, whenFree, whenIdle } from '../ui/loader';
 import { boardCries, preloadCries } from '../audio/audio';
 import { load } from '../store/persist';
 import { loadCampaign, routeSpecies, STARTERS, type Campaign } from '../campaign/kanto';
-import { journeyState, nextGoal, PLACES, placeUnlocked, RIVAL, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
+import { journeyState, nextGoal, PLACES, placeUnlocked, RIVAL, routeOf, type Place, type Trainer } from '../campaign/journey';
+import { partyOf } from '../campaign/rivalTeam';
 import { FIRST_CATCH } from '../campaign/warmup';
 import { myTrainer, trainerSpriteId } from '../look';
 import { trainerSrc } from '../ui/kanto';
@@ -242,7 +243,7 @@ function blue(c: Campaign, mine: Species[], theirs: Species[], add: (...u: (stri
   const goal = nextGoal(journeyState(c));
   if (goal?.trainer) {
     const sprite = goalSprite(goal.trainer);
-    add(sprite ? trainerSrc(sprite) : null, ...ids(teamOf(c, goal.trainer)).map(f.front));
+    add(sprite ? trainerSrc(sprite) : null, ...ids(partyOf(c, goal.trainer)).map(f.front));
   }
   add(...mine.map(f.front), ...theirs.map(f.front), ...mine.map(f.back));
   // The default teams last (Two Players without saves, vs Computer as a guest).

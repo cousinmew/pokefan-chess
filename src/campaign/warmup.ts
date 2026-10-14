@@ -29,6 +29,8 @@ export interface WarmupHost {
   rng: Rng;
   /** Oak's sprite. */
   oak?: string;
+  /** Settles once the first catch's sprite is in: Oak's grass line keeps its ▼ until then (as before a battle card, J6). */
+  art?: Promise<unknown>;
 }
 
 /** Runs the warm-up, then `then` (the route, or the first trainer when the map's ▶ started it). */
@@ -87,5 +89,5 @@ function firstCatch(h: WarmupHost, then: () => void): void {
     );
     modal.replaceChildren(panel);
     modal.hidden = false;
-  }, h.oak);
+  }, h.oak, h.art);
 }

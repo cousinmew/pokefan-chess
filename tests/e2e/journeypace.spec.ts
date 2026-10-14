@@ -10,14 +10,12 @@ import { coldGoto, noTransition, ready, settled, tapSplash } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
-
 const ALL_THEMES = ['advancedPawn', 'advantage', 'backRankMate', 'capturingDefender', 'castling', 'deflection', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'fork', 'hangingPiece', 'mateIn1', 'mateIn2', 'pin', 'promotion', 'skewer', 'trappedPiece', 'xRayAttack'];
 const SAVE = { v: 2, name: 'JADE', starter: 'bulbasaur', introSeen: true, teamRules: 2, caught: { bulbasaur: 1 }, warmup: true, lessonsSeen: ALL_THEMES, tips: ['puzzle'], journey: { cleared: [], beaten: [], visited: ['route-1'] } };
 /** Quiet mate in 1: the set up Ra6-a8, then Re2-e1# (e2h2 misses). */
 const QUIET1 = ['0BLbM', '8/8/R7/2pk4/8/4p3/PPP1r3/2K5 w - - 0 49', 'a6a8 e2e1', 480];
 const SLOW_4G = { offline: false, latency: 562.5, downloadThroughput: 180_000, uploadThroughput: 84_375 };
 const FAST_4G = { offline: false, latency: 165, downloadThroughput: 1_012_500, uploadThroughput: 84_375 };
-
 type Place = { id: string; kind: string; optional?: boolean; badge?: string; trainers?: { id: string }[] };
 const PLACES = (JSON.parse(readFileSync('src/data/journey.kanto.json', 'utf8')) as { places: Place[] }).places;
 /** A save that has cleared every required place before `id`: its trainers beaten, its badges won, its gifts given. */
@@ -642,9 +640,10 @@ test.describe('@perf J8: the first 24 Pokédex cells decode soon after the revea
 
 /** From MY TEAM's first frame, 2.5 s of frames: in each, how many rows show no painted Pokémon (the animation, or its Gen 1
  * placeholder fetched); 100 more while the 7 rows are not all there. */
-const teamFrames = (page: Page) =>
-  page.evaluate(async () => {
+const teamFrames = (page: Page, pick?: [string, string]) =>
+  page.evaluate(async (change) => {
     while (!document.querySelector('[data-testid="screen-team"]')) await new Promise((r) => requestAnimationFrame(r));
+    const sel = change && document.querySelector<HTMLSelectElement>(`[data-testid="team-${change[0]}"]`);
     const loaded = (url: string) => performance.getEntriesByName(new URL(url, location.href).href).some((e) => (e as PerformanceResourceTiming).responseEnd > 0);
     const painted = (i: HTMLImageElement) => (i.complete && i.naturalWidth > 0) || loaded(/url\("?([^")]+)"?\)/.exec(i.style.backgroundImage)?.[1] ?? 'about:blank');
     const out: number[] = [];
@@ -652,10 +651,14 @@ const teamFrames = (page: Page) =>
     while (performance.now() - t0 < 2500) {
       const rows = [...document.querySelectorAll('.team-row')];
       out.push(rows.filter((r) => { const i = r.querySelector('img'); return !i || !painted(i); }).length + (rows.length === 7 ? 0 : 100));
+      if (sel && out.length === 1) {
+        sel.value = change[1]; // a pick, one frame in
+        sel.dispatchEvent(new Event('change'));
+      }
       await new Promise((r) => requestAnimationFrame(r));
     }
     return out;
-  });
+  }, pick);
 const noEmptyRow = (frames: number[]) => {
   expect(frames.length).toBeGreaterThan(10);
   expect({ frames: frames.length, withAnEmptyRow: frames.filter((n) => n > 0).length, mostEmpty: Math.max(...frames) }).toMatchObject({ withAnEmptyRow: 0 });
@@ -663,7 +666,7 @@ const noEmptyRow = (frames: number[]) => {
 
 test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every frame', async ({ page }) => {
   test.setTimeout(60_000);
-  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey' } });
+  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1, caterpie: 1 }, team: { p: 'pidgey' } });
   await throttle(page, SLOW_4G, 4);
   await page.getByTestId('kanto').click();
   await expect(page.getByTestId('screen-map')).toBeVisible();
@@ -673,6 +676,9 @@ test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every fram
   await page.waitForTimeout(1500);
   await page.getByTestId('open-team').click();
   noEmptyRow(await teamFrames(page));
+  // Merge review, 14 Oct: a new pick's preview was an empty box for about 0.6 s (its placeholder one round trip away).
+  noEmptyRow(await teamFrames(page, ['p', 'caterpie']));
+  await expect(page.locator('.team-row:has([data-testid="team-p"]) img')).toHaveAttribute('data-species', 'caterpie');
 });
 
 // Review (R2): only the map fetched the placeholders, so MY TEAM straight from the hub tile (the audit's own path) still

@@ -2,12 +2,13 @@
 // Kanto Journey screens (§B11, §B12): story boxes, name and starter, the journey map, a route with its trainers,
 // trainer intros, the Trainer Card, Training, the 151 Pokédex with candy and stars, My Team, and the encounter panel.
 // The map and a route's screen moved to src/ui/journeyMap.ts (W5).
-import { ASSET_BASE, CARD_SPRITE_WAIT_MS, CATCH_BEAT_MS, DEX_EAGER_CELLS, DEX_LAZY_MARGIN_PX, LINE_GUARD_MS, STAR_STEPS } from '../config';
+import { ASSET_BASE, CARD_SPRITE_WAIT_MS, CATCH_BEAT_MS, DEX_EAGER_CELLS, DEX_LAZY_MARGIN_PX, LINE_GUARD_MS, STAR_STEPS, TEAM_SWAP_WAIT_MS } from '../config';
 import { guard, hold } from './pace';
 import { knownSpecies, parseVariant, SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
 import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type CatchGains, type Evolution } from '../campaign/kanto';
 import { levelNewVars, stepKey, type ShownLevel } from '../campaign/trainer';
-import { PLACES, placeName, teamOf, type Trainer } from '../campaign/journey';
+import { PLACES, placeName, type Trainer } from '../campaign/journey';
+import { partyOf } from '../campaign/rivalTeam';
 
 export { placeName };
 import { fmt, type StringKey, type Vars } from '../game/text';
@@ -48,7 +49,7 @@ export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny =
 /** What the "wants to battle!" card shows (J6): the trainer's sprite and the team's animated fronts, to fetch ahead. */
 export const battleArt = (c: Campaign, t: Trainer, sprite: string | undefined | null): string[] => [
   ...(sprite ? [trainerSrc(sprite)] : []),
-  ...teamOf(c, t).map((s) => spriteUrl(SPECIES[s]!.dex, 'front')),
+  ...partyOf(c, t).map((s) => spriteUrl(SPECIES[s]!.dex, 'front')),
 ];
 
 /** A trainer sprite from assets/trainers/, or a CSS silhouette when it is missing (§B14). */
@@ -156,7 +157,7 @@ export function trainerIntro(c: Campaign, t: Trainer, sprite: string | undefined
   const p = el('div', 'panel trainer-intro');
   p.dataset.testid = 'trainer-intro';
   const team = el('div', 'kings');
-  for (const s of teamOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
+  for (const s of partyOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
   // null: no trainer at all (a wild legendary), only its sprite.
   if (sprite !== null) p.append(trainerSprite(sprite, 'trainer-sprite slide-in'));
   p.append(line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
@@ -393,7 +394,10 @@ function forms(c: Campaign): { id: string; label: string }[] {
   return out;
 }
 
-export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void): HTMLElement {
+/** My Team. `ready` (the Journey's fetch ahead) settles once the given files are in: a changed row keeps its old preview
+ * until the new one can paint, its Gen 1 placeholder or its animation, at most TEAM_SWAP_WAIT_MS (merge review, 14 Oct:
+ * the new pick's box was empty for about 0.6 s on Slow 4G, its placeholder one round trip away). */
+export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void, ready?: (urls: string[]) => Promise<unknown>): HTMLElement {
   const rows = el('div', 'settings');
   if (c.teamNotice.length) {
     const note = el('div', 'panel team-notice');
@@ -440,12 +444,19 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
       return Object.assign(mon(base, 'team-sprite', false, shiny), { alt: '' });
     };
     let preview = previewOf(team[role] ?? '');
+    let picks = 0;
     sel.onchange = () => {
       if (sel.value) team[role] = sel.value;
       else delete team[role];
       const next = previewOf(sel.value);
-      preview.replaceWith(next);
-      preview = next;
+      const pick = ++picks; // a later change of this row replaces this one
+      const loaded = new Promise((done) => (next.complete ? done(null) : next.addEventListener('load', done, { once: true })));
+      const capped = new Promise((done) => window.setTimeout(done, TEAM_SWAP_WAIT_MS));
+      void (ready ? Promise.race([ready([teamRetro(sel.value, role)]), loaded, capped]) : Promise.resolve()).then(() => {
+        if (pick !== picks) return;
+        preview.replaceWith(next);
+        preview = next;
+      });
       change({ ...team });
     };
     r.append(preview, el('span', '', ROLE_LABEL[role]), sel);
@@ -459,13 +470,18 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }
 
-/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. A species this build does not
- * know (a save from another build) stands for the default piece, as on the board (boot fix, 14 Oct: it threw at boot). */
-export const teamArt = (c: Campaign): string[] =>
-  SKIN_ROLES.map((role) => {
-    const pick = c.team[role];
-    return spriteUrl(SPECIES[parseVariant(knownSpecies(pick) ? pick : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro');
-  });
+/** The Gen 1 placeholder of a My Team row's preview: the picked form, else that square's default. A species this build
+ * does not know (a save from another build) stands for the default piece, as on the board (boot fix, 14 Oct: it threw
+ * at boot). */
+const teamRetro = (id: string | undefined, role: (typeof SKIN_ROLES)[number]): string =>
+  spriteUrl(SPECIES[parseVariant(knownSpecies(id) ? id : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro');
+
+/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. */
+export const teamArt = (c: Campaign): string[] => SKIN_ROLES.map((role) => teamRetro(c.team[role], role));
+
+/** The placeholder of every other pick a row offers (each form you own, each square's default), fetched once MY TEAM
+ * shows, so a changed row's new preview is usually in at once (merge review, 14 Oct). */
+export const teamOptionArt = (c: Campaign): string[] => [...new Set([...forms(c).map((f) => teamRetro(f.id, 'p')), ...SKIN_ROLES.map((role) => teamRetro('', role))])];
 
 /** A gift for a first clear (J4): the Pokémon, the new Pokédex count and OAK's line under it, before the unlock card. */
 export function giftCard(id: string, caught: number, oak?: string): HTMLElement {

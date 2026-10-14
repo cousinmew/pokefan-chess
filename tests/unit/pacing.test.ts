@@ -17,6 +17,8 @@ const SPEC: Record<string, number> = {
   YELLOW_CHEER_MS: 600, PATH_NEXT_DELAY_MS: 350, STICKER_IN_MS: 600, PATH_NEW_MS: 900,
   // Fix, 13 Oct (journey): the evolved form's hold, the catch's beat, the battle card's sprite wait, My Team's previews.
   EVOLVE_DONE_MS: 1200, CATCH_BEAT_MS: 1200, CARD_SPRITE_WAIT_MS: 1500, TEAM_PREVIEW_WAIT_MS: 350,
+  // Merge review, 14 Oct: a changed My Team row keeps its old preview until the new one can paint.
+  TEAM_SWAP_WAIT_MS: 1000,
 };
 
 function sources(dir: string): string[] {

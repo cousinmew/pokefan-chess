@@ -5,8 +5,8 @@ import type { Look } from '../../worker/src/protocol';
 import type { App, Mode, Setup } from '../appTypes';
 import { setSkins, setWears, type Color, type TeamSkin } from '../board/pieces';
 import type { Campaign } from '../campaign/kanto';
-import { withoutRival } from '../campaign/rivalTeam';
-import { applyLooks, computerTeam, puzzleTeam, type Side } from '../look';
+import { withoutRival, yourPuzzleTeam } from '../campaign/rivalTeam';
+import { applyLooks, computerTeam, type Side } from '../look';
 import type { DuoSide } from '../startFlow';
 
 export interface ConfigureHost {
@@ -43,7 +43,7 @@ export function configure(h: ConfigureHost, setup: Setup): Color {
   else if (setup.mode === 'computer') setSkins({ ...theirs, [setup.human]: h.guest() ? {} : mine(c.team) });
   else if (setup.mode === 'puzzle' || setup.mode === 'path') {
     const them = setup.mode === 'puzzle' ? h.puzzleOpponent()?.team : null; // a rival brings their own team (C10)
-    setSkins({ ...(them ? { [cpu]: them } : {}), ...(h.guest() || !c.starter ? {} : { [setup.human]: mine(puzzleTeam(c.team, c.starter, h.look().stage ?? 2)) }) }); // W3, design D; BLUE's warm-up (W5)
+    setSkins({ ...(them ? { [cpu]: them } : {}), ...(h.guest() || !c.starter ? {} : { [setup.human]: yourPuzzleTeam(c, h.look().stage ?? 2) }) }); // W3, design D; BLUE's warm-up (W5); what a rival avoids
   } else if (setup.mode === 'challenge') setSkins({ ...h.challengeTeam(cpu), [setup.human]: mine({}) }); // your default team, no rival's starter in it (review, 14 Oct); Champion BLUE his party (§B14, C9)
   else if (setup.mode !== 'online') setSkins({});
   if (setup.mode !== 'online') applyLooks({ w: h.look(), b: h.look() });

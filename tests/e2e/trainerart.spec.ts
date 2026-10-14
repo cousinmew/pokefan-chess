@@ -40,7 +40,7 @@ function realOnly(stand: boolean, what: string): boolean {
  * the battle overlay's first frame. */
 function watcher(): void {
   type Snap = Record<string, unknown>;
-  const T = { events: [] as Snap[], battles: [] as Snap[], slides: 0, bad: [] as string[], armed: true };
+  const T = { events: [] as Snap[], battles: [] as Snap[], slides: 0, gifts: [] as Snap[], bad: [] as string[], armed: true };
   (window as unknown as { __ta: typeof T }).__ta = T;
   const ok = (i: HTMLImageElement | null | undefined) => !!i && i.complete && i.naturalWidth > 0;
   const plate = (id: string) => {
@@ -89,11 +89,18 @@ function watcher(): void {
   };
   requestAnimationFrame(tick);
   new MutationObserver((recs) => {
-    for (const r of recs) for (const n of r.addedNodes) if (n instanceof HTMLElement && n.matches('.story-trainer.slide-in')) T.slides++;
+    for (const r of recs) {
+      for (const n of r.addedNodes) {
+        if (n instanceof HTMLElement && n.matches('.story-trainer.slide-in')) T.slides++;
+        // A first clear's gift card (J4), the moment it goes in: is its Pokémon drawn?
+        const gift = n instanceof HTMLElement && n.matches('[data-testid="gift-card"]') ? n.querySelector<HTMLImageElement>('img') : null;
+        if (gift) T.gifts.push({ species: gift.dataset.species ?? '', ok: ok(gift) });
+      }
+    }
   }).observe(document, { childList: true, subtree: true });
 }
 type Ev = { t: number; scr: string; cover: string; top: { trainer: string; ok: boolean; src: string } | null; bottom: { trainer: string; ok: boolean; src: string } | null; notDrawn: string[]; loading: number; sil: number; board: number; sheet: string };
-type Ta = { events: Ev[]; battles: { t: number; near: { ok: boolean; src: string; hidden: boolean } | null; far: { ok: boolean; src: string; hidden: boolean } | null; top: Ev['top']; bottom: Ev['bottom'] }[]; slides: number; bad: string[] };
+type Ta = { events: Ev[]; battles: { t: number; near: { ok: boolean; src: string; hidden: boolean } | null; far: { ok: boolean; src: string; hidden: boolean } | null; top: Ev['top']; bottom: Ev['bottom'] }[]; slides: number; gifts: { species: string; ok: boolean }[]; bad: string[] };
 const ta = (page: Page) => page.evaluate(() => (window as unknown as { __ta: Ta }).__ta);
 
 async function fresh(browser: Browser, store: Record<string, unknown>, slow = false): Promise<{ context: BrowserContext; page: Page }> {
@@ -320,19 +327,26 @@ test.describe('trainer art', () => {
     await context.close();
   });
 
-  test('4 no silhouettes: the Champion, the Hall of Fame, and reward lines with Oak', async ({ browser }) => {
+  test('4 no silhouettes: the Champion, the Hall of Fame, and a rival win with its gift card', async ({ browser }) => {
     test.setTimeout(420_000);
     const { context, page } = await fresh(browser, blue({ ...SAVE, caught: { bulbasaur: 1, venusaur: 1 }, team: { k: 'venusaur' } }));
     await boot(page);
     await page.getByTestId('kanto').click();
-    // Rival 1's win gives a gift (a reward line with Oak): Oak is drawn, and he slides in once per sequence.
+    // Rival 1's win and its gift. J4 (Fix, 13 Oct) made the gift a card, the Pokémon with OAK's line under it, where
+    // OAK stood beside story lines before (merge review, 14 Oct: this check still waited for him). BLUE stands beside
+    // his defeat quote, drawn, and slides in once for the whole sequence; the card's SQUIRTLE (the starter neither of
+    // them took) is drawn the moment the card goes in.
     await kc(page, 'enterPlace', 'rival-1');
-    await playThrough(page, async () => (await page.locator('.overlay .story-trainer img[data-trainer="oak"]').count()) > 0);
-    await drawnTrainers(page, '.overlay .story-trainer');
-    const slidesAtGift = (await ta(page)).slides;
-    for (let i = 0; i < 6 && (await page.getByTestId('story').isVisible().catch(() => false)); i++) await page.getByTestId('story').click().catch(() => undefined);
-    expect((await ta(page)).slides, 'a story trainer slid in again within one sequence').toBe(slidesAtGift);
+    const quote = "BLUE: What? I picked the strong one! ...Fine. Next time it's mine.";
+    await playThrough(page, async () => (await page.locator('.overlay [data-testid="story-text"]').allTextContents()).includes(quote));
+    expect(await drawnTrainers(page, '.overlay .story-trainer')).toEqual(['blue-gen1']);
+    const slidesAtQuote = (await ta(page)).slides;
+    await page.getByTestId('story').click();
+    await expect(page.getByTestId('gift-card')).toContainText("OAK: Here's a partner for you too. SQUIRTLE wanted to come along!");
+    expect((await ta(page)).gifts).toEqual([{ species: 'squirtle', ok: true }]);
+    expect(await page.locator('#app .trainer-sprite.sil').count(), 'silhouettes').toBe(0);
     await playThrough(page);
+    expect((await ta(page)).slides, 'a story trainer slid in again within one sequence').toBe(slidesAtQuote);
     // The Champion's card: BLUE in his Champion art.
     await kc(page, 'enterPlace', 'champion');
     for (let i = 0; i < 4 && !(await page.getByTestId('trainer-intro').isVisible()); i++) await page.getByTestId('story').click();
