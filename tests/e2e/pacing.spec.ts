@@ -3,7 +3,7 @@
 // can skip after HOLD_MIN_MS, cards that ignore a double tap, the solve and win beats, the board that never moves,
 // reduced motion and RTL. Real timings, measured in the page (performance.now() and a MutationObserver).
 import { expect, test, type Page } from '@playwright/test';
-import { AREA_IN_MS, BATTLE_IN_MS, BOARD_DIP_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVED_STAMP_MS, SOLVE_BEAT_MS, TRAINER_SPOT_MS } from '../../src/config';
+import { AREA_IN_MS, BATTLE_IN_MS, BOARD_DIP_MS, CARD_GUARD_MS, COVER_LABEL_MS, END_HOLD_MS, HOLD_MIN_MS, MAP_STAMP_DELAY_MS, MOVE_SLIDE_MS, REDUCED_FADE_MS, SCREEN_IN_MS, SOLVED_STAMP_MS, SOLVE_BEAT_MS, TRAINER_SPOT_MS } from '../../src/config';
 import { noTransition, ready, settled, skipHold, tapInGuard } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
@@ -498,14 +498,14 @@ test.describe('the win, in order, then the map', () => {
     test(`a town just cleared: its CLEARED stamp is hidden until it ${reduce ? 'fades in (reduced motion)' : 'slams in'}`, async ({ page }) => {
       if (reduce) await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.addInitScript((testid) => {
-        const w = window as unknown as { __stamp: { shown: boolean; now: boolean; opacity: number }[] };
+        const w = window as unknown as { __stamp: { t: number; shown: boolean; now: boolean; opacity: number }[] };
         w.__stamp = [];
         const tick = () => {
           const row = document.querySelector<HTMLElement>(`[data-testid="${testid}"]`);
           const s = row?.querySelector<HTMLElement>('.stamp');
           if (row && s) {
             const cs = getComputedStyle(s);
-            w.__stamp.push({ opacity: Number(cs.opacity), shown: cs.visibility !== 'hidden' && Number(cs.opacity) > 0, now: row.classList.contains('stamp-now') });
+            w.__stamp.push({ t: performance.now(), opacity: Number(cs.opacity), shown: cs.visibility !== 'hidden' && Number(cs.opacity) > 0, now: row.classList.contains('stamp-now') });
           }
           requestAnimationFrame(tick);
         };
@@ -522,9 +522,9 @@ test.describe('the win, in order, then the map', () => {
       await page.getByTestId('town-card').click();
       await page.locator('[data-testid="place-viridian"].stamp-now').waitFor({ state: 'attached' });
       await settled(page);
-      const f = await page.evaluate(() => (window as unknown as { __stamp: { shown: boolean; now: boolean; opacity: number }[] }).__stamp);
+      const f = await page.evaluate(() => (window as unknown as { __stamp: { t: number; shown: boolean; now: boolean; opacity: number }[] }).__stamp);
       const at = f.findIndex((x) => x.now);
-      expect(at).toBeGreaterThan(5); // the reveal's frames, then the stamp
+      expect(f[at]!.t - f[0]!.t).toBeGreaterThanOrEqual(MAP_STAMP_DELAY_MS - 20); // the reveal, then the delay (in ms: CI drew 5 frames in it)
       expect(f.slice(0, at).filter((x) => x.shown)).toEqual([]);
       expect(f.at(-1)).toMatchObject({ now: true, opacity: 1, shown: true });
     });
