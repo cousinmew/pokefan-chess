@@ -158,3 +158,10 @@
 - A smaller first download: only English ships at first, other languages load when chosen.
 - Every action answers in time: the Journey's evolutions, badges, catches, gifts and Training say what happened, in order; online rematches, a friend leaving or coming back, and a lost connection say what is going on.
 - The computer answers one request at a time, so a review and a game can no longer get each other's moves.
+
+## 2.14.0 (trust pass)
+
+- The splash credits the game without naming anyone, "Made by Cousin Mew for my little cousin", with "Free, unofficial fan project" under it.
+- The start menu and the first launch shelf end with "Free fan project · About · Source on GitHub"; the footer has About next to Source on GitHub.
+- A new About & privacy screen, from that row, OPTION and the footer: who made the game, that it is free with no advertising, accounts or tracking, what is stored and where, the source (AGPL-3.0), where to ask a question, the disclaimer and the version.
+- On short windows the start menu's items are a little smaller, so the new row fits, and the menu's top can no longer be cut off.
