@@ -633,9 +633,10 @@ test.describe('@perf J8: the first 24 Pokédex cells decode soon after the revea
 
 /** From MY TEAM's first frame, 2.5 s of frames: in each, how many rows show no painted Pokémon (the animation, or its Gen 1
  * placeholder fetched); 100 more while the 7 rows are not all there. */
-const teamFrames = (page: Page) =>
-  page.evaluate(async () => {
+const teamFrames = (page: Page, pick?: [string, string]) =>
+  page.evaluate(async (change) => {
     while (!document.querySelector('[data-testid="screen-team"]')) await new Promise((r) => requestAnimationFrame(r));
+    const sel = change && document.querySelector<HTMLSelectElement>(`[data-testid="team-${change[0]}"]`);
     const loaded = (url: string) => performance.getEntriesByName(new URL(url, location.href).href).some((e) => (e as PerformanceResourceTiming).responseEnd > 0);
     const painted = (i: HTMLImageElement) => (i.complete && i.naturalWidth > 0) || loaded(/url\("?([^")]+)"?\)/.exec(i.style.backgroundImage)?.[1] ?? 'about:blank');
     const out: number[] = [];
@@ -643,10 +644,14 @@ const teamFrames = (page: Page) =>
     while (performance.now() - t0 < 2500) {
       const rows = [...document.querySelectorAll('.team-row')];
       out.push(rows.filter((r) => { const i = r.querySelector('img'); return !i || !painted(i); }).length + (rows.length === 7 ? 0 : 100));
+      if (sel && out.length === 1) {
+        sel.value = change[1]; // a pick, one frame in
+        sel.dispatchEvent(new Event('change'));
+      }
       await new Promise((r) => requestAnimationFrame(r));
     }
     return out;
-  });
+  }, pick);
 const noEmptyRow = (frames: number[]) => {
   expect(frames.length).toBeGreaterThan(10);
   expect({ frames: frames.length, withAnEmptyRow: frames.filter((n) => n > 0).length, mostEmpty: Math.max(...frames) }).toMatchObject({ withAnEmptyRow: 0 });
@@ -654,7 +659,7 @@ const noEmptyRow = (frames: number[]) => {
 
 test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every frame', async ({ page }) => {
   test.setTimeout(60_000);
-  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey' } });
+  await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1, caterpie: 1 }, team: { p: 'pidgey' } });
   await throttle(page, SLOW_4G, 4);
   await page.getByTestId('kanto').click();
   await expect(page.getByTestId('screen-map')).toBeVisible();
@@ -664,6 +669,9 @@ test('J9: Slow 4G cold, every My Team row shows a painted Pokémon in every fram
   await page.waitForTimeout(1500);
   await page.getByTestId('open-team').click();
   noEmptyRow(await teamFrames(page));
+  // Merge review, 14 Oct: a new pick's preview was an empty box for about 0.6 s (its placeholder one round trip away).
+  noEmptyRow(await teamFrames(page, ['p', 'caterpie']));
+  await expect(page.locator('.team-row:has([data-testid="team-p"]) img')).toHaveAttribute('data-species', 'caterpie');
 });
 
 // Review (R2): only the map fetched the placeholders, so MY TEAM straight from the hub tile (the audit's own path) still

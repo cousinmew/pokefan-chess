@@ -3,7 +3,7 @@
 // battle context), towns, tall grass encounters, the Trainer Card, Training, the Pokédex with candy, and My Team.
 import { BADGE_IN_MS, DRILL_LEVEL, GYM_NEED_EARLY, GYM_NEED_LATE, PLAYTIME_TICK_MS, TEAM_PREVIEW_WAIT_MS, WIN_BEAT_MS } from '../config';
 import type { CoverKind } from '../ui/transitions';
-import { defaultSpecies, SPECIES } from '../board/pieces';
+import { defaultSpecies, SPECIES, spriteUrl } from '../board/pieces';
 import { prefetchEvolutions } from '../battle/overlay';
 import { preloadNow } from '../ui/loader';
 import { stageEvolutions, stageFor } from '../board/stages';
@@ -13,7 +13,7 @@ import { sound } from '../audio/audio';
 import { music } from '../audio/music';
 import { createRng } from '../game/rng';
 import { fmt } from '../game/text';
-import { battleArt, cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, giftCard, goalCard, hofScreen, textGoalCard, nameScreen, oakScreen, story, teamArt, teamScreen, trainerIntro, trainerSrc, trainingScreen } from '../ui/kanto';
+import { battleArt, cardScreen, choiceScreen, dexDetail, dexScreen, encounterPanel, giftCard, goalCard, hofScreen, textGoalCard, nameScreen, oakScreen, story, teamArt, teamOptionArt, teamScreen, trainerIntro, trainerSrc, trainingScreen } from '../ui/kanto';
 import { badgeCard, mapScreen, placeCard, routeScreen, tapCard, winCard } from '../ui/journeyMap';
 import { trainerSpot } from '../ui/cards';
 import { exampleOf, lessonScreen, oakIntro } from '../ui/lesson';
@@ -23,8 +23,9 @@ import type { StringKey } from '../game/text';
 import { toast } from '../ui/dom';
 import { currentSlot, isGuest, PLAYER_TRAINER, save } from '../store/persist';
 import { addCatch, addPlayTime, awardMew, catchGains, championLevel, chooseStarter, DEX, EVOLUTIONS, evolutionsOf, evolve, evolveCost, familyOf, loadCampaign, markSeen, recordRoute, rivalSkin, rollEncounter, saveCampaign, sendToOak, starsOf, STARTERS, throwBall, tradeEvolve, type Campaign, type Route } from './kanto';
-import { beatTrainer, clearPlace, goalLine, nextGoal, nextTrainer, PLACES, placeCleared, placeName, RIVAL, routeOf, teamOf, themesFor, trainerName, trainingThemes, visit, WARMUP_PLACE, type Drill, type Place, type Trainer } from './journey';
-import { warmup, type WarmupHost } from './warmup';
+import { beatTrainer, clearPlace, goalLine, nextGoal, nextTrainer, PLACES, placeCleared, placeName, RIVAL, routeOf, themesFor, trainerName, trainingThemes, visit, WARMUP_PLACE, type Drill, type Place, type Trainer } from './journey';
+import { FIRST_CATCH, warmup, type WarmupHost } from './warmup';
+import { partyOf } from './rivalTeam';
 import { THEMES } from './trainer';
 import type { PuzzleGame } from './puzzleGame';
 import type { Challenge } from '../main';
@@ -165,8 +166,10 @@ export class JourneyGame {
     const show = () => {
       if (shown) return;
       shown = true;
-      this.host.show(teamScreen(this.campaign, (team) => this.set({ ...this.campaign, team }), () => this.exit(), () => this.set({ ...this.campaign, teamNotice: [] })));
+      const ahead = (urls: string[]) => this.fetchAhead(urls);
+      this.host.show(teamScreen(this.campaign, (team) => this.set({ ...this.campaign, team }), () => this.exit(), () => this.set({ ...this.campaign, teamNotice: [] }), ahead));
       this.host.uncover();
+      void ahead(teamOptionArt(this.campaign)); // then every other pick's placeholder, for a change (merge review, 14 Oct)
     };
     void this.host.cover('screen');
     void this.fetchAhead(teamArt(this.campaign)).then(show);
@@ -249,7 +252,10 @@ export class JourneyGame {
 
   private warmup(then: () => void): void {
     this.host.puzzle.stop();
-    warmup({ modal: this.host.modal, path: this.host.path, campaign: () => this.campaign, set: (c) => this.set(c), rng: this.rng, oak: personSprite('oak') }, then);
+    // The first catch's front from Route 1's tap (merge review, 14 Oct): idle work waited for the warm-up boards' own
+    // sprites and shared Slow 4G with the engine's first load, so PIDGEY's panel opened on an empty box.
+    const art = this.fetchAhead([spriteUrl(SPECIES[FIRST_CATCH]!.dex, 'front')]);
+    warmup({ modal: this.host.modal, path: this.host.path, campaign: () => this.campaign, set: (c) => this.set(c), rng: this.rng, oak: personSprite('oak'), art }, then);
   }
 
   /** A trainer's sprite: a named person, "-" for none, else the class sprite. */
@@ -288,7 +294,7 @@ export class JourneyGame {
         this.battle(p, t);
       });
     }
-    const team = teamOf(this.campaign, t);
+    const team = partyOf(this.campaign, t); // a rival's never brings a species of your side (merge review, 14 Oct)
     this.set(markSeen(this.campaign, team));
     music.play('battle');
     void pool(theme).catch(() => undefined); // the puzzles load while the cards show (pacing A7)
@@ -368,7 +374,7 @@ export class JourneyGame {
       banner: text,
       // The trainer you are battling stands on the top plate (W3, ux #5), not the story stage's Rocket trainer; a rival's
       // pieces are BLUE's team (J12), as his goal card and intro show it.
-      opponent: { sprite: this.spriteOf(t) ?? '', name: who, title: '', ...(p.kind === 'rival' ? { team: rivalSkin(teamOf(this.campaign, t)) } : {}) },
+      opponent: { sprite: this.spriteOf(t) ?? '', name: who, title: '', ...(p.kind === 'rival' ? { team: rivalSkin(partyOf(this.campaign, t)) } : {}) },
       onLeave: () => p.kind === 'route' ? this.showRoute(p) : this.showMap(),
       // The pip changes the moment a puzzle is decided (design J), before the review.
       onAttempt: (r) => {

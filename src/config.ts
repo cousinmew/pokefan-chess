@@ -178,3 +178,4 @@ export const PATH_NEW_MS = 900; // the newly opened lesson on the Path pulses tw
 export const CATCH_BEAT_MS = 1200; // Throw: the ball flies, wobbles and clicks shut (or pops open) before the result (J3); a hold, skippable after HOLD_MIN_MS
 export const CARD_SPRITE_WAIT_MS = 1500; // the story line before "wants to battle!" shows its ▼ once the card's sprites are in, waiting at most this long (J6)
 export const TEAM_PREVIEW_WAIT_MS = 350; // My Team waits under its cover at most this long for its previews' placeholders (J9; under COVER_LABEL_MS)
+export const TEAM_SWAP_WAIT_MS = 1000; // a changed My Team row keeps its old preview until the new one can paint, at most this long (merge review, 14 Oct)
