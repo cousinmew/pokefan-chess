@@ -111,9 +111,11 @@ test.describe('what a wait and a capture tap say', () => {
     await page.click('[data-square="e4"]');
     await page.click('[data-square="d5"]');
     await page.getByTestId('battle').waitFor({ state: 'visible', timeout: 30_000 });
-    const anims = await page.evaluate(() => (window as unknown as { __strike: { name: string; props: string[]; ms: number }[] }).__strike);
+    const strikes = () => page.evaluate(() => (window as unknown as { __strike: { name: string; props: string[]; ms: number }[] }).__strike);
+    // The tracker samples once a frame, and the battle can show before its next frame (CI once read it empty, 14 Oct).
+    await expect.poll(async () => (await strikes()).length, { message: 'the capture tap flashed its square', timeout: 5000 }).toBeGreaterThan(0);
+    const anims = await strikes();
     console.log(`reduced motion capture flash: ${JSON.stringify(anims)}`);
-    expect(anims.length, 'the capture tap flashed its square').toBeGreaterThan(0);
     expect(anims.filter((a) => a.props.some((x) => !['opacity', 'backgroundColor', 'visibility'].includes(x)))).toEqual([]);
     expect(anims.filter((a) => a.ms > 120)).toEqual([]);
     await context.close();

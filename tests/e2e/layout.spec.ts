@@ -150,6 +150,9 @@ test('@both a live resize keeps the game on screen: 1280x720, 1280x500, 600x900'
   await vsComputer(page);
   for (const [w, h] of [[1280, 720], [1280, 500], [600, 900]] as const) {
     await page.setViewportSize({ width: w, height: h });
+    // The fitter refits on the frame after the resize event; CI once measured before it (the 720 px board at 500, 14 Oct).
+    const edges = async () => ((b) => [b.x + b.width - w, b.y + b.height - h])((await page.getByTestId('board').boundingBox())!);
+    await expect.poll(async () => Math.max(...(await edges())), { message: `resize to ${w}x${h}: the board refits`, timeout: 3000 }).toBeLessThanOrEqual(0.5);
     await checkGame(page, `resize to ${w}x${h}`);
   }
 });
