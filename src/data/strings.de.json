@@ -126,7 +126,7 @@
   "online.swap": "Seiten tauschen",
   "online.you": "Du spielst {team}",
   "online.swapped": "Seiten getauscht: Du spielst jetzt {team}.",
-  "online.back": "Willkommen zurück! {turn}",
+  "online.welcome": "Willkommen zurück! {turn}",
   "caption.online": "Online",
   "react.0": "Guter Zug!",
   "react.1": "Hoppla!",

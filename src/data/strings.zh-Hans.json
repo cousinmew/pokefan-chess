@@ -126,7 +126,7 @@
   "online.swap": "交换阵营",
   "online.you": "你是{team}",
   "online.swapped": "交换阵营：现在你是{team}。",
-  "online.back": "欢迎回来！{turn}",
+  "online.welcome": "欢迎回来！{turn}",
   "caption.online": "在线",
   "react.0": "好棋！",
   "react.1": "哎呀！",

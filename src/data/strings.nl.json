@@ -126,7 +126,7 @@
   "online.swap": "Wissel van kant",
   "online.you": "Jij speelt met {team}",
   "online.swapped": "Kanten gewisseld: jij speelt nu met {team}.",
-  "online.back": "Welkom terug! {turn}",
+  "online.welcome": "Welkom terug! {turn}",
   "caption.online": "Online",
   "react.0": "Goede zet!",
   "react.1": "Oeps!",

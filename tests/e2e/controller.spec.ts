@@ -637,7 +637,7 @@ test.describe('C11: online rematch and resume', () => {
     const b2 = await bctx.newPage();
     await b2.goto(`./?debug=1${RELAY}&room=${code}`);
     await expect(b2.locator('[data-square="c4"]')).toHaveAttribute('data-piece', 'wb', { timeout: 10_000 });
-    await expect(b2.getByTestId('text-main')).toContainText('Welcome back!');
+    await expect(b2.getByTestId('text-main')).toHaveText('Welcome back! TEAM ROCKET to move'); // the whole line, its {turn} filled (online merge)
     await expect(b2.locator('.sq.last')).toHaveCount(2);
     expect(await b2.locator('.sq.last').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.square).sort())).toEqual(['c4', 'f1']);
   });

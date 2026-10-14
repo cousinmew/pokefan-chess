@@ -3,15 +3,16 @@
 import { DISCORD_URL, REPO_URL, TOAST_MS } from '../config';
 import { fmt, type StringKey } from '../game/text';
 
-export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: StringKey): HTMLElementTagNameMap[K] {
+/** `vars` fill the text's placeholders (a key with placeholders always gets its values: placeholders.test.ts). */
+export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: StringKey, vars?: Record<string, string>): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  if (text) e.textContent = fmt(text);
+  if (text) e.textContent = fmt(text, vars);
   return e;
 }
 
-export function button(text: StringKey, onClick: () => void, testid?: string, cls = ''): HTMLButtonElement {
-  const b = el('button', cls, text);
+export function button(text: StringKey, onClick: () => void, testid?: string, cls = '', vars?: Record<string, string>): HTMLButtonElement {
+  const b = el('button', cls, text, vars);
   b.type = 'button';
   if (testid) b.dataset.testid = testid;
   b.onclick = onClick;

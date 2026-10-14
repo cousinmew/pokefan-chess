@@ -126,7 +126,7 @@
   "online.swap": "Scambia i lati",
   "online.you": "Giochi con {team}",
   "online.swapped": "Lati scambiati: ora giochi con {team}.",
-  "online.back": "Bentornato! {turn}",
+  "online.welcome": "Bentornato! {turn}",
   "caption.online": "Online",
   "react.0": "Bella mossa!",
   "react.1": "Ops!",

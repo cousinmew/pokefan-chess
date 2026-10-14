@@ -210,6 +210,7 @@ function boot(): App {
       endGame.showEnd({ key }, won ? app.human : app.human === 'w' ? 'b' : 'w', won && !isGuest() ? journey.onlineWin() : []);
     },
     say: (key) => text.plain(fmt(key)),
+    prompt: () => text.plain(turnLine(game.turn())), // after "Your friend is back!", by the plates (online merge, 14 Oct)
     mySkin: () => journey.campaign.team,
     myLook: () => look(),
     applySkins: (skins, theirs) => {
@@ -557,7 +558,7 @@ function boot(): App {
         board.setLastMove(last.slice(0, 2), last.slice(2, 4));
         board.render();
       }
-      text.plain(resumed ? fmt('online.back', { turn: turnLine(game.turn()) }) : swapped || fmt('online.you', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }));
+      text.plain(resumed ? fmt('online.welcome', { turn: turnLine(game.turn()) }) : swapped || fmt('online.you', { team: fmt(human === 'w' ? 'team.red' : 'team.rocket') }));
       lockForTurn();
     };
     if (!rematch) return begin();

@@ -230,8 +230,7 @@ export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement
   }
   const count = line('route.trainers', { beaten: String(all.filter((t) => c.journey.beaten.includes(t.id)).length), total: String(all.length) }, 'small');
   count.dataset.testid = 'route-trainers';
-  const fight = next ? button('trainer.next', () => (warmEngine(), a.battle(next)), 'battle-trainer', 'primary') : line('trainer.cleared', undefined, 'cleared');
-  if (next) fight.textContent = fmt('trainer.next', { class: fmt(next.class), name: fmt(next.name) });
+  const fight = next ? button('trainer.next', () => (warmEngine(), a.battle(next)), 'battle-trainer', 'primary', { class: fmt(next.class), name: fmt(next.name) }) : line('trainer.cleared', undefined, 'cleared');
   const dex = el('div', 'dex-grid');
   for (const s of routeSpecies(r)) {
     const cell = el('div', 'dex-cell');

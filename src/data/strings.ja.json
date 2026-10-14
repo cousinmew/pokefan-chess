@@ -126,7 +126,7 @@
   "online.swap": "チームをいれかえる",
   "online.you": "きみは{team}",
   "online.swapped": "じんちを こうたい！ こんどは きみが{team}",
-  "online.back": "おかえり！ {turn}",
+  "online.welcome": "おかえり！ {turn}",
   "caption.online": "オンライン",
   "react.0": "いいて！",
   "react.1": "しまった！",

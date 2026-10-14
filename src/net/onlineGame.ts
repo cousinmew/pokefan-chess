@@ -2,7 +2,6 @@
 // Online game controller. The relay is the source of truth (V4): local moves are sent, and the board only
 // changes when a `state` arrives. A capture plays its battle locally on both screens from the state diff.
 import { CODE_RE, REACTION_COUNT, type Seat, type ServerMsg, type Skin, type Look } from '../../worker/src/protocol';
-import { lookOf } from '../board/pieces';
 import { currentLang, fmt, type StringKey } from '../game/text';
 import { button, el, toast } from '../ui/dom';
 import { message, waitingRoom } from '../ui/online';
@@ -10,7 +9,6 @@ import { OnlineClient } from './online';
 import type { App } from '../main';
 
 export const BACK_LINE_MS = 2000; // "Your friend is back!" stays this long, then your turn prompt (N6)
-export const ASKED_MARK_MS = 5000; // how long a friend's rematch request waits for the end panel to light its Rematch (N5)
 
 export interface OnlineHost {
   app: App;
@@ -23,6 +21,8 @@ export interface OnlineHost {
   /** Ends the game for a reason the board cannot see (timeout, resign). */
   endWith(key: StringKey): void;
   say(key: StringKey): void;
+  /** Says whose move it is, by the plate's name, as the header does (C8). */
+  prompt(): void;
   /** Your My Team skins, sent when joining. */
   mySkin(): Skin;
   /** Your story stage and trainer (§B18 items 5 and 8), sent when joining. */
@@ -49,7 +49,6 @@ export class OnlineGame {
   /** What the bar holds ('over' keeps the play row, hidden). */
   private mode: Exclude<BarMode, 'over'> | null = null;
   private backTimer = 0;
-  private askedMark = 0;
   readonly bar: HTMLElement;
   lastReject: string | null = null;
 
@@ -61,6 +60,19 @@ export class OnlineGame {
 
   get active(): boolean {
     return this.client !== null;
+  }
+
+  /** The end panel is being built (EndGame): true when the game is over and your friend asked for a rematch you have
+   * not answered, so its Rematch lights up (N5) however late the panel comes: START holds it back (C1) and OPTION's
+   * Back builds it again. The request is said again too, since a mate line held back by START comes after it; not
+   * once the friend has left ("Your friend left." stays). */
+  remindAsked(): boolean {
+    const s = this.last;
+    if (!s?.result || this.waiting) return false;
+    const them = other(s.you);
+    if (!s.seats[them].online || !s.rematch.includes(them) || s.rematch.includes(s.you)) return false;
+    this.host.say(s.swap ? 'online.rematchAskSwap' : 'online.rematchAsk');
+    return true;
   }
 
   /** `making`: the player who made the room, whose screen already says "Making a room..." (N9). */
@@ -85,7 +97,6 @@ export class OnlineGame {
     this.last = null;
     this.waiting = false;
     window.clearTimeout(this.backTimer);
-    this.askedMark++;
   }
 
   leave(): void {
@@ -172,7 +183,7 @@ export class OnlineGame {
       this.host.endWith(s.result.reason === 'timeout' ? (won ? 'online.timeoutWin' : 'online.timeoutLose') : won ? 'online.resignWin' : 'online.resignLose');
     } else if (!s.result && s.seats[them].taken && !s.seats[them].online) {
       this.host.say('online.away');
-    } else if (!s.result && back) this.friendBack(lookOf(app.game.turn()) === 'w' ? 'turn.red' : 'turn.rocket');
+    } else if (!s.result && back) this.friendBack(() => this.host.prompt());
     if (!s.result) {
       if (this.mode !== 'ask' || this.bar.classList.contains('net-over')) this.barMode('play');
       return;
@@ -180,33 +191,25 @@ export class OnlineGame {
     // The game is over: the reactions and Give up go (N8), a Menu stays while you wait for a rematch (N5).
     this.barMode(this.waiting ? 'wait' : 'over');
     if (gone) this.host.say('online.left');
-    else if (back && this.waiting) this.friendBack('online.rematchWait');
+    else if (back && this.waiting) this.friendBack(() => this.host.say('online.rematchWait'));
     else if (!this.waiting && s.rematch.includes(them) && !s.rematch.includes(s.you)) this.friendAsks(s);
     else if (back) this.host.say('online.back'); // back at the end screen: "Your friend left." would be stale
   }
 
-  /** Your friend is back (N6): said at once, then `then` (the turn prompt, or the rematch wait) unless something else
-   * was said meanwhile. */
-  private friendBack(then: StringKey): void {
+  /** Your friend is back (N6): said at once, then `then` (whose move it is, by the plates as the header says it, C8;
+   * or the rematch wait) unless something else was said meanwhile. */
+  private friendBack(then: () => void): void {
     const line = fmt('online.back');
     this.host.say('online.back');
     window.clearTimeout(this.backTimer);
-    this.backTimer = window.setTimeout(() => this.host.app.text.el.querySelector('.tb-main')?.textContent === line && this.host.say(then), BACK_LINE_MS);
+    this.backTimer = window.setTimeout(() => this.host.app.text.el.querySelector('.tb-main')?.textContent === line && then(), BACK_LINE_MS);
   }
 
-  /** Your friend asked for a rematch (N5): said in your text box, and the end panel's Rematch lights up (once it is
-   * there: after a mate it comes when the end hold is over). */
+  /** Your friend asked for a rematch (N5): said in your text box, and the end panel's Rematch lights up, now if it is
+   * there, else when it is built (remindAsked: after a mate it comes when the end hold is over, or when START closes). */
   private friendAsks(s: State): void {
     this.host.say(s.swap ? 'online.rematchAskSwap' : 'online.rematchAsk');
-    const n = ++this.askedMark;
-    const until = performance.now() + ASKED_MARK_MS;
-    const mark = () => {
-      if (n !== this.askedMark) return;
-      const b = document.querySelector('[data-testid="rematch"]');
-      if (b) b.classList.add('asked');
-      else if (performance.now() < until) window.requestAnimationFrame(mark);
-    };
-    mark();
+    document.querySelector('[data-testid="rematch"]')?.classList.add('asked');
   }
 
   /** Built again when the mode or the language changes; a button that had the focus hands it to the new row (Give up's

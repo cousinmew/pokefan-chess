@@ -45,13 +45,15 @@ export interface EndActions {
   winner?: string;
   /** What the game brought, after the lines: YELLOW's new stickers (C5). */
   extra?: HTMLElement[];
+  /** Online: the friend asked for a rematch, so Rematch stands out (N5), however late the panel is built. */
+  asked?: boolean;
 }
 
 export function endPanel(line: Line, a: EndActions): HTMLElement {
   const panel = el('div', 'panel end');
   panel.dataset.testid = 'end-screen';
   panel.dataset.endKey = line.key;
-  const p = el('p', '', line.key);
+  const p = el('p', '', line.key, line.vars);
   p.dataset.testid = 'end-text';
   const won = el('p', 'end-winner');
   won.dataset.testid = 'end-winner';
@@ -61,7 +63,7 @@ export function endPanel(line: Line, a: EndActions): HTMLElement {
   if (line.caption && a.captions) cap.textContent = fmt(line.caption);
   const row = el('div', 'end-buttons');
   const box = el('input');
-  row.append(button('end.rematch', () => a.rematch(box.checked), 'rematch'), button('end.menu', a.menu, 'end-menu'));
+  row.append(button('end.rematch', () => a.rematch(box.checked), 'rematch', a.asked ? 'asked' : ''), button('end.menu', a.menu, 'end-menu'));
   panel.append(p, won, ...(a.extra ?? []), cap);
   if (a.online) {
     const swap = el('label', 'swap');

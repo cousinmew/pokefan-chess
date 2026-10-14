@@ -351,8 +351,7 @@ export function dexDetail(c: Campaign, id: string, a: DexActions, note?: string,
   const fam = familyOf(id);
   const rows = el('div', 'buttons');
   for (const e of evolutionsOf(id)) {
-    const b = button('dex.evolve', () => a.evolve(e), `evolve-${e.to}`);
-    b.textContent = fmt('dex.evolve', { to: SPECIES[e.to]!.name, cost: String(evolveCost(e)) });
+    const b = button('dex.evolve', () => a.evolve(e), `evolve-${e.to}`, '', { to: SPECIES[e.to]!.name, cost: String(evolveCost(e)) });
     b.disabled = (c.candy[fam] ?? 0) < evolveCost(e);
     rows.append(b);
   }

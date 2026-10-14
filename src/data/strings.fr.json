@@ -126,7 +126,7 @@
   "online.swap": "Changer de camp",
   "online.you": "Tu joues avec {team}",
   "online.swapped": "Camps échangés : tu joues avec {team} maintenant.",
-  "online.back": "Bon retour ! {turn}",
+  "online.welcome": "Bon retour ! {turn}",
   "caption.online": "En ligne",
   "react.0": "Beau coup !",
   "react.1": "Oups !",

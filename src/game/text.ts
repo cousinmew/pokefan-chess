@@ -53,9 +53,18 @@ export const keyOfText = (text: string) => shown.get(text.trim());
 /** A string as written in a language file (English, or the current language), before any value is filled in. */
 export const rawString = (key: StringKey, inLang?: 'en') => (inLang === 'en' ? strings[key] : (dict[key] ?? strings[key]));
 
+/** A string with its values filled in. A value that is missing is left out with the space before it, never shown as
+ * "{turn}" (online merge, 14 Oct: the friend's return read "Welcome back! {turn}"; tests/unit/placeholders.test.ts). */
 export function fmt(key: StringKey, vars: Vars = {}): string {
   const text = dict[key] ?? strings[key];
-  const out = text.replace(/\{(\w+)\}/g, (_, k: string) => (vars[k] === undefined ? `{${k}}` : isolate(vars[k]!)));
+  let gap = false;
+  const filled = text.replace(/( ?)\{(\w+)\}/g, (_, space: string, k: string) => {
+    const v = vars[k];
+    if (v !== undefined) return space + isolate(v);
+    gap = true;
+    return '';
+  });
+  const out = gap ? filled.trim() : filled;
   if (recording) shown.set(out.trim(), key);
   return out;
 }
