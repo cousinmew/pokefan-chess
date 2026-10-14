@@ -184,7 +184,8 @@ export class EndGame {
     const rematch = (swap: boolean) => ((modal.hidden = true), app.mode === 'online' ? ((away.panel = null), app.online.rematch(swap)) : this.h.startGame({ mode: app.mode, human: app.human, level: app.level }));
     const extra = stickers.map((id) => stickerLine(id, SPECIES[id]!.name));
     modal.onclick = null;
-    modal.replaceChildren(endPanel(line, { captions: app.settings.captions, online: app.mode === 'online', rematch, menu: () => this.h.goTitle(), winner, extra }));
+    const asked = app.mode === 'online' && app.online.remindAsked(); // the friend's request, however late the panel comes
+    modal.replaceChildren(endPanel(line, { captions: app.settings.captions, online: app.mode === 'online', rematch, menu: () => this.h.goTitle(), winner, extra, asked }));
     modal.hidden = false;
     away.panel = () => this.panel(line, winner, stickers); // back from OPTION, the end screen is still there (bugs #7)
   }

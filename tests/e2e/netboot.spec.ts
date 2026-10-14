@@ -317,6 +317,10 @@ const recordLines = (p: Page) =>
   });
 const lines = (p: Page) => p.evaluate(() => (window as unknown as { lines: [number, string][] }).lines);
 const epoch = (p: Page) => p.evaluate(() => performance.timeOrigin + performance.now());
+/** Placeholders on screen now or in the recorded lines: "Welcome back! {turn}" reached the friend's return when two
+ * groups both added "online.back" (online merge, 14 Oct). Always []. */
+const holes = (p: Page) =>
+  p.evaluate(() => [document.body.innerText, ...((window as unknown as { lines?: [number, string][] }).lines ?? []).map(([, t]) => t)].flatMap((t) => t.match(/\{\w+\}/g) ?? []));
 
 async function createRoom(browser: Browser, before?: (a: Page) => Promise<unknown>, viewport?: Size): Promise<{ a: Page; code: string }> {
   const a = await newPage(browser, viewport);
@@ -392,14 +396,14 @@ test.describe('Online (N5 to N9)', () => {
     // A waits with a way out.
     await expect(a.getByTestId('text-main')).toHaveText(WAIT);
     await expect(a.getByTestId('online-menu')).toBeVisible();
-    // B says yes: neither screen shows the waiting line from then on.
+    // B says yes: neither screen shows the waiting line from then on. The new game says the sides swapped (C11): A
+    // now plays black, B white.
     await recordLines(a);
     await b.getByTestId('rematch').click();
-    for (const p of [a, b]) await expect(p.getByTestId('text-main')).toHaveText(/^You play /, { timeout: 8000 });
+    for (const [p, line] of [[a, 'Sides swapped: you play TEAM ROCKET now.'], [b, 'Sides swapped: you play TEAM RED now.']] as const) await expect(p.getByTestId('text-main')).toHaveText(line, { timeout: 8000 });
     for (const p of [a, b]) expect((await lines(p)).map(([, t]) => t)).not.toContain(WAIT);
     await expect(a.getByTestId('online-menu')).toBeHidden();
-    // Sides swapped: A now plays black.
-    await expect(a.getByTestId('text-main')).toHaveText('You play TEAM ROCKET');
+    for (const p of [a, b]) expect(await holes(p)).toEqual([]);
   });
 
   test('N5 the friend leaves instead: the asker is told and taps Menu', async ({ browser }) => {
@@ -422,10 +426,12 @@ test.describe('Online (N5 to N9)', () => {
     await b.getByTestId('end-menu').click();
     await expect(a.getByTestId('text-main')).toHaveText('Your friend left.', { timeout: 5000 });
     // B opens the room again, without asking for a rematch: A is told B is back.
+    await recordLines(a);
     const b2 = await ctx.newPage();
     await b2.goto(`./?debug=1${RELAY}&room=${code}`);
     await expect(b2.locator('#board')).toBeVisible({ timeout: 10_000 });
     await expect(a.getByTestId('text-main')).toHaveText('Your friend is back!', { timeout: 5000 });
+    for (const p of [a, b2]) expect(await holes(p)).toEqual([]);
     // B leaves again; A asks anyway: told B is gone, with Menu, never "Waiting for your friend to say yes...".
     await b2.close();
     await expect(a.getByTestId('text-main')).toHaveText('Your friend left.', { timeout: 5000 });
@@ -434,6 +440,59 @@ test.describe('Online (N5 to N9)', () => {
     await expect(a.getByTestId('online-menu')).toBeVisible();
     await expect(a.getByTestId('text-main')).toHaveText('Your friend left.');
     expect((await lines(a)).map(([, t]) => t)).not.toContain(WAIT);
+  });
+
+  test('N5 with C1: a request that comes while START holds back your end panel still lights its Rematch', async ({ browser }) => {
+    test.setTimeout(60_000);
+    const { a, b } = await pair(browser);
+    // A fool's mate: B wins. A opens START in the mate's end hold (as the mate line shows), so A's end panel waits
+    // (C1), and reads OPTION.
+    await play(a, b, 'f2f3');
+    await play(b, a, 'e7e5');
+    await play(a, b, 'g2g4');
+    await a.evaluate(() =>
+      new MutationObserver((_, o) => {
+        if (!/blacked out/.test(document.querySelector('[data-testid="text-main"]')?.textContent ?? '')) return;
+        o.disconnect();
+        document.querySelector<HTMLElement>('[data-testid="start-button"]')!.click();
+      }).observe(document.body, { subtree: true, childList: true, characterData: true }),
+    );
+    await play(b, a, 'd8h4');
+    await a.getByTestId('start-menu-option').click();
+    await expect(a.getByTestId('screen-settings')).toBeVisible();
+    // B asks for a rematch meanwhile, while A's end panel is not built yet.
+    await ended(b);
+    await b.getByTestId('rematch').click();
+    await expect(b.getByTestId('text-main')).toHaveText(WAIT);
+    await a.waitForTimeout(6000); // A reads OPTION for a while (the request used to light only a panel built within 5 s)
+    await a.getByTestId('back').click();
+    await expect(a.getByTestId('end-screen')).toBeVisible({ timeout: 8000 });
+    await expect(a.getByTestId('rematch')).toHaveClass(/asked/);
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend wants a rematch!');
+  });
+
+  test('N5 with C1: START open when the mate comes; the request is still what the text box says with the end panel', async ({ browser }) => {
+    test.setTimeout(60_000);
+    const { a, b } = await pair(browser);
+    await play(a, b, 'f2f3');
+    await play(b, a, 'e7e5');
+    await play(a, b, 'g2g4');
+    // A opens START while B thinks; B mates and asks for a rematch while A's game waits under START (C1).
+    await a.getByTestId('start-button').click();
+    await expect(a.getByTestId('start-menu-close')).toBeVisible();
+    await b.click('[data-square="d8"]');
+    await b.click('[data-square="h4"]');
+    await ended(b);
+    await b.getByTestId('swap-sides').check();
+    await b.getByTestId('rematch').click();
+    await expect(b.getByTestId('text-main')).toHaveText(WAIT);
+    // A closes START: the mate, its line and the end hold come now, and the request after them.
+    await recordLines(a);
+    await a.getByTestId('start-menu-close').click();
+    await ended(a);
+    await expect(a.getByTestId('rematch')).toHaveClass(/asked/);
+    await expect(a.getByTestId('text-main')).toHaveText('Your friend wants a rematch! (sides swap)');
+    expect((await lines(a)).map(([, t]) => t)).toContain('PIKACHU fainted! RED blacked out!'); // the mate line came first
   });
 
   test('N8 Give up\'s question and the rematch wait keep the bar\'s place: the board does not move (360x640)', async ({ browser }) => {
@@ -477,8 +536,12 @@ test.describe('Online (N5 to N9)', () => {
     const back = await epoch(b2);
     await expect.poll(async () => (await lines(a)).some(([t, s]) => s === 'Your friend is back!' && t <= back + 1000), { timeout: 3000 }).toBe(true);
     await expect(a.getByTestId('text-main')).not.toHaveText(/lost connection/);
-    // Then the prompt: black to move.
-    await expect(a.getByTestId('text-main')).toHaveText('TEAM ROCKET to move', { timeout: 5000 });
+    // Then the prompt: black to move, by the friend's plate as the header says it (C8: BLUE, the second RED seat).
+    await expect(a.getByTestId('text-main')).toHaveText('BLUE to move', { timeout: 5000 });
+    await expect(a.getByTestId('turn')).toHaveText('BLUE to move');
+    // The friend's own screen welcomes them back with the turn line filled in (C11), their own turn.
+    await expect(b2.getByTestId('text-main')).toHaveText('Welcome back! TEAM ROCKET to move');
+    for (const p of [a, b2]) expect(await holes(p)).toEqual([]);
     await play(b2, a, 'e7e5');
   });
 

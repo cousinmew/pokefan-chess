@@ -126,7 +126,7 @@
   "online.swap": "Поменяться сторонами",
   "online.you": "Ты играешь: {team}",
   "online.swapped": "Стороны поменялись. Теперь ты играешь: {team}.",
-  "online.back": "С возвращением! {turn}",
+  "online.welcome": "С возвращением! {turn}",
   "caption.online": "Онлайн",
   "react.0": "Хороший ход!",
   "react.1": "Ой!",
