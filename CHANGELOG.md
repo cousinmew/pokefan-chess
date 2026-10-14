@@ -152,3 +152,8 @@
 - INSTALL FOR OFFLINE PLAY in OPTION (Android, Windows and other Chrome or Edge browsers; steps for iPhone).
 - vs Computer levels are named Easy to Super hard; the trainer shown is the one you face.
 - Fixed: the computer stalling after OPTION, old popups acting in a later game, renames being undone, a wrong move in a lesson hiding its goal.
+- Screens, cards and boards open once their art is drawn (with a cap and a "Loading Pokémon…" line on a slow connection), so no square is blank when you can move; capture battles start with both Pokémon drawn.
+- Sprites and cries load in the order you need them: the next board's teams, your My Team and YELLOW's mascots first; the Pokédex and sticker book load only what is on screen. Cries play with their moment, and a cry that would come late is skipped.
+- A smaller first download: only English ships at first, other languages load when chosen.
+- Every action answers in time: the Journey's evolutions, badges, catches, gifts and Training say what happened, in order; online rematches, a friend leaving or coming back, and a lost connection say what is going on.
+- The computer answers one request at a time, so a review and a game can no longer get each other's moves.
