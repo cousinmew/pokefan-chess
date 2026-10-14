@@ -9,7 +9,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   // In CI the github reporter also turns each failure into an annotation on the PR (readable without the job log).
   reporter: process.env.CI ? [['line'], ['github']] : 'line',
-  retries: 0,
+  // CI only: one retry for a timing check on a shared runner (identical code failed four different ones across three
+  // runs, 14 Oct). A real failure fails twice; a pass on the retry is still reported as flaky.
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: live ?? 'http://localhost:4173',
     // The offline service worker would bypass page.route mocks; the PWA test opts back in.

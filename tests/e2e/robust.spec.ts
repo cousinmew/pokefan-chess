@@ -19,6 +19,8 @@ const move = async (page: Page, from: string, to: string) => {
   await page.click(`[data-square="${to}"]`);
 };
 /** A click no matter what covers it: the way a tap reached START before the fix (S over a card). */
+// Waits for the computer's move: a stall never comes, a busy CI runner's first engine move can (over 5 s once, 14 Oct).
+const MOVED = { timeout: 15_000 };
 const forceClick = (page: Page, testid: string) => page.evaluate((id) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`)!.click(), testid);
 
 async function vsComputer(page: Page, team: 'red' | 'rocket') {
@@ -44,10 +46,10 @@ test.describe('bugs #7: back from OPTION, the game goes on', () => {
     await expect(page.getByTestId('screen-settings')).toBeVisible();
     await page.getByTestId('back').click();
     await expect(page.getByTestId('screen-game')).toBeVisible();
-    await expect.poll(async () => (await state(page)).turn, { timeout: 5000 }).toBe('w');
+    await expect.poll(async () => (await state(page)).turn, MOVED).toBe('w');
     await move(page, 'd2', 'd4');
     await expect(page.locator('[data-square="d4"]')).toHaveAttribute('data-piece', 'wp');
-    await expect.poll(async () => (await state(page)).turn, { timeout: 5000 }).toBe('w');
+    await expect.poll(async () => (await state(page)).turn, MOVED).toBe('w');
   });
 
   test('the same when OPTION stays open longer than the computer thinks', async ({ page }) => {
@@ -60,7 +62,7 @@ test.describe('bugs #7: back from OPTION, the game goes on', () => {
     await page.waitForTimeout(1500);
     expect((await state(page)).turn).toBe(behind); // nothing moves behind OPTION
     await page.keyboard.press('Escape');
-    await expect.poll(async () => (await state(page)).turn, { timeout: 5000 }).toBe('w');
+    await expect.poll(async () => (await state(page)).turn, MOVED).toBe('w');
     await move(page, 'd2', 'd4');
     await expect(page.locator('[data-square="d4"]')).toHaveAttribute('data-piece', 'wp');
   });
@@ -71,7 +73,7 @@ test.describe('bugs #7: back from OPTION, the game goes on', () => {
     await page.getByTestId('start-menu-option').click();
     await page.waitForTimeout(1600); // the card's own timer ends while OPTION is open
     await page.getByTestId('back').click();
-    await expect.poll(async () => (await state(page)).turn, { timeout: 5000 }).toBe('b');
+    await expect.poll(async () => (await state(page)).turn, MOVED).toBe('b');
     await move(page, 'e7', 'e5');
     await expect(page.locator('[data-square="e5"]')).toHaveAttribute('data-piece', 'bp');
   });
