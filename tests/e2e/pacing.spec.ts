@@ -137,9 +137,9 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
       }
       const want: Record<string, number> = { screen: SCREEN_IN_MS, area: AREA_IN_MS, battle: BATTLE_IN_MS };
       expect(reveals.map((r) => r.kind)).toEqual(expect.arrayContaining(['screen', 'area', 'battle']));
-      // A reveal is never cut short. It starts on the next painted frame, so a busy machine may end it late: CI's
-      // emulated iPhone (WebKit) took ~230 ms to paint the map at 1280x800, with the cover fully up meanwhile.
-      const late = test.info().project.name.startsWith('webkit') ? 600 : 150;
+      // Never cut short. A busy machine may end it late (first paint, then the fade's promise): CI's emulated iPhone
+      // painted the map 230 ms late; a 27-minute 4-worker run ended Chromium's 188 ms late (12/12 alone under load).
+      const late = test.info().project.name.startsWith('webkit') ? 600 : 300;
       for (const r of reveals.filter((x) => want[x.kind])) {
         expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeGreaterThanOrEqual(-50);
         expect(r.ms - want[r.kind]!, JSON.stringify(r)).toBeLessThanOrEqual(late);
