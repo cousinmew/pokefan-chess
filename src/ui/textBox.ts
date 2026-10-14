@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Gen 1 style text box: flavour line, teaching caption, blinking tick.
 import { fmt, type Line } from '../game/text';
+import { oneLine } from '../game/lines';
 
 export class TextBox {
   readonly el: HTMLElement;
@@ -20,7 +21,7 @@ export class TextBox {
 
   show(lines: Line[]): void {
     if (!lines.length) return;
-    if (this.oneLine) lines = lines.slice(0, 1);
+    if (this.oneLine) lines = oneLine(lines); // a capture that checks says the check (C4, 14 Oct)
     this.lastKeys = lines.map((l) => l.key);
     this.main.textContent = lines.map((l) => fmt(l.key, l.vars)).join(' ');
     const caps = lines.flatMap((l) => (l.caption ? [fmt(l.caption)] : []));

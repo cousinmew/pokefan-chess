@@ -18,13 +18,22 @@ export const RTL: readonly Lang[] = ['he'];
 /** No spaces between words: YELLOW's limit is 16 characters, and inserted names must never break across lines. */
 export const CJK: readonly Lang[] = ['ja', 'zh-Hans'];
 
-const dicts = import.meta.glob<Record<string, string>>('../data/strings.*.json', { eager: true, import: 'default' });
+// N1 (14 Oct): only English is in the entry bundle; every other table is its own chunk, fetched once by loadStrings
+// (src/i18n.ts loadLanguage: before boot for the device's saved languages, on demand from the language picker).
+const loaders = import.meta.glob<Record<string, string>>(['../data/strings.*.json', '!../data/strings.en.json'], { import: 'default' });
+const dicts: Partial<Record<Lang, Record<string, string>>> = { en: strings };
 let lang: Lang = 'en';
 let dict: Record<string, string> = strings;
 
+/** Fetches a language's table once; English is always there. Rejects when it cannot be fetched (offline, not cached). */
+export async function loadStrings(l: Lang): Promise<void> {
+  dicts[l] ??= await loaders[`../data/strings.${l}.json`]!();
+}
+
+/** Synchronous: a language not loaded yet reads in English until loadStrings has fetched it. */
 export function setLang(next: Lang): void {
   lang = next;
-  dict = dicts[`../data/strings.${next}.json`] ?? strings;
+  dict = dicts[next] ?? strings;
 }
 
 export const currentLang = () => lang;
@@ -44,9 +53,18 @@ export const keyOfText = (text: string) => shown.get(text.trim());
 /** A string as written in a language file (English, or the current language), before any value is filled in. */
 export const rawString = (key: StringKey, inLang?: 'en') => (inLang === 'en' ? strings[key] : (dict[key] ?? strings[key]));
 
+/** A string with its values filled in. A value that is missing is left out with the space before it, never shown as
+ * "{turn}" (online merge, 14 Oct: the friend's return read "Welcome back! {turn}"; tests/unit/placeholders.test.ts). */
 export function fmt(key: StringKey, vars: Vars = {}): string {
   const text = dict[key] ?? strings[key];
-  const out = text.replace(/\{(\w+)\}/g, (_, k: string) => (vars[k] === undefined ? `{${k}}` : isolate(vars[k]!)));
+  let gap = false;
+  const filled = text.replace(/( ?)\{(\w+)\}/g, (_, space: string, k: string) => {
+    const v = vars[k];
+    if (v !== undefined) return space + isolate(v);
+    gap = true;
+    return '';
+  });
+  const out = gap ? filled.trim() : filled;
   if (recording) shown.set(out.trim(), key);
   return out;
 }

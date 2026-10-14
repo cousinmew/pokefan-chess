@@ -35,6 +35,9 @@ describe('i18n phases 1 and 2 (§B17)', () => {
 
   it('Japanese and Chinese never break a name across lines; every language has a glossary', async () => {
     const { setLang, fmt } = await import('../../src/game/text');
+    // Only English is in the bundle (N1, 14 Oct): a language is loaded before it is set.
+    const { loadLanguage } = await import('../../src/i18n');
+    await loadLanguage('ja');
     setLang('ja');
     expect(fmt('battle.fainted', { defender: 'ピカチュウ' })).toContain('ピ⁠カ⁠チ⁠ュ⁠ウ');
     setLang('en');

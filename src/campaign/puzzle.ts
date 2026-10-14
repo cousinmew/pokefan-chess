@@ -3,6 +3,7 @@
 // then the player answers. A wrong reply ends the attempt; correct replies auto play the opponent's answer.
 // As on Lichess, any mating move is accepted on the last move.
 import { Chess } from 'chess.js';
+import type { StringKey, Vars } from '../game/text';
 
 export type PuzzleRow = [id: string, fen: string, moves: string, rating: number];
 
@@ -90,4 +91,18 @@ export class PuzzleRun {
     this.idx++;
     return { ok: true, done: false, reply };
   }
+}
+
+const MATE_THEMES = ['mateIn1', 'mateIn2', 'backRankMate'];
+
+/** Moves the player makes in a Lichess line: every second one, after the opponent's set up move. */
+export const playerMoves = (moves: string): number => Math.max(1, Math.floor(moves.trim().split(/\s+/).length / 2));
+
+/** The goal in the header for every puzzle (W3): "Checkmate in 1 move", "Checkmate in 2 moves", or the theme's goal
+ * ("Goal: win material with a fork (2 moves)"). */
+export function objective(theme: string, moves: string, t: (key: StringKey, vars?: Vars) => string): string {
+  const n = playerMoves(moves);
+  if (MATE_THEMES.includes(theme)) return n === 1 ? t('obj.mate1') : t('obj.mateN', { n: String(n) });
+  const goal = t('obj.goal', { goal: t(`lesson.${theme}.banner` as StringKey) });
+  return n > 1 ? `${goal} ${t('obj.moves', { n: String(n) })}` : goal;
 }

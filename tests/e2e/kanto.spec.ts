@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { COACH_EN, passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; seedEncounters(n: number): number; campaign(): { caught: Record<string, number>; team: Record<string, string> } };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -11,7 +12,7 @@ async function solve(page: Page) {
     await page.click(`[data-square="${uci.slice(0, 2)}"]`);
     await page.click(`[data-square="${uci.slice(2, 4)}"]`);
     if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply/);
+    await expect.poll(() => phase(page), { timeout: 8000 }).not.toMatch(/checking|reply|solved/); // pacing: the solve beat ('solved') comes before the review
   }
   // The review moment (§B15) waits for Continue before the encounter.
   await page.getByTestId('review-continue').click();
@@ -33,18 +34,27 @@ test('Oak starter, Route 1 tall grass, an encounter, and a caught Pokémon as a 
   // Oak's line about your partner, then BLUE slides in for one line.
   await page.getByTestId('story').click();
   await page.getByTestId('story').click();
-  await expect(page.getByTestId('route-viridian-forest')).toBeDisabled();
+  // W5: only the next locked place shows (as ???); the rest fold into one line.
+  await expect(page.getByTestId('route-viridian-forest')).toHaveCount(0);
+  await expect(page.getByTestId('map-more')).toBeVisible();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('walk-grass').click();
   await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.seedEncounters(7));
+  // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct).
+  expect(await passCoach(page)).toEqual(COACH_EN);
   await solve(page);
   await expect(page.getByTestId('encounter-text')).toHaveText(/^Wild (PIDGEY|RATTATA) appeared!$/, { timeout: 5000 });
   await page.getByTestId('throw-ball').click();
+  // J3: the ball's beat (CATCH_BEAT_MS) comes before the result; the way back names the route (J11).
+  await expect(page.locator('[data-testid="encounter"].throwing')).toBeVisible();
   await expect(page.getByTestId('encounter-text')).toHaveText(/^(Gotcha! (PIDGEY|RATTATA) was caught!|Oh no! (PIDGEY|RATTATA) broke free!)$/);
   const caught = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.campaign())).caught;
   const text = (await page.getByTestId('encounter-text').textContent())!;
   if (text.startsWith('Gotcha')) expect((caught.pidgey ?? 0) + (caught.rattata ?? 0)).toBe(1);
+  if (text.startsWith('Gotcha')) await expect(page.getByTestId('enc-gains').last()).toHaveText('New! Pokédex 2/151');
   // My Team: the king is your starter's family (§B14), so Charmander plays king vs Computer.
+  await expect(page.getByTestId('to-map')).toHaveText('Back to ROUTE 1');
   await page.getByTestId('to-map').click();
   await page.getByTestId('back').click();
   await page.getByTestId('open-team').click();
@@ -66,7 +76,7 @@ test('a C2 save opens on the map; Pokédex counts the starter; Two Players keeps
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
-  await expect(page.locator('.map-top p')).toHaveText('Pokédex: 1 of 151 caught');
+  await expect(page.locator('.map-strip p').first()).toHaveText('Pokédex: 1 of 151 caught'); // W5: in the map's top strip
   await page.getByTestId('back').click();
   await page.getByTestId('two-players').click();
   await expect(page.locator('[data-square="e1"] img')).toHaveAttribute('alt', 'PIKACHU');

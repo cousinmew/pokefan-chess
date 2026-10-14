@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The START button (§B22 item 3): small, always there after the intro, in the top corner (top right, top left in RTL),
 // styled like the Gen 1 START menu. It opens JOURNEY, VS COMPUTER, VS FRIEND, ONLINE, POKéDEX, OPTION and SAVE & QUIT.
-// Enter or S opens it, B or Escape closes it. On the game screen it sits in the existing top bar, so the board keeps
-// its size; elsewhere in the screen's own top row, or in the corner.
+// Enter or S opens it, B, Escape or its CLOSE item close it. On the game screen it sits in the existing top bar, so the
+// board keeps its size; elsewhere in the screen's own top row, or in the corner. While a story box, popup or intro card
+// is up neither key opens it, and Enter advances the box like a tap (bugs #8).
 import type { StringKey } from '../game/text';
 import { el } from './dom';
 
 export type StartItem = 'journey' | 'computer' | 'friend' | 'online' | 'dex' | 'option' | 'quit';
-export type StartActions = Partial<Record<StartItem, () => void>>;
+/** What START offers; `guest` labels the last item QUIT, as a guest's game is not saved (ux #14); `next` is the
+ * journey's next goal, shown as the first line (W5). */
+export type StartActions = Partial<Record<StartItem, () => void>> & { guest?: boolean; next?: string | null };
+
+/** A story box, popup or card over the screen (the modal layer, or the "wants to battle" card). */
+const popup = () => document.querySelector<HTMLElement>('#app > .overlay:not([hidden]), [data-testid="intro"]');
 
 // Screens before or inside the intro, and the start flow itself, have no START.
 const NO_START = new Set(['screen-splash', 'screen-shelf', 'screen-start', 'screen-replace', 'screen-profiles', 'screen-duo', 'screen-intro', 'screen-name', 'screen-oak', 'screen-quick']);
@@ -19,7 +25,8 @@ export class StartButton {
   readonly roaming = this.make('start-button-corner');
   private menu: HTMLElement | null = null;
 
-  constructor(private readonly actions: () => StartActions, private readonly allowed: () => boolean) {
+  /** `closed`: the menu went (CLOSE, B, Escape, a tap outside or an item), so a game it paused goes on (C1, 14 Oct). */
+  constructor(private readonly actions: () => StartActions, private readonly allowed: () => boolean, private readonly closed: () => void = () => undefined) {
     window.addEventListener('keydown', (e) => {
       if (this.menu) {
         if (e.key === 'Escape' || e.code === 'KeyB' || e.key.toLowerCase() === 'b') {
@@ -30,7 +37,18 @@ export class StartButton {
       }
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
       const free = document.activeElement === document.body || document.activeElement === null;
-      if (typing || !this.visible() || e.repeat) return;
+      if (typing || e.repeat) return;
+      const up = popup();
+      if (up) {
+        // Enter advances the box like a tap, unless a button in it has focus (that button takes the Enter). Focus left
+        // behind the box (the button that opened it) must not fire again.
+        if (e.key === 'Enter' && !up.contains(document.activeElement)) {
+          e.preventDefault();
+          up.click();
+        }
+        return;
+      }
+      if (!this.visible()) return;
       if (e.code === 'KeyS' || (e.key === 'Enter' && free)) {
         e.preventDefault();
         this.open();
@@ -85,23 +103,36 @@ export class StartButton {
     back.onclick = (e) => e.target === back && this.close();
     const list = el('div', 'gb-box start-list start-pop');
     list.setAttribute('role', 'menu');
-    for (const id of ['journey', 'computer', 'friend', 'online', 'dex', 'option', 'quit'] as StartItem[]) {
-      const run = acts[id];
-      if (!run) continue;
+    if (acts.next) {
+      const next = el('p', 'start-next');
+      next.dataset.testid = 'start-next';
+      next.textContent = acts.next;
+      list.append(next);
+    }
+    const item = (id: string, label: StringKey, run?: () => void) => {
       const b = el('button', 'start-item');
       b.type = 'button';
       b.setAttribute('role', 'menuitem');
       b.dataset.testid = `start-menu-${id}`;
       const cursor = el('span', 'start-cursor');
       cursor.textContent = '▶';
-      b.append(cursor, el('span', '', `startmenu.${id}` as StringKey));
+      b.append(cursor, el('span', '', label));
       b.onclick = () => {
         this.close();
-        run();
+        run?.();
       };
       b.onfocus = () => list.querySelectorAll('.start-item').forEach((x) => x.classList.toggle('on', x === b));
       list.append(b);
+      return b;
+    };
+    for (const id of ['journey', 'computer', 'friend', 'online', 'dex', 'option', 'quit'] as StartItem[]) {
+      const run = acts[id];
+      if (run) item(id, id === 'quit' && acts.guest ? 'startmenu.quitGuest' : (`startmenu.${id}` as StringKey), run);
     }
+    // A visible way out besides a tap outside, B and Escape (ux #14): the last item, like the Gen 1 menu's EXIT.
+    const close = item('close', 'startmenu.close');
+    close.classList.add('start-close');
+    close.firstElementChild!.textContent = '✕';
     back.append(list);
     document.body.append(back);
     this.menu = back;
@@ -109,8 +140,10 @@ export class StartButton {
   }
 
   close(): void {
-    this.menu?.remove();
+    if (!this.menu) return;
+    this.menu.remove();
     this.menu = null;
+    this.closed();
   }
 
   get isOpen(): boolean {

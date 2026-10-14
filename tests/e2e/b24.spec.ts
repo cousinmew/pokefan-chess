@@ -41,13 +41,29 @@ for (const [w, h] of [[1440, 900], [360, 640]] as const) {
     }
     // The status text stays centred over the board.
     expect(Math.abs(turn.x + turn.width / 2 - (board.x + board.width / 2))).toBeLessThanOrEqual(w > h ? 4 : 40);
-    // Name and title on one line, the title whole, no stray separator.
+    // The name is never shortened (W2, R7): narrow, name and title share a line, or the title goes when there is no
+    // room for both; wide, the title sits whole under the name.
     for (const plate of ['plate-top', 'plate-bottom']) {
       const name = page.getByTestId(plate).locator('.plate-name');
       const b = await name.locator('b').boundingBox();
-      const t = await name.locator('.plate-title').boundingBox();
       const who = await page.getByTestId(plate).locator('.plate-who').boundingBox();
-      expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
+      // Every name whole and inside its plate, titled or not.
+      expect(await name.locator('b').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), plate).toBe(true);
+      expect(b!.x, plate).toBeGreaterThanOrEqual(who!.x - 1);
+      expect(b!.x + b!.width, plate).toBeLessThanOrEqual(who!.x + who!.width + 1);
+      if (await page.getByTestId(plate).evaluate((e) => e.classList.contains('no-title'))) {
+        // The title went so the name fits (fit.ts): the name alone, centred beside the sprite as name and title are.
+        await expect(name.locator('.plate-title')).toBeHidden();
+        expect(Math.abs(b!.y + b!.height / 2 - (who!.y + who!.height / 2)), plate).toBeLessThanOrEqual(3);
+        continue;
+      }
+      const t = await name.locator('.plate-title').boundingBox();
+      if (w > h) {
+        // Wide: the title starts where the name starts, right under it (measured: same x, top = name bottom).
+        expect(t!.y, plate).toBeGreaterThanOrEqual(b!.y + b!.height - 1);
+        expect(Math.abs(t!.x - b!.x), `${plate}: title under the name, not beside or indented`).toBeLessThanOrEqual(1);
+        expect(t!.y - (b!.y + b!.height), `${plate}: title right under the name`).toBeLessThanOrEqual(2);
+      } else expect(Math.abs(b!.y + b!.height - (t!.y + t!.height))).toBeLessThanOrEqual(3);
       expect(t!.x + t!.width).toBeLessThanOrEqual(who!.x + who!.width + 1);
       expect(await name.locator('.plate-title').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
     }

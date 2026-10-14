@@ -1,19 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Kanto Journey screens (§B11, §B12): story boxes, name and starter, the journey map, a route with its trainers,
 // trainer intros, the Trainer Card, Training, the 151 Pokédex with candy and stars, My Team, and the encounter panel.
-import { MASTERY_NEED, MASTERY_WINDOW, STAR_STEPS } from '../config';
-import { SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
-import { DEX, evolutionsOf, evolveCost, familyOf, routeSpecies, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type Evolution, type Route } from '../campaign/kanto';
-import { furthest, nextTrainer, PLACES, placeCleared, placeUnlocked, routeOf, teamOf, type Place, type Trainer } from '../campaign/journey';
+// The map and a route's screen moved to src/ui/journeyMap.ts (W5).
+import { ASSET_BASE, CARD_SPRITE_WAIT_MS, CATCH_BEAT_MS, DEX_EAGER_CELLS, DEX_LAZY_MARGIN_PX, LINE_GUARD_MS, STAR_STEPS, TEAM_SWAP_WAIT_MS } from '../config';
+import { guard, hold } from './pace';
+import { knownSpecies, parseVariant, SKIN_ROLES, SPECIES, speciesIdFor, spriteUrl, variantId, type TeamSkin } from '../board/pieces';
+import { DEX, evolutionsOf, evolveCost, familyOf, SOURCES, starsOf, STARTERS, teamBadges, type Campaign, type CatchGains, type Evolution } from '../campaign/kanto';
+import { levelNewVars, stepKey, type ShownLevel } from '../campaign/trainer';
+import { PLACES, placeName, type Trainer } from '../campaign/journey';
+import { partyOf } from '../campaign/rivalTeam';
+
+export { placeName };
 import { fmt, type StringKey, type Vars } from '../game/text';
 import { button, el, screen } from './dom';
 import { whyNot } from '../../worker/src/team';
 import { myTrainer, trainerSpriteId } from '../look';
 import { listenForWord } from './secret';
+import { sound } from '../audio/audio';
+import { music } from '../audio/music';
 
 /** A Pokémon sprite that is never an empty box (§B14 bug): the tiny Gen 1 sprite shows while the animated GIF
- * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. */
-export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny = false, eager = false): HTMLImageElement {
+ * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. `o.still`: the still PNG
+ * (about 0.8 KB, no placeholder needed); `o.lazy`: no src yet, it waits in data-src for the caller (J8). */
+export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny = false, eager = false, o: { still?: boolean; lazy?: boolean } = {}): HTMLImageElement {
   const img = el('img', cls + (silhouette ? ' silhouette' : ''));
   const dex = SPECIES[id]!.dex;
   const retro = spriteUrl(dex, 'retro');
@@ -21,15 +30,27 @@ export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny =
   img.dataset.species = id;
   img.decoding = 'async';
   if (eager) img.fetchPriority = 'high';
-  img.style.backgroundImage = `url("${retro}")`;
-  img.onload = () => (img.style.backgroundImage = '');
+  if (!o.still) {
+    img.style.backgroundImage = `url("${retro}")`;
+    img.onload = () => (img.style.backgroundImage = '');
+  }
   img.onerror = () => {
     img.onerror = null;
     img.src = retro;
   };
-  img.src = spriteUrl(dex, 'front', shiny);
+  const src = o.still ? `${ASSET_BASE}static/${shiny ? 'shiny' : 'front'}/${dex}.png` : spriteUrl(dex, 'front', shiny);
+  if (o.lazy) {
+    img.loading = 'lazy';
+    img.dataset.src = src;
+  } else img.src = src;
   return img;
 }
+
+/** What the "wants to battle!" card shows (J6): the trainer's sprite and the team's animated fronts, to fetch ahead. */
+export const battleArt = (c: Campaign, t: Trainer, sprite: string | undefined | null): string[] => [
+  ...(sprite ? [trainerSrc(sprite)] : []),
+  ...partyOf(c, t).map((s) => spriteUrl(SPECIES[s]!.dex, 'front')),
+];
 
 /** A trainer sprite from assets/trainers/, or a CSS silhouette when it is missing (§B14). */
 /** URL of a trainer sprite: MEIR is original art in public/art, the rest are fetched at build time. */
@@ -66,10 +87,18 @@ function line(key: StringKey, vars?: Vars, cls = ''): HTMLElement {
   return p;
 }
 
-/** Gen 1 style text boxes over the screen, one per tap (§B11); a trainer can slide in beside them (§B14). */
-export function story(host: HTMLElement, texts: string[], done: () => void, sprite?: string): void {
+/** Gen 1 style text boxes over the screen, one per tap (§B11); a trainer can slide in beside them (§B14). Pacing (§3):
+ * the box rises in, each line fades in and ignores taps and keys for LINE_GUARD_MS (then its ▼ shows), and the same
+ * trainer stays where it is from one box to the next (it slides in once per modal sequence, src/ui/cards.ts). `ready`
+ * (J6): the last line before a battle keeps its ▼ until the battle card's sprites are in, CARD_SPRITE_WAIT_MS at most. */
+export function story(host: HTMLElement, texts: string[], done: () => void, sprite?: string, ready?: Promise<unknown>): void {
   const box = el('div', 'panel story');
-  if (sprite) host.append(trainerSprite(sprite, 'trainer-sprite story-trainer slide-in'));
+  host.querySelectorAll<HTMLElement>('.story-trainer').forEach((n) => (!sprite || n.dataset.sprite !== sprite) && n.remove());
+  if (sprite && !host.querySelector('.story-trainer')) {
+    const s = trainerSprite(sprite, 'trainer-sprite story-trainer slide-in');
+    s.dataset.sprite = sprite;
+    host.append(s);
+  }
   box.dataset.testid = 'story';
   const p = el('p', 'story-text');
   p.dataset.testid = 'story-text';
@@ -78,6 +107,13 @@ export function story(host: HTMLElement, texts: string[], done: () => void, spri
   let i = 0;
   const show = () => {
     p.textContent = texts[i] ?? '';
+    p.classList.remove('line-in');
+    void p.offsetWidth; // restart the fade
+    p.classList.add('line-in');
+    if (!ready || i < texts.length - 1) return guard(box, LINE_GUARD_MS);
+    const t0 = performance.now();
+    guard(box, CARD_SPRITE_WAIT_MS);
+    void ready.then(() => box.isConnected && guard(box, Math.max(0, LINE_GUARD_MS - (performance.now() - t0))));
   };
   host.onclick = () => {
     i++;
@@ -89,7 +125,6 @@ export function story(host: HTMLElement, texts: string[], done: () => void, spri
   };
   show();
   host.querySelectorAll('.panel').forEach((n) => n.remove());
-  if (!sprite) host.querySelectorAll('.story-trainer').forEach((n) => n.remove());
   host.append(box);
   host.hidden = false;
 }
@@ -117,113 +152,12 @@ export function oakScreen(pick: (id: string) => void, back: () => void): HTMLEle
   return screen('oak', el('h2', '', 'oak.title'), el('p', '', 'oak.line'), row, button('back', back, 'back', 'secondary'));
 }
 
-export interface MapActions {
-  place(index: number): void;
-  dex(): void;
-  team(): void;
-  card(): void;
-  training(): void;
-  back(): void;
-  hof?(): void;
-}
-
-export const placeName = (p: Place) => routeOf(p)?.name ?? (p.name ? fmt(p.name) : p.id);
-
-export function mapScreen(c: Campaign, a: MapActions): HTMLElement {
-  const caught = DEX.filter((s) => c.caught[s]).length;
-  const list = el('div', 'kanto-map');
-  const here = furthest(c);
-  PLACES.forEach((p, i) => {
-    const open = placeUnlocked(c, i);
-    const done = placeCleared(c, p);
-    const testid = p.route ? `route-${p.route}` : `place-${p.id}`;
-    const b = el('button', `node ${p.kind}${open ? '' : ' locked'}${i === here ? ' here' : ''}`);
-    b.dataset.testid = testid;
-    b.disabled = !open;
-    const title = el('b');
-    title.textContent = `${placeName(p)}${done ? ' ✓' : ''}`;
-    b.append(title);
-    b.dataset.kind = p.kind;
-    if (p.kind === 'gym' && p.badge) {
-      const won = c.badges.includes(p.badge);
-      const badge = el('p', `small badge-line${won ? ' won' : ''}`);
-      badge.textContent = `${fmt(`badge.${p.badge}` as StringKey)}${won ? ' ✓' : ''}`;
-      b.append(badge);
-    }
-    if (p.optional) b.classList.add('optional');
-    else if (p.route) {
-      const r = routeOf(p)!;
-      const sp = routeSpecies(r as Route);
-      b.append(line('route.dex', { caught: String(sp.filter((s) => c.caught[s]).length), total: String(sp.length) }, 'small'));
-    }
-    if (!open) b.append(line('map.locked', undefined, 'small'));
-    b.onclick = () => open && a.place(i);
-    list.append(b);
-  });
-  const top = el('div', 'map-top');
-  top.append(
-    line('map.pokedex', { caught: String(caught), total: '151' }),
-    button('map.card', a.card, 'open-card'),
-    button('map.dex', a.dex, 'open-dex'),
-    button('map.team', a.team, 'open-team'),
-    button('map.training', a.training, 'open-training'),
-    ...(c.champion && a.hof ? [button('map.champion', a.hof, 'open-hof')] : []),
-  );
-  const s = screen('map', el('h2', '', 'map.title'), top, list, button('back', a.back, 'back', 'secondary'));
-  // Open on the furthest point reached (§B11).
-  requestAnimationFrame(() => list.children[here]?.scrollIntoView({ block: 'center' }));
-  return s;
-}
-
-export interface RouteActions {
-  battle(t: Trainer): void;
-  walk(): void;
-  back(): void;
-}
-
-export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement {
-  const r = routeOf(p) as Route;
-  const st = c.routes[r.id];
-  const trainers = el('div', 'trainers');
-  const next = nextTrainer(c, p);
-  for (const t of p.trainers ?? []) {
-    const row = el('div', 'trainer-row');
-    const beaten = c.journey.beaten.includes(t.id);
-    row.textContent = `${fmt(t.class)} ${fmt(t.name)}${beaten ? ` ✓ ${fmt('trainer.beaten')}` : ''}`;
-    trainers.append(row);
-  }
-  const fight = next
-    ? button('trainer.next', () => a.battle(next), 'battle-trainer', 'primary')
-    : line('trainer.cleared', undefined, 'cleared');
-  if (next) fight.textContent = fmt('trainer.next', { class: fmt(next.class), name: fmt(next.name) });
-  const dex = el('div', 'dex-grid');
-  for (const s of routeSpecies(r)) {
-    const cell = el('div', 'dex-cell');
-    cell.append(mon(s, 'dex-sprite', !c.caught[s]), document.createTextNode(c.caught[s] ? SPECIES[s]!.name : fmt('dex.unknown')));
-    dex.append(cell);
-  }
-  const h = el('h2');
-  h.textContent = r.name;
-  const played = st?.last.length ?? 0;
-  const solved = st?.last.filter(Boolean).length ?? 0;
-  return screen(
-    'route',
-    h,
-    trainers,
-    fight,
-    button('route.walk', a.walk, 'walk-grass', 'secondary-wide'),
-    line('route.mastery', { solved: String(solved), played: String(played), need: String(MASTERY_NEED), window: String(MASTERY_WINDOW) }, 'small'),
-    dex,
-    button('back', a.back, 'back', 'secondary'),
-  );
-}
-
 /** Battle intro card (§B14): the trainer slides in, "{CLASS} {NAME} wants to battle!" and their 1 to 3 Pokémon. */
 export function trainerIntro(c: Campaign, t: Trainer, sprite: string | undefined | null): HTMLElement {
   const p = el('div', 'panel trainer-intro');
   p.dataset.testid = 'trainer-intro';
   const team = el('div', 'kings');
-  for (const s of teamOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
+  for (const s of partyOf(c, t)) team.append(mon(s, 'dex-sprite', false, false, true));
   // null: no trainer at all (a wild legendary), only its sprite.
   if (sprite !== null) p.append(trainerSprite(sprite, 'trainer-sprite slide-in'));
   p.append(line('trainer.wants', { class: fmt(t.class), name: fmt(t.name) }), team, el('span', 'tb-tick', 'story.tap'));
@@ -255,7 +189,15 @@ export function choiceScreen(ids: string[], pick: (id: string) => void): HTMLEle
     const b = el('button', 'card');
     b.dataset.testid = `choose-${id}`;
     b.append(mon(id, 'menu-sprite bounce', false, false, true), document.createTextNode(SPECIES[id]!.name));
-    b.onclick = () => pick(id);
+    b.onclick = () => {
+      // Review (R2): "You received …!" and the unlock card come over this screen, so it shows only the pick from now on
+      // (the other choice stayed on offer behind them); one pick, as the buttons go dead.
+      for (const x of row.querySelectorAll('button')) {
+        x.disabled = true;
+        x.hidden = x !== b;
+      }
+      pick(id);
+    };
     row.append(b);
   }
   return screen('choice', el('h2', '', 'reward.choose'), row);
@@ -286,14 +228,15 @@ export function hofScreen(c: Campaign, team: string[], done: () => void): HTMLEl
   );
 }
 
-/** Goal card (§B14): the lesson title, a one line goal in kid language, one pip per puzzle. Tap to start. */
-export function goalCard(theme: string, puzzles: number, need: number, extra?: string): HTMLElement {
+/** Goal card (§B14): the lesson title, a one line goal in kid language, one pip per puzzle. Tap to start. `done`: the
+ * pips of a battle left half way this session (J5), e.g. "●●○○○". */
+export function goalCard(theme: string, puzzles: number, need: number, extra?: string, done?: string): HTMLElement {
   const p = el('div', 'panel goal-card');
   p.dataset.testid = 'goal-card';
   const title = el('h3');
   title.textContent = fmt(`lesson.${theme}.title` as StringKey);
   const pips = el('p', 'pips');
-  pips.textContent = '○'.repeat(puzzles);
+  pips.textContent = done ?? '○'.repeat(puzzles);
   pips.dataset.testid = 'pips';
   p.append(title, line(`lesson.${theme}.goal` as StringKey), pips, line('goal.need', { need: String(need), total: String(puzzles) }, 'small'));
   if (extra) {
@@ -305,7 +248,9 @@ export function goalCard(theme: string, puzzles: number, need: number, extra?: s
   return p;
 }
 
-export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLElement {
+/** `level.r` is null until the level settles: it then reads "new (3/10)" (ux #15, playtest 12 Oct). */
+export function cardScreen(c: Campaign, level: ShownLevel, back: () => void): HTMLElement {
+  const rating = level.r;
   const caught = DEX.filter((s) => c.caught[s]).length;
   const seen = DEX.filter((s) => c.seen.includes(s) || c.caught[s]).length;
   const mins = Math.floor(c.playMs / 60000);
@@ -323,8 +268,9 @@ export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLE
   card.append(
     playerSprite(),
     line('card.name', { name: c.name || fmt('name.1') }),
-    line('card.level', { level: String(Math.round(rating)) }, 'level'),
+    rating === null ? line('card.levelNew', levelNewVars(level), 'level') : line('card.level', { level: String(Math.round(rating)) }, 'level'),
     line('card.levelNote', undefined, 'small'),
+    line(stepKey(rating ?? 0), undefined, 'small'), // moved here from the puzzle bar (W3)
     el('p', 'small', 'card.badges'),
     badges,
     line('card.dex', { seen: String(seen), caught: String(caught), pct: String(Math.round((caught / 151) * 100)) }),
@@ -334,20 +280,25 @@ export function cardScreen(c: Campaign, rating: number, back: () => void): HTMLE
   return screen('card', el('h2', '', 'card.title'), card, button('back', back, 'back', 'secondary'));
 }
 
-export function trainingScreen(themes: string[], start: (theme: string) => void, back: () => void, lesson: (theme: string) => void): HTMLElement {
+/** Training (J10: with the Trainer Level its solves move, as the Trainer Card shows it). */
+export function trainingScreen(themes: string[], start: (theme: string) => void, back: () => void, lesson: (theme: string) => void, level?: ShownLevel): HTMLElement {
   const list = el('div', 'buttons');
   for (const t of themes) {
     const row = el('div', 'train-row');
     row.append(button(`theme.${t}` as StringKey, () => start(t), `train-${t}`), button('lesson.again', () => lesson(t), `lesson-${t}`, 'secondary'));
     list.append(row);
   }
-  return screen('training', el('h2', '', 'training.title'), el('p', 'small', themes.length ? 'training.note' : 'training.none'), list, button('back', back, 'back', 'secondary'));
+  const lv = !level ? [] : [level.r === null ? line('card.levelNew', levelNewVars(level), 'level') : line('card.level', { level: String(Math.round(level.r)) }, 'level')];
+  return screen('training', el('h2', '', 'training.title'), ...lv, el('p', 'small', themes.length ? 'training.note' : 'training.none'), list, button('back', back, 'back', 'secondary'));
 }
 
-/** The 151 Pokédex: caught in colour, seen as a silhouette with its name, unseen as ???. */
+/** The 151 Pokédex: caught in colour, seen as a silhouette with its name, unseen as ???. J8 (Fix, 13 Oct): every cell
+ * is a still (about 0.8 KB, not a 32 KB animation; unseen ones grey) and only the opened entry animates; the first
+ * DEX_EAGER_CELLS load at high priority and the rest as they scroll near (native lazy loading fetches up to 2500 px
+ * ahead, the whole grid on a phone: about 280 requests and 4 MB per open before). */
 export function dexScreen(c: Campaign, open: (id: string) => void, back: () => void, stickers = false): HTMLElement {
   const grid = el('div', 'dex-grid');
-  for (const s of DEX) {
+  for (const [i, s] of DEX.entries()) {
     const caught = !!c.caught[s];
     const seen = caught || c.seen.includes(s);
     const cell = el('button', `dex-cell${caught ? ' caught' : ''}`);
@@ -357,15 +308,28 @@ export function dexScreen(c: Campaign, open: (id: string) => void, back: () => v
     num.textContent = `#${String(SPECIES[s]!.dex).padStart(3, '0')}`;
     const stars = starsOf(c, s);
     const name = document.createTextNode(seen ? SPECIES[s]!.name + (c.shiny[s] ? ' ✨' : '') + (stars ? ' ' + '★'.repeat(stars) : '') : fmt('dex.unknown'));
-    cell.append(num, mon(s, 'dex-sprite', !caught, (c.shiny[s] ?? 0) > 0), name);
+    cell.append(num, mon(s, 'dex-sprite', !caught, (c.shiny[s] ?? 0) > 0, i < DEX_EAGER_CELLS, { still: true, lazy: i >= DEX_EAGER_CELLS }), name);
     cell.disabled = !caught;
     cell.onclick = () => caught && open(s);
     grid.append(cell);
   }
   const caught = DEX.filter((s) => c.caught[s]).length;
   // YELLOW shows the same 151 slots as a sticker book (§B17).
-  if (stickers) return screen('dex', el('h2', '', 'stickers.title'), line('stickers.count', { n: String(caught) }), grid, button('back', back, 'back', 'secondary'));
-  return screen('dex', el('h2', '', 'dex.title'), line('map.pokedex', { caught: String(caught), total: '151' }), grid, button('back', back, 'back', 'secondary'));
+  const view = stickers
+    ? screen('dex', el('h2', '', 'stickers.title'), line('stickers.count', { n: String(caught) }), grid, button('back', back, 'back', 'secondary'))
+    : screen('dex', el('h2', '', 'dex.title'), line('map.pokedex', { caught: String(caught), total: '151' }), grid, button('back', back, 'back', 'secondary'));
+  const later = [...grid.querySelectorAll<HTMLImageElement>('img[data-src]')];
+  const load = (img: HTMLImageElement) => {
+    img.src = img.dataset.src!;
+    delete img.dataset.src;
+  };
+  if (typeof IntersectionObserver === 'undefined') later.forEach(load);
+  else {
+    // The grid scrolls in the screen's body, so that is the root: a row below the visible ones starts loading.
+    const io = new IntersectionObserver((seen) => seen.forEach((e) => e.isIntersecting && (io.unobserve(e.target), load(e.target as HTMLImageElement))), { root: grid.parentElement, rootMargin: `0px 0px ${DEX_LAZY_MARGIN_PX}px 0px` });
+    later.forEach((img) => io.observe(img));
+  }
+  return view;
 }
 
 export interface DexActions {
@@ -379,15 +343,16 @@ const whereName = (where: string) => {
   return p ? placeName(p) : where === 'evolution' ? fmt('place.caughtEvolution') : where;
 };
 
-/** One caught species: candy, evolutions, Oak, stars, shiny, where it was caught and where to find it. */
-export function dexDetail(c: Campaign, id: string, a: DexActions): HTMLElement {
+/** One caught species: candy, evolutions, Oak, stars, shiny, where it was caught and where to find it. `note` (J1): what
+ * just happened ("CHARMANDER evolved into CHARMELEON!", OAK's thanks), kept until the entry is closed; `changed`: the
+ * numbers it changed, highlighted for a moment. */
+export function dexDetail(c: Campaign, id: string, a: DexActions, note?: string, changed: ('count' | 'candy' | 'stars')[] = []): HTMLElement {
   const p = el('div', 'panel dex-detail');
   p.dataset.testid = 'dex-detail';
   const fam = familyOf(id);
   const rows = el('div', 'buttons');
   for (const e of evolutionsOf(id)) {
-    const b = button('dex.evolve', () => a.evolve(e), `evolve-${e.to}`);
-    b.textContent = fmt('dex.evolve', { to: SPECIES[e.to]!.name, cost: String(evolveCost(e)) });
+    const b = button('dex.evolve', () => a.evolve(e), `evolve-${e.to}`, '', { to: SPECIES[e.to]!.name, cost: String(evolveCost(e)) });
     b.disabled = (c.candy[fam] ?? 0) < evolveCost(e);
     rows.append(b);
   }
@@ -395,13 +360,15 @@ export function dexDetail(c: Campaign, id: string, a: DexActions): HTMLElement {
   rows.append(button('dex.close', a.close, 'dex-close'));
   const stars = starsOf(c, id);
   const src = (SOURCES[id] ?? []).map((s) => fmt(`source.${s.kind}` as StringKey, { from: s.from ? SPECIES[s.from]!.name : '' }));
-  const h = el('h3');
+  const h = el('h3', changed.includes('count') ? 'changed' : '');
   h.textContent = `${SPECIES[id]!.name} x${c.caught[id] ?? 0}`;
+  const said = note ? [Object.assign(el('p', 'dex-note'), { textContent: note })] : [];
   p.append(
     h,
     mon(id, 'menu-sprite', false, (c.shiny[id] ?? 0) > 0),
-    line('dex.candy', { family: SPECIES[fam]!.name, n: String(c.candy[fam] ?? 0) }, 'candy'),
-    line('dex.stars', { stars: `${'★'.repeat(stars) || '-'} (${c.oak[id] ?? 0} / ${STAR_STEPS.join(', ')})` }, 'small'),
+    ...said,
+    line('dex.candy', { family: SPECIES[fam]!.name, n: String(c.candy[fam] ?? 0) }, `candy${changed.includes('candy') ? ' changed' : ''}`),
+    line('dex.stars', { stars: `${'★'.repeat(stars) || '-'} (${c.oak[id] ?? 0} / ${STAR_STEPS.join(', ')})` }, `small${changed.includes('stars') ? ' changed' : ''}`),
     ...(c.shiny[id] ? [line('dex.shiny', undefined, 'small')] : []),
     ...(c.caughtAt[id] ? [line('dex.caughtAt', { where: whereName(c.caughtAt[id]!) }, 'small')] : []),
     line('dex.find', { where: [...new Set(src)].join('; ') }, 'small'),
@@ -427,7 +394,10 @@ function forms(c: Campaign): { id: string; label: string }[] {
   return out;
 }
 
-export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void): HTMLElement {
+/** My Team. `ready` (the Journey's fetch ahead) settles once the given files are in: a changed row keeps its old preview
+ * until the new one can paint, its Gen 1 placeholder or its animation, at most TEAM_SWAP_WAIT_MS (merge review, 14 Oct:
+ * the new pick's box was empty for about 0.6 s on Slow 4G, its placeholder one round trip away). */
+export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void, ready?: (urls: string[]) => Promise<unknown>): HTMLElement {
   const rows = el('div', 'settings');
   if (c.teamNotice.length) {
     const note = el('div', 'panel team-notice');
@@ -467,17 +437,26 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
       reason = 'queenLocked';
     }
     sel.value = team[role] ?? '';
+    // J9: a preview is a mon(), so the Gen 1 sprite shows while the animation loads, and a new one on a change (a src
+    // swap kept the old Pokémon's frame until the new one came, about 790 ms on a slow phone).
     const previewOf = (v: string) => {
-      const [base = '', ...flags] = (v || speciesIdFor('w', piece, sq)).split(':');
-      return spriteUrl(SPECIES[base]!.dex, 'front', flags.includes('s'));
+      const { base, shiny } = parseVariant(knownSpecies(v) ? v : speciesIdFor('w', piece, sq));
+      return Object.assign(mon(base, 'team-sprite', false, shiny), { alt: '' });
     };
-    const preview = el('img', 'team-sprite');
-    preview.src = previewOf(team[role] ?? '');
-    preview.alt = '';
+    let preview = previewOf(team[role] ?? '');
+    let picks = 0;
     sel.onchange = () => {
       if (sel.value) team[role] = sel.value;
       else delete team[role];
-      preview.src = previewOf(sel.value);
+      const next = previewOf(sel.value);
+      const pick = ++picks; // a later change of this row replaces this one
+      const loaded = new Promise((done) => (next.complete ? done(null) : next.addEventListener('load', done, { once: true })));
+      const capped = new Promise((done) => window.setTimeout(done, TEAM_SWAP_WAIT_MS));
+      void (ready ? Promise.race([ready([teamRetro(sel.value, role)]), loaded, capped]) : Promise.resolve()).then(() => {
+        if (pick !== picks) return;
+        preview.replaceWith(next);
+        preview = next;
+      });
       change({ ...team });
     };
     r.append(preview, el('span', '', ROLE_LABEL[role]), sel);
@@ -491,20 +470,81 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }
 
-/** The panel shown over the board after a tall grass solve. A shiny shows from the start (§B12). */
-export function encounterPanel(id: string, shiny: boolean, throwBall: () => boolean, again: () => void, map: () => void): HTMLElement {
+/** The Gen 1 placeholder of a My Team row's preview: the picked form, else that square's default. A species this build
+ * does not know (a save from another build) stands for the default piece, as on the board (boot fix, 14 Oct: it threw
+ * at boot). */
+const teamRetro = (id: string | undefined, role: (typeof SKIN_ROLES)[number]): string =>
+  spriteUrl(SPECIES[parseVariant(knownSpecies(id) ? id : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro');
+
+/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. */
+export const teamArt = (c: Campaign): string[] => SKIN_ROLES.map((role) => teamRetro(c.team[role], role));
+
+/** The placeholder of every other pick a row offers (each form you own, each square's default), fetched once MY TEAM
+ * shows, so a changed row's new preview is usually in at once (merge review, 14 Oct). */
+export const teamOptionArt = (c: Campaign): string[] => [...new Set([...forms(c).map((f) => teamRetro(f.id, 'p')), ...SKIN_ROLES.map((role) => teamRetro('', role))])];
+
+/** A gift for a first clear (J4): the Pokémon, the new Pokédex count and OAK's line under it, before the unlock card. */
+export function giftCard(id: string, caught: number, oak?: string): HTMLElement {
+  const p = el('div', 'panel progress-card gift-card');
+  p.dataset.testid = 'gift-card';
+  const title = el('b', 'card-title');
+  title.textContent = fmt('reward.gift', { name: SPECIES[id]!.name });
+  p.append(mon(id, 'menu-sprite', false, false, true), title, line('map.pokedex', { caught: String(caught), total: '151' }, 'small'));
+  if (oak) p.append(Object.assign(el('p', 'here'), { textContent: oak }));
+  return p;
+}
+
+/** The panel shown over the board after a tall grass solve. A shiny shows from the start (§B12). With `next` (the
+ * warm-up's first catch, W5) one Continue follows the throw instead of "walk again" and the way back, which names
+ * `place` (J11: "Map" went to the route). J3 (Fix, 13 Oct): Throw starts the ball's beat, then the result and what it
+ * gave (the candy, and the Pokédex count for a new species or "x2" for one you had), then the buttons. */
+export function encounterPanel(id: string, shiny: boolean, throwBall: () => { caught: boolean; gains: CatchGains }, again: () => void, map: () => void, next?: () => void, place?: string): HTMLElement {
   const p = el('div', `panel encounter${shiny ? ' shiny' : ''}`);
   p.dataset.testid = 'encounter';
-  const msg = line('enc.appeared', { name: SPECIES[id]!.name });
+  const name = SPECIES[id]!.name;
+  const msg = line('enc.appeared', { name });
   msg.dataset.testid = 'encounter-text';
   const row = el('div', 'end-buttons');
+  const stage = el('div', 'catch-stage');
+  stage.append(mon(id, 'menu-sprite', false, shiny));
   const ball = button('enc.throw', () => {
-    const caught = throwBall();
-    msg.textContent = fmt(caught ? 'enc.caught' : 'enc.fled', { name: SPECIES[id]!.name });
-    row.replaceChildren(button('enc.again', again, 'walk-again'), button('route.leave', map, 'to-map'));
+    const { caught, gains: g } = throwBall();
+    ball.disabled = true;
+    ball.style.visibility = 'hidden'; // gone for the beat, its room kept (the panel does not narrow and widen again)
+    void catchBeat(p, stage, caught).then(() => {
+      if (!p.isConnected) return;
+      if (caught) music.play('victory');
+      msg.textContent = fmt(caught ? 'enc.caught' : 'enc.fled', { name });
+      const got = !caught ? [] : [line('enc.candy', { n: String(g.candy), name: SPECIES[g.family]!.name }, 'enc-gain'), g.dex === null ? line('enc.dupe', { name, n: String(g.count) }, 'enc-gain') : line('enc.new', { n: String(g.dex) }, 'enc-gain')];
+      got.forEach((x) => (x.dataset.testid = 'enc-gains'));
+      msg.after(...got);
+      const back = button('route.leave', map, 'to-map');
+      if (place) back.textContent = fmt('enc.back', { place: place.replace(/ (?=\S+$)/, ' ') }); // "ROUTE 1" on one line
+      row.replaceChildren(...(next ? [button('review.continue', next, 'enc-next', 'primary')] : [button('enc.again', again, 'walk-again'), back]));
+      guard(p); // the buttons that replace Throw sit under the same finger (pacing R4)
+    });
   }, 'throw-ball');
   row.append(ball);
-  p.append(mon(id, 'menu-sprite', false, shiny), ...(shiny ? [line('enc.shiny', undefined, 'shiny-note')] : []), msg, row);
+  p.append(stage, ...(shiny ? [line('enc.shiny', undefined, 'shiny-note')] : []), msg, row);
   return p;
+}
+
+/** J3: the throw's beat, CATCH_BEAT_MS, a hold (a tap after HOLD_MIN_MS skips it). The ball flies to the Pokémon, which
+ * goes into it; the ball wobbles (three times for a catch, twice before it breaks free) and clicks shut, or pops open
+ * and the Pokémon comes back out. The CSS draws it (src/style.css, the journey block); under reduced motion the ball
+ * fades in and the Pokémon fades out, nothing moves. */
+async function catchBeat(p: HTMLElement, stage: HTMLElement, caught: boolean): Promise<void> {
+  const ball = el('span', 'catch-ball');
+  ball.setAttribute('aria-hidden', 'true');
+  stage.append(ball);
+  p.style.setProperty('--catch-beat', `${CATCH_BEAT_MS}ms`);
+  p.classList.add('throwing', caught ? 'caught' : 'fled');
+  // The sounds on the CSS timeline (shares of the beat): a thunk per wobble, then the click shut or the pop.
+  const beats: [number, () => void][] = caught ? [[0.3, sound.place], [0.48, sound.place], [0.66, sound.place], [0.88, sound.tick]] : [[0.3, sound.place], [0.48, sound.place], [0.7, sound.blip]];
+  const timers = beats.map(([at, f]) => window.setTimeout(() => f.call(sound), at * CATCH_BEAT_MS));
+  await hold(CATCH_BEAT_MS, 'reply'); // pace.ts has no 'catch' kind: the beat is the wild Pokémon's answer to the ball
+  timers.forEach((t) => window.clearTimeout(t));
+  ball.remove();
+  p.classList.remove('throwing', 'caught', 'fled');
 }
 

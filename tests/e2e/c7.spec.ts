@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // C7 (§B18 items 5 to 8): evolving story teams, the Anime battle style, MEIR, and trainers beside the board.
 import { expect, test, type Page } from '@playwright/test';
+import { noTransition } from './pace';
 
 type Kc = { __kc: { bench(a?: string, d?: string, s?: string): { style: string; p95: number; totalMs: number; worstSecond: number; flashes: number }; playFx(id: string): unknown; step(n: number): { phase: string } } };
 const seed = (page: Page, badges: string[], cart = 'blue') =>
@@ -87,7 +88,7 @@ test('MEIR: the code on the shelf keyboard, and three taps on the YELLOW label f
   await expect(page.getByTestId('dpad')).toBeVisible();
   for (const k of ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a']) await page.getByTestId(`pad-${k}`).click();
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
-  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:trainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name])).toEqual(['"meir"', 'MEIR']);
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:playerTrainer'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name])).toEqual(['"meir"', 'MEIR']);
   await page.getByTestId('cart-blue').click();
   await page.getByTestId('hub-card').click();
   await expect(page.getByTestId('player-trainer').locator('img')).toHaveAttribute('src', 'art/meir.png');
@@ -102,6 +103,7 @@ test('MEIR by keyboard on the YELLOW home', async ({ page }) => {
   await page.goto('./?debug=1');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
+  await noTransition(page); // pacing R2: B is held back while the cover reveals the screen
   for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await page.keyboard.press(k);
   await expect(page.getByTestId('toast')).toHaveText('MEIR joined the adventure!');
 });
@@ -120,11 +122,10 @@ test('trainers beside the board follow the computer level, react to captures and
 const twoPlayers = async (page: Page) => {
   await page.addInitScript(() => localStorage.setItem('kc:v1:settings', JSON.stringify({ v: 2, anim: 'off', autoFlip: true })));
   await page.goto('./?debug=1&start=two');
+  // Each move once the board takes one again: since the controller's C6 (14 Oct) the board stays locked while the move
+  // lands and the board turns (about 740 ms), and the harness move is refused meanwhile.
   return async (...moves: string[]) => {
-    for (const m of moves) {
-      await page.evaluate((u) => (window as unknown as { __kc: { move(u: string): string } }).__kc.move(u), m);
-      await page.waitForTimeout(80);
-    }
+    for (const m of moves) await expect.poll(() => page.evaluate((u) => (window as unknown as { __kc: { move(u: string): string } }).__kc.move(u), m)).toBeTruthy();
   };
 };
 

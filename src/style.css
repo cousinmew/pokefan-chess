@@ -14,7 +14,7 @@ html, body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/
 /* Japanese and Chinese (§B17): the system CJK fonts, never a downloaded one; strict line breaking. */
 html:lang(ja), html:lang(ja) body, html:lang(ja) button, html:lang(ja) select { font-family: ui-monospace, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif; line-break: strict; }
 html:lang(zh-Hans), html:lang(zh-Hans) body, html:lang(zh-Hans) button, html:lang(zh-Hans) select { font-family: ui-monospace, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif; line-break: strict; }
-#app { display: flex; flex-direction: column; align-items: center; min-height: 100dvh; padding: 4px 0; box-sizing: border-box; }
+#app { display: flex; flex-direction: column; align-items: center; height: 100dvh; overflow: hidden; box-sizing: border-box; } /* W2: the fixed shell, see the frame below */
 header.game-header { display: flex; width: calc(var(--sq) * 8); justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
 header.game-header button { min-height: 44px; font: inherit; font-size: 13px; border: 2px solid var(--ink); background: #fff; border-radius: 4px; cursor: pointer; padding: 0 10px; }
 header.game-header button[hidden] { visibility: hidden; display: inline-block; }
@@ -96,9 +96,9 @@ main { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .quick-fx { position: fixed; z-index: 30; pointer-events: none; image-rendering: pixelated; }
 .quick-fx[hidden] { display: none; }
 
-.stage { width: 100%; display: flex; flex-direction: column; align-items: center; flex: 1; }
+.stage { width: 100%; display: flex; flex-direction: column; align-items: center; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .game-view { display: flex; flex-direction: column; align-items: center; position: relative; }
-.menu { display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(100vw - 16px, 420px); padding: 16px 0; min-height: 100dvh; }
+.menu { display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(100vw - 16px, 420px); padding: 12px 0 8px; flex: 1 1 auto; min-height: 0; }
 .screen-splash { justify-content: center; cursor: pointer; }
 .logo { text-align: center; }
 .logo h1 { font-size: 28px; margin: 0; white-space: normal; }
@@ -140,7 +140,7 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .reactions button { min-height: 44px; font: inherit; font-size: 12px; border: 2px solid var(--ink); background: #fff; border-radius: 4px; padding: 0 8px; cursor: pointer; }
 .reactions .resign { background: #f0d0d0; }
 .code-row { display: flex; gap: 8px; width: 100%; }
-.code-input { flex: 1; min-height: 48px; font: inherit; font-size: 22px; letter-spacing: 6px; text-transform: uppercase; text-align: center; border: 3px solid var(--ink); border-radius: 6px; }
+.code-input { flex: 1; min-width: 0; min-height: 48px; font: inherit; font-size: 22px; letter-spacing: 6px; text-transform: uppercase; text-align: center; border: 3px solid var(--ink); border-radius: 6px; }
 .room-code { font-size: 44px; letter-spacing: 10px; font-weight: 700; margin: 8px 0; }
 .online-message { font-size: 16px; text-align: center; }
 .swap { display: flex; gap: 6px; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 14px; }
@@ -283,6 +283,21 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .tile-wrap { position: relative; }
 .tile { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 8px 44px 8px 10px; font: inherit; text-align: left; color: var(--ink);
   background: #fff; border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer; transition: filter 120ms ease-out; }
+/* netboot (14 Oct): every plain button shows its press (N8: a reaction looked the same pressed and not); Online, your
+   move shows as sent until the relay lands it (N7); Give up asks inside the online bar, in the play row's height as
+   the rematch wait does, and once the game is over the bar empties but keeps its place, so the board does not jump
+   (N8); a friend's rematch request lights the end panel's Rematch (N5), with a slow glow only where motion is welcome.
+   A language still loading dims a little after 300 ms, so a slow network reads as working (N1). */
+button:active:not(:disabled) { filter: brightness(0.9); }
+.lang-btn[aria-busy='true'] { opacity: 0.6; cursor: progress; transition: opacity 120ms ease-out 300ms; }
+.sq .pending { opacity: 0.5; }
+.reactions { align-content: center; } /* a one row question or wait in the play row's height (N8) */
+.reactions.net-over { visibility: hidden; }
+.reactions .net-ask { align-self: center; font-weight: bold; padding: 0 4px; }
+.end-buttons button.asked { background: var(--sel); box-shadow: 0 0 0 3px var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .end-buttons button.asked { animation: netboot-asked 1200ms ease-in-out infinite alternate; } }
+@keyframes netboot-asked { from { box-shadow: 0 0 0 2px var(--ink); } to { box-shadow: 0 0 0 5px var(--ink); } }
+
 /* Press feedback: a slight darken (plus the blip), never a bounce. */
 .tile:active { filter: brightness(0.9); }
 .tile:hover { filter: brightness(0.97); }
@@ -342,6 +357,17 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .cart-label small { font-size: 11px; }
 .cart-pins { position: absolute; bottom: 6px; left: 18px; right: 18px; height: 10px; background: repeating-linear-gradient(90deg, #d0a020 0 6px, transparent 6px 10px); }
 .cartridge.blue .cart-pins { background: repeating-linear-gradient(90deg, #d0a020 0 6px, transparent 6px 10px); }
+/* Playtest 12 Oct (W1): YELLOW's "Start here" ribbon (a hint, not a preselection), BLUE's "for" line, and NEW GAME's
+   subtitle on the start menu. */
+.cart-ribbon { position: absolute; top: 8px; right: -12px; transform: rotate(10deg); padding: 3px 8px; background: #e04040; color: #fff; border: 2px solid var(--ink); border-radius: 3px; font-size: 12px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; pointer-events: none; }
+[dir='rtl'] .cart-ribbon { right: auto; left: -12px; transform: rotate(-10deg); }
+.cart-label small.cart-for { font-style: italic; }
+/* The longer labels never spill: each cartridge grows to its label, both as tall as the taller (one grid row). */
+.screen-shelf .shelf { display: grid; grid-template-columns: auto auto; align-content: center; justify-content: center; }
+.screen-shelf .shelf .cartridge { height: auto; min-height: min(170px, 26dvh); padding-bottom: 22px; align-self: stretch; }
+@media (max-height: 560px) { .cart-label small.cart-for { display: none; } }
+.start-text { display: flex; flex-direction: column; }
+.start-sub { font-size: 12px; font-weight: 400; letter-spacing: 0; }
 .lang-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .menu button.lang-btn { min-width: 96px; }
 .menu button.lang-btn.on { background: #f8d030; }
@@ -351,7 +377,6 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .hold-text { position: relative; }
 /* Language button (§B18 item 3): the current code, a tap opens the four languages. */
 .lang-top { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.screen-shelf .lang-top { align-self: flex-end; }
 .hub-top > .lang-top { flex: 0 0 auto; }
 .menu button.lang-code { min-width: 56px; min-height: 52px; font-weight: 700; font-size: 18px; letter-spacing: 1px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
 .lang-pop { position: absolute; top: 58px; inset-inline-end: 0; z-index: 5; width: max-content; max-width: 90vw; padding: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink); }
@@ -386,6 +411,13 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .save-code { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
 .save-code[hidden] { display: none; }
 .save-note { font-size: 13px; }
+.install-box { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.install-box > button { width: 100%; min-height: 48px; }
+.install-box p { margin: 0; text-align: center; }
+.install-status { font-weight: 700; }
+.install-hint, .install-result, .install-progress { font-size: 14px; }
+.install-steps { margin: 0; padding: 0; list-style: none; flex: 1 1 100%; }
+.install-steps li { margin: 4px 0; }
 .save-code-input { min-height: 44px; padding: 0 8px; font: inherit; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; border: 2px solid var(--ink); border-radius: 6px; }
 .hub-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; box-sizing: border-box; border: 3px dashed var(--ink); border-radius: 12px; background: #fffbe0; }
 .hub-note p { flex: 1 1 200px; margin: 0; }
@@ -415,7 +447,6 @@ h3 { font-size: 15px; margin: 4px 0 0; }
 .sq.star::after { content: '★'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(var(--sq) * 0.7); color: #f0b020; text-shadow: 0 0 3px #181818; pointer-events: none; z-index: 2; animation: blink 1s steps(2) infinite; }
 .panel.sticker img { width: 120px; height: 120px; }
 /* YELLOW board and text: larger squares, one big line. */
-body.cart-yellow { --sq: max(52px, calc(min(100vw - 8px, 100dvh - 190px) / 8)); }
 body.cart-yellow .tb-main { font-size: 20px; }
 body.cart-yellow .textbox { min-height: 56px; }
 @media (prefers-reduced-motion: reduce) { .sq.star::after { animation: none; } }
@@ -514,10 +545,8 @@ body.cart-yellow .textbox { min-height: 56px; }
 .ynext { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; box-sizing: border-box; border: 3px dashed var(--ink); border-radius: 12px; background: #fffbe0; }
 .ynext p { margin: 0; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .code-dots.shake { animation: none; } }
-/* Change A: game screens always fit the window (src/ui/fit.ts sets --sq). Menus may scroll; game screens never. */
-html.fit, html.fit body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
-html.fit .stage { height: 100dvh; overflow: hidden; }
-html.fit .game-view { height: calc(100dvh - 8px); width: 100vw; box-sizing: border-box; padding: 8px 4px; overflow: hidden; }
+/* Change A: game screens always fit the window (src/ui/fit.ts sets --sq). W2: menus never scroll the page either. */
+html.fit .game-view { flex: 1 1 auto; min-height: 0; width: 100%; box-sizing: border-box; padding: 8px 4px; overflow: hidden; }
 html.fit header.game-header { width: calc(var(--sq) * 8 + 6px); margin-bottom: 6px; flex: none; }
 html.fit header.game-header button { min-height: 40px; }
 .legend-toggle[hidden] { display: none !important; }
@@ -542,35 +571,41 @@ html.fit:not(.fit-wide) .legend-item { min-height: 38px; }
 html.fit-drawer .legend-strip { display: none; }
 html.fit-drawer.legend-open .legend-strip { display: flex; position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 30; width: auto; max-height: 60dvh; overflow: auto; flex-direction: column; padding: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink); }
 /* Wide: the board takes the full height; plates and Who's who sit in a column beside it. */
+/* W2: the header over the board, everything else in one side column (src/ui/fit.ts moves it there); Who's who
+   takes what is left of the column and the column itself scrolls only as a last resort, so nothing is cut off (R1). */
 html.fit-wide main > header.game-header { grid-column: 1; grid-row: 1; width: calc(var(--sq) * 8 + 6px); margin: 0; }
-html.fit-wide main > .start-btn { grid-column: 2; grid-row: 1; width: 260px; }
-html.fit-wide main { display: grid; grid-template-columns: auto 260px; column-gap: 16px; row-gap: 6px; align-items: start; align-content: start; grid-auto-rows: min-content; }
-html.fit-wide main > * { grid-column: 2; width: 260px; }
-html.fit-wide main > .board-wrap { grid-column: 1; grid-row: 2 / span 20; width: auto; }
-html.fit-wide .plate { height: 72px; }
+html.fit-wide main { display: grid; grid-template-columns: auto 260px; grid-template-rows: auto auto; column-gap: 16px; row-gap: 6px; align-items: start; align-content: start; }
+html.fit-wide main > .board-wrap { grid-column: 1; grid-row: 2; }
+.side-col { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 6px; width: 260px; max-height: var(--side-h, 100%); overflow-y: auto; overscroll-behavior: contain; }
+.side-col > * { flex: none; width: 100%; }
+html.fit-wide .side-col > .legend-strip { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 html.fit-wide .plate .plate-sprite { width: 60px; height: 60px; }
-html.fit-wide .legend-strip { max-height: calc(var(--sq) * 8 - 170px); overflow-y: auto; }
 html.fit-wide .legend-team { flex-direction: column; align-items: stretch; overflow: visible; }
 html.fit-wide .legend-team-name { writing-mode: horizontal-tb; transform: none; font-size: 12px; }
-html.fit-wide .reactions, html.fit-wide .puzzle-bar, html.fit-wide .path-bar { width: 260px; }
+html.fit-wide .reactions, html.fit-wide .puzzle-bar, html.fit-wide .path-bar { width: 100%; }
 /* Your pieces get a soft team coloured ground shadow when the other side has the same species (change A). */
 .sq .ground { position: absolute; left: 14%; right: 14%; bottom: 4%; height: 18%; border-radius: 50%; pointer-events: none; z-index: 0; }
 .ground-w { background: radial-gradient(closest-side, rgba(232, 40, 40, 0.75), rgba(232, 40, 40, 0)); }
 .ground-b { background: radial-gradient(closest-side, rgba(24, 24, 40, 0.8), rgba(24, 24, 40, 0)); }
 
-html.fit-wide main > .plate { width: 260px; }
+html.fit-wide .side-col > .plate { width: 100%; }
 html.fit-icons .plate { height: 40px; }
 html.fit-icons .plate .plate-sprite { width: 34px; height: 34px; }
 html.fit-icons header.game-header button { min-height: 34px; }
 html.fit-icons header.game-header { margin-bottom: 4px; }
 /* Change A: the level pickers and the shelf fit the window too (no scrolling). */
-.screen-level, .screen-yellow-levels, .screen-shelf { height: calc(100dvh - 8px); min-height: 0; box-sizing: border-box; padding: 8px 0; gap: 6px; overflow: hidden; }
+.screen-level, .screen-yellow-levels, .screen-shelf { padding: 8px 0; gap: 6px; }
+.screen-shelf { overflow-y: auto; overscroll-behavior: contain; }
 .screen-level h2, .screen-yellow-levels h2, .screen-shelf h2, .screen-shelf h3 { margin: 0; }
-.screen-level .faceoff, .screen-yellow-levels .faceoff { flex: 1; min-height: 0; }
-.screen-level .faceoff > .buttons, .screen-yellow-levels .faceoff > .yellow-levels { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); height: 100%; gap: 6px; }
-.screen-level > .buttons, .screen-yellow-levels > .yellow-levels { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.menu button.level { min-height: 0; overflow: hidden; justify-content: center; gap: 2px; padding: 4px; }
-.yellow-levels .big-level { min-height: 0; overflow: hidden; }
+.screen-level > .menu-body, .screen-yellow-levels > .menu-body { flex: 1 1 auto; }
+/* W2 (R6): the four levels share the height, but a row grows to its content instead of cutting it; the body scrolls. */
+.screen-level .faceoff, .screen-yellow-levels .faceoff { flex: 1 0 auto; }
+.screen-level .faceoff > .buttons, .screen-yellow-levels .faceoff > .yellow-levels,
+.screen-level .menu-body > .buttons, .screen-yellow-levels .menu-body > .yellow-levels { display: grid; grid-template-rows: repeat(4, minmax(max-content, 1fr)); gap: 6px; }
+.screen-level .menu-body > .buttons, .screen-yellow-levels .menu-body > .yellow-levels { flex: 1 0 auto; }
+.screen-level .faceoff > .buttons, .screen-yellow-levels .faceoff > .yellow-levels { flex: 1 1 0; min-width: 0; align-self: stretch; }
+.menu button.level { min-height: 0; justify-content: center; gap: 2px; padding: 4px; }
+.yellow-levels .big-level { min-height: 0; }
 @media (max-height: 760px) {
   .menu button.level > small { display: none; }
   .opponent-sprite { width: 40px; height: 40px; }
@@ -593,8 +628,7 @@ html.fit-icons header.game-header { margin-bottom: 4px; }
 }
 .loadout { display: flex; gap: 2px; margin-inline-start: 6px; }
 .loadout .loadout-mon { width: 32px; height: 32px; }
-html.fit-wide .plate { height: 88px; }
-html.fit-wide .legend-strip { max-height: calc(var(--sq) * 8 - 200px); }
+html.fit-wide .plate { height: auto; min-height: 72px; }
 /* Change C: the Gen 1 style start menu, drawn here: chunky double line boxes with rivet corners, a ▶ cursor. */
 .gb-box { position: relative; box-sizing: border-box; padding: 14px 18px; background: #f8f8f0; border: 4px double var(--ink); outline: 3px solid var(--ink); outline-offset: -11px; border-radius: 2px; box-shadow: inset 0 0 0 2px #f8f8f0; }
 .gb-box::before, .gb-box::after { content: ''; position: absolute; width: 6px; height: 6px; background: var(--ink); top: -2px; left: -2px; box-shadow: calc(100% + 0px) 0 0 var(--ink); }
@@ -646,10 +680,31 @@ html.fit-wide .legend-strip { max-height: calc(var(--sq) * 8 - 200px); }
 .trainer-sprite.loading::before { content: ''; position: absolute; top: 14%; left: 36%; width: 28%; height: 28%; border-radius: 50%; background: #303030; }
 .trainer-sprite.loading::after { content: ''; position: absolute; top: 40%; left: 26%; width: 48%; height: 54%; border-radius: 40% 40% 8% 8%; background: #303030; }
 
+/* loading (fix, 14 Oct): a capture tap answers at once, before the battle's bounded wait: the target square flashes
+   once and stays tinted until the battle covers the board (present.ts). Reduced motion: no white flash, the square's
+   own colour fades to the same tint in 120 ms (R8: a colour fade, nothing moves). */
+.sq.strike { animation: loading-strike 360ms ease-out both; }
+@keyframes loading-strike { 0% { box-shadow: inset 0 0 0 100vmax rgba(255, 255, 255, 0); } 30% { box-shadow: inset 0 0 0 100vmax rgba(255, 255, 255, 0.7); } 100% { box-shadow: inset 0 0 0 100vmax rgba(224, 48, 48, 0.3); } }
+@keyframes loading-strike-fade { to { background-color: var(--loading-strike); } }
+/* The level picker's loadout chips show each species' still, cropped like a board piece (ladder.ts). */
+.loadout-still { position: relative; flex: none; overflow: hidden; }
+.loadout-still > img { position: absolute; width: 100%; height: 100%; image-rendering: pixelated; }
+@media (prefers-reduced-motion: reduce) {
+  .sq.strike { animation: loading-strike-fade var(--reduced-fade) ease-out both; }
+  /* The square's colour 70% with rgb(224, 48, 48), as plain colours first: before Safari 16.2 color-mix() is kept in a
+     custom property but makes the keyframe's colour invalid, so the square would fade to transparent (review, 14 Oct). */
+  .sq.light.strike { --loading-strike: #e6b6a0; }
+  .sq.dark.strike { --loading-strike: #9c834d; }
+  @supports (color: color-mix(in srgb, red, blue)) {
+    .sq.light.strike { --loading-strike: color-mix(in srgb, var(--light) 70%, rgb(224, 48, 48)); }
+    .sq.dark.strike { --loading-strike: color-mix(in srgb, var(--dark) 70%, rgb(224, 48, 48)); }
+  }
+}
+
 /* §B22 item 3: START, Gen 1 style, in the top bar (never costing board space) or the top corner. */
 .start-btn { flex: none; min-height: 44px; min-width: 64px; padding: 0 8px; font: inherit; font-size: 13px; font-weight: 900; letter-spacing: 1px; color: var(--ink); background: #f8f8f0; border: 4px double var(--ink); border-radius: 2px; cursor: pointer; }
 .start-btn[hidden] { display: none; }
-.start-btn.corner { position: fixed; top: 6px; inset-inline-end: 6px; z-index: 25; }
+.start-btn.corner { position: fixed; top: calc(6px + env(safe-area-inset-top)); inset-inline-end: calc(6px + max(env(safe-area-inset-left), env(safe-area-inset-right))); z-index: 25; }
 .hub-top > .start-btn, .yellow-top > .start-btn { flex: none; }
 header.game-header .turn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 .start-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.25); }
@@ -657,7 +712,7 @@ header.game-header .turn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-
 .start-pop .start-item { width: 100%; font: inherit; font-weight: 900; font-size: 18px; min-height: 44px; display: flex; align-items: center; gap: 8px; border: none; background: none; text-align: start; cursor: pointer; }
 .start-pop .start-item.on .start-cursor, .start-pop .start-item:focus-visible .start-cursor, .start-pop .start-item:hover .start-cursor { visibility: visible; }
 /* §B22 item 2: BACK out of an unnamed NEW GAME, top left (top right in RTL). */
-.menu button.newgame-back { position: fixed; top: 8px; inset-inline-start: 8px; z-index: 25; min-height: 44px; padding: 0 12px; font-size: 14px; }
+.menu button.newgame-back { position: fixed; top: calc(8px + env(safe-area-inset-top)); inset-inline-start: calc(8px + max(env(safe-area-inset-left), env(safe-area-inset-right))); z-index: 25; min-height: 44px; padding: 0 12px; font-size: 14px; }
 .screen-quick .start-list .start-item { min-height: 56px; }
 html.fit header.game-header .start-btn { min-height: 44px; } /* START stays at least 44 px tall (§B22 item 3) */
 .menu.has-newgame-back { padding-top: 60px; }
@@ -670,8 +725,7 @@ html.fit-wide .plate-name { font-size: 12px; }
 
 /* §B24 item 1: the status text stays centred over the board whatever sits left and right of it. */
 header.game-header { position: relative; }
-header.game-header .turn { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 2 * 120px); pointer-events: none; }
-html.fit-icons header.game-header .turn { max-width: calc(100% - 2 * 96px); }
+header.game-header .turn { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: var(--turn-w, calc(100% - 2 * 120px)); pointer-events: none; }
 header.game-header > .start-btn { margin-inline-start: auto; }
 .plate-who { overflow: hidden; }
 .plate-who .plate-name { flex: 0 1 auto; }
@@ -685,8 +739,8 @@ html.fit-wide .plate-who { flex: 1 1 100%; max-width: 100%; }
 html.fit-wide .plate .plate-sprite { width: 44px; height: 44px; }
 html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
 /* The message itself is clamped to 2 lines, so its box never runs past the plate (§B24, fit at 320x480). */
-.plate .textbox { display: block; max-height: 2.6em; }
-.plate .textbox .tb-main { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plate .textbox { display: block; max-height: 3.9em; }
+.plate .textbox .tb-main { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .plate .textbox .tb-caption { display: none; }
 /* The hub's controls column: the language button with START under it. */
 .hub-top > .hub-controls { flex: none; display: flex; flex-direction: column; gap: 6px; }
@@ -711,4 +765,383 @@ html.fit-wide .plate-msg { flex: 1 1 100%; font-size: 12px; }
   .big-level .opponent b { font-size: 13px; }
   .big-level .opponent-text small { white-space: nowrap; font-size: 11px; }
   .big-level .loadout .loadout-mon { width: 24px; height: 24px; }
+}
+
+/* Controller, 14 Oct (C2, C5, C8, C9, C11, C13): Take back looks disabled while a battle or a slide plays; the end
+   panel's winner and YELLOW sticker; a drill's last moves; the intro card's second line; the promotion picker's Gen 1
+   stand-ins. Nothing here moves (the auto flip's fold is a Web Animation, src/game/flip.ts). */
+header.game-header button:disabled { opacity: 0.45; cursor: default; }
+.panel.end .end-winner { margin: 0 0 6px; font-weight: 700; }
+.end-sticker { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 8px; }
+.end-sticker p { margin: 0; font-weight: 700; }
+.end-sticker-sprite { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; background: center / contain no-repeat; }
+header.game-header .turn.moves-low { color: #c02020; }
+.intro .intro-note { margin: 6px 0 0; font-size: 13px; }
+.promo-row img.promo-sprite { background: center / contain no-repeat; }
+/* Polish, 12 Oct (W4): robustness, navigation and YELLOW polish. */
+/* START's CLOSE item (ux #14): a visible way out, set apart from the menu items above it. */
+.start-pop .start-item.start-close { margin-top: 4px; border-top: 2px solid var(--ink); }
+.start-pop .start-item.start-close .start-cursor { visibility: visible; }
+/* MEIR code dots (ux #16): invisible at rest so kids see no unexplained row; they show from the first right key and
+   fade out after a slip. */
+.code-dots { opacity: 0; transition: opacity 600ms; }
+.code-dots.active { opacity: 1; transition: none; }
+/* The YELLOW hint star (ux #17) pulses in size and brightness and never disappears; still under reduced motion. */
+@keyframes star-pulse { 50% { transform: scale(1.18); filter: brightness(1.25); } }
+.sq.star::after { animation: star-pulse 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sq.star::after { animation: none; } .code-dots { transition: none; } }
+/* Big badges (ux #17): on large desktop boards a smaller badge in the top left corner, off the Pokémon. */
+@media (min-width: 900px) and (min-height: 640px) {
+  .chip.big { top: 2px; left: 2px; transform: none; width: calc(var(--sq) * 0.36); height: calc(var(--sq) * 0.36); font-size: calc(var(--sq) * 0.25); }
+}
+
+/* W3 puzzle clarity (playtest 12 Oct): the goal in the header, the YOU tag, coach marks, the solve moment. */
+header.game-header .turn.objective { max-width: calc(100% - 2 * 80px); font-weight: 700; white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.plate-you { flex: none; padding: 1px 6px; font-size: 11px; font-weight: 900; color: #fff; background: #e03030; border: 2px solid var(--ink); border-radius: 8px; }
+.puzzle-banner.pop { animation: pip-pop 360ms ease-out; }
+@keyframes pip-pop { 40% { transform: scale(1.06); } }
+.rating-up { align-self: center; margin: 0; padding: 0 8px; font-weight: 700; color: #186018; background: #d8f0c0; border: 2px solid var(--ink); border-radius: 10px; }
+.rating-up[hidden] { display: none; }
+.solved-stamp { position: absolute; left: 50%; top: 50%; z-index: 5; padding: 4px 16px; font-size: clamp(22px, 8vw, 40px); font-weight: 900; color: #fff; background: #30a030; border: 4px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink); max-width: calc(100% - 16px); box-sizing: border-box; white-space: nowrap; transform: translate(-50%, -50%) rotate(-8deg); animation: solved-stamp-in var(--stamp-edge, 180ms) ease-out both, solved-stamp-out var(--stamp-edge, 180ms) ease-in calc(var(--stamp-ms, 900ms) - var(--stamp-edge, 180ms)) forwards; pointer-events: none; }
+/* Pacing A11: STAMP_EDGE_MS in (scale 1.8 to 1), the hold, STAMP_EDGE_MS out to nothing; centred in every keyframe. */
+@keyframes solved-stamp-in { from { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
+@keyframes solved-stamp-out { from { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1); } }
+.coach { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
+.coach[hidden] { display: none; }
+.coach-spot { position: fixed; border: 3px solid #f8d030; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); }
+.coach-spot[hidden] { display: none; }
+.coach-bubble { position: fixed; box-sizing: border-box; padding: 8px 12px; font-size: 15px; font-weight: 700; background: #fff; border: 3px solid var(--ink); border-radius: 10px; }
+.coach-bubble::after { content: ''; position: absolute; left: calc(var(--arrow, 50%) - 8px); width: 0; height: 0; border: 8px solid transparent; }
+.coach-bubble.below::after { top: -16px; border-bottom-color: var(--ink); }
+.coach-bubble.above::after { bottom: -16px; border-top-color: var(--ink); }
+.coach-text { margin: 0 0 4px; }
+.coach-tap { display: block; font-size: 11px; font-weight: 400; text-align: end; }
+@media (prefers-reduced-motion: reduce) {
+  .puzzle-banner.pop { animation: none; }
+}
+
+/* ===== puzzle group (fix, 14 Oct): the map's new badge, and review buttons that keep their whole labels ===== */
+/* A gym just won: a ring pulses round its badge in the map's strip (two slow beats) before the map scrolls to the
+   gym's row for its stamp; under reduced motion the ring only fades in. */
+.map-strip .badge.badge-new { position: relative; }
+.map-strip .badge.badge-new::after { content: ''; position: absolute; inset: -7px; border: 3px solid #f8d030; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .map-strip .badge.badge-new::after { animation: puzzle-badge-pulse 600ms ease-in-out 4 alternate both; } }
+@media (prefers-reduced-motion: reduce) { .map-strip .badge.badge-new::after { animation: fade-in var(--reduced-fade) linear both; } }
+@keyframes puzzle-badge-pulse { from { transform: scale(0.85); opacity: 0.6; } to { transform: scale(1.25); opacity: 1; } }
+/* A wrong move's review in the wide side column (1280x800 read "Show ansv", "Try a nev"): each button is at least as
+   wide as its label, and they wrap onto a second row below instead of cutting it (equal widths when they fit). */
+html.fit-wide .review .review-acts { flex-wrap: wrap; }
+html.fit-wide .review .review-acts .review-btn { min-width: max-content; }
+/* Narrow screens keep one row, since a second one covered the board's bottom rank (de, fr, ru at 360x640): a long
+   label wraps inside its button instead of being cut or pushing Continue off screen. */
+html:not(.fit-wide) .review .review-acts .review-btn { flex: 1 1 0; min-width: 44px; white-space: normal; line-height: 1.1; overflow-wrap: break-word; }
+@media (max-width: 340px) { html:not(.fit-wide) .review .review-acts .review-btn { font-size: 12px; } }
+
+/* ===== W2: one frame for every screen, fitting any window or iframe with no page scroll ===== */
+/* The shell: the page never scrolls; #app keeps clear of notches and the home indicator (R9). */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+#app { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+/* Menus (screen() in src/ui/dom.ts): the title, a body that scrolls on its own, the actions always on screen (R4). */
+.menu > * { flex: none; }
+.menu > .menu-body { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; width: calc(100% + 16px); margin-inline: -8px; padding: 4px 8px 10px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.menu-body > * { flex-shrink: 0; }
+.menu > .menu-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+.menu-actions > button { max-width: 100%; }
+.menu .menu-actions > button.secondary { width: 50%; min-width: min(160px, 100%); }
+.screen-splash > .menu-body, .screen-start > .menu-body { justify-content: center; }
+.screen-splash > .menu-body { flex-grow: 1; }
+/* START in the corner never covers a screen's first line (ux #17): narrow windows keep a strip free for it. */
+@media (max-width: 600px) {
+  body:has(> .start-btn.corner:not([hidden])) .menu { padding-top: 60px; }
+}
+@media (max-width: 740px) {
+  body:has(> .start-btn.corner:not([hidden])) .screen-howto { padding-top: 60px; }
+}
+html.fit-short.fit-land body:has(> .start-btn.corner:not([hidden])) .menu > :first-child:is(h2) { padding-inline: 84px; }
+
+/* The start menu: centred, the summary beside the items on wide or landscape windows. */
+.screen-start > .menu-body { gap: 16px; }
+@media (min-width: 900px) { .screen-start { padding-top: 12px; } }
+html.fit-land .screen-start { width: min(100vw - 16px, 820px); }
+html.fit-land .screen-start > .menu-body { flex-direction: row; align-items: center; justify-content: center; }
+html.fit-land .screen-start .start-list, html.fit-land .screen-start .summary { flex: 0 1 380px; min-width: 0; }
+
+/* The hub: the three zones side by side when there is room, tiles in a grid (R4). */
+.screen-title { width: min(100vw - 16px, 1120px); }
+.screen-title > .logo { margin: 0; }
+.screen-title .hub-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px 24px; align-items: start; margin-top: 0; }
+@media (min-width: 1000px) { .screen-title .hub-zones { grid-template-columns: repeat(3, 1fr); } }
+
+/* YELLOW home: four big tiles, two by two whenever the window is wider than tall. */
+.screen-yellow { width: min(100vw - 16px, 760px); }
+.screen-yellow > .menu-body { flex-direction: row; flex-wrap: wrap; align-items: stretch; align-content: flex-start; gap: 16px; }
+.screen-yellow > .menu-body > * { flex: 1 1 300px; min-width: 0; }
+.screen-yellow .big-tile { min-height: clamp(96px, 22dvh, 150px); }
+
+/* Short windows (phone landscape, 640x480 and smaller embeds): compact titles, tiles and the two column layouts (R6). */
+html.fit-short .menu { gap: 8px; padding-top: 8px; }
+html.fit-short .menu h2 { font-size: 16px; margin: 0; }
+html.fit-short .logo h1 { font-size: 20px; }
+html.fit-short .screen-title .logo .sub { display: none; }
+html.fit-short .screen-title .hub-zones { gap: 12px 16px; }
+html.fit-short .tile { min-height: 56px; padding-block: 4px; }
+html.fit-short .tile-pic, html.fit-short .tile-icon.item-icon { width: 40px; height: 40px; }
+html.fit-short .hub-zone { gap: 6px; }
+html.fit-short .big-tile { min-height: 0; padding: 6px; }
+html.fit-short .big-tile .big-mon, html.fit-short .big-tile .book-icon { width: 48px; height: 48px; }
+html.fit-short .big-tile b { font-size: 22px; }
+html.fit-short.fit-land .screen-yellow .big-tile { flex-direction: row; gap: 12px; }
+html.fit-short.fit-land .screen-name { width: min(100vw - 16px, 640px); }
+html.fit-short.fit-land .name-step .buttons { display: grid; grid-template-columns: repeat(2, 1fr); }
+html.fit-short.fit-land .screen-card { width: min(100vw - 16px, 640px); }
+html.fit-short.fit-land .trainer-card { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; }
+html.fit-short.fit-land .trainer-card > :first-child { grid-row: 1 / span 9; }
+html.fit-short .intro-stage { min-height: 0; }
+html.fit-short.fit-land .screen-oak .menu-body > .cards, html.fit-short.fit-land .screen-team .cards { max-width: 520px; }
+html.fit-short .cards .card .menu-sprite { max-width: 64px; }
+html.fit-short .menu button.primary { min-height: 48px; font-size: 18px; }
+
+/* The game screen. The status line wraps to two lines between the buttons rather than being cut (R7). */
+header.game-header .turn { white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: clip; }
+html.turn-flow header.game-header .turn { position: static; transform: none; max-width: none; flex: 1 1 0; font-size: 12px; }
+html.turn-flow header.game-header > .start-btn { margin-inline-start: 0; }
+html.turn-row header.game-header { flex-wrap: wrap; row-gap: 2px; }
+html.turn-row header.game-header .turn { order: 9; flex: 1 1 100%; -webkit-line-clamp: 2; }
+html.turn-row header.game-header > .start-btn { margin-inline-start: auto; }
+/* Narrow: the top bar's buttons wrap their own labels rather than the bar wrapping them onto a second row. */
+html.fit:not(.fit-wide) header.game-header > button:not(.start-btn) { flex: 0 1 auto; min-width: 0; white-space: normal; line-height: 1.1; padding: 0 6px; }
+.plate-bottom .plate-msg { overflow: visible; }
+html.fit.turn-row:not(.fit-wide) header.game-header > button:not(.start-btn) { flex: 1 1 0; }
+/* Your line in full (R7): a third line, then a smaller font for a fourth (fit.ts adds tight). */
+.plate .textbox { overflow: visible; }
+html.fit .plate.tight .textbox .tb-main, html.fit .plate.tight .plate-msg { font-size: 10.5px; line-height: 1.15; -webkit-line-clamp: 4; }
+.dex-cell, .cards .card { overflow-wrap: anywhere; }
+@media (max-width: 360px) { .cards .card { font-size: 14px; } }
+/* A plate drops its title before its name is shortened (fit.ts adds no-title). */
+.plate.no-title .plate-sep, .plate.no-title .plate-title { display: none; }
+/* Wide plates grow with their content, so the title goes under the name instead. */
+html.fit-wide .plate-name { flex-wrap: wrap; }
+html.fit-wide .plate-name .plate-sep { display: none; }
+html.fit-wide .plate-name .plate-title { flex: 1 1 100%; }
+.plate-msg { -webkit-line-clamp: 3; }
+html.fit:not(.fit-wide) .plate .textbox, html.fit:not(.fit-wide) .plate-msg { font-size: 12px; line-height: 1.2; }
+html.fit-icons:not(.fit-wide) .plate-bottom { height: 52px; }
+html.fit-icons.fit-wide .plate { min-height: 56px; }
+html.fit-icons.fit-wide .plate .plate-sprite { width: 40px; height: 40px; }
+html.fit-icons.fit-wide .plate-name { display: flex; }
+/* The puzzle bar when the board needs the room (R2): first without its extras, then floating over the board's foot. */
+html.fit-bar-compact .puzzle-bar .rating, html.fit-bar-compact .puzzle-bar .step { display: none; }
+html.fit-bar-compact .review { flex-direction: row; flex-wrap: wrap; padding: 4px; }
+html.fit-bar-compact .review-text { flex: 1 1 100%; font-size: 12px; }
+html.fit-bar-compact .review-nav, html.fit-bar-compact .review-acts { flex: 1 1 auto; }
+html.fit-bar-compact .review-btn { min-height: 44px; min-width: 44px; font-size: 13px; padding: 0 4px; }
+html.fit-bar-compact .puzzle-banner { font-size: 11px; padding: 2px 4px; }
+html.fit-bar-over .puzzle-bar:not([hidden]), html.fit-bar-over .path-bar:not([hidden]) { position: fixed; z-index: 20; left: calc(4px + env(safe-area-inset-left)); right: calc(4px + env(safe-area-inset-right)); bottom: calc(4px + env(safe-area-inset-bottom)); width: auto; max-height: 50dvh; overflow-y: auto; padding: 4px; background: var(--paper); border: 3px solid var(--ink); border-radius: 8px; box-shadow: 0 -2px 0 rgba(0, 0, 0, 0.15); }
+/* The review buttons share a row and shrink their padding before their labels are cut. */
+.review-btn { padding: 0 4px; white-space: nowrap; }
+.review-nav .review-btn.replay { flex: 1.8 1 auto; }
+@media (max-width: 380px) { .review-btn { font-size: 13px; min-width: 44px; } }
+
+/* Touch targets (R8): 44 px for everything tappable on touch screens and windows up to 900 px wide. */
+:root { --tap: 44px; }
+@media (pointer: coarse), (max-width: 900px) {
+  button, select, .menu button, .start-btn, .tile-help, .menu .tile-help, .legend-item, .legend-toggle, .screen-shelf .lang-btn,
+  html.fit header.game-header button, html.fit-icons header.game-header button { min-height: var(--tap); }
+  .tile-help, .menu .tile-help { width: var(--tap); height: var(--tap); }
+  html.fit:not(.fit-wide) .legend-item { min-height: var(--tap); }
+  .setting select, .puzzle-buttons select { min-height: var(--tap); }
+  .setting input[type='checkbox'] { flex: none; width: var(--tap); height: var(--tap); margin: 0; }
+  input[type='range'] { min-height: var(--tap); }
+  .site-footer a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 8px; }
+  .dex-cell, .yslot, .ysticker { min-width: var(--tap); min-height: var(--tap); }
+  .menu button.lang-btn { min-width: var(--tap); }
+}
+
+/* W5 journey progression (playtest, 12 Oct): the map's strip, cleared stamps, the current place card with ▶, the
+   next locked place as ???, route trainer rows, and the cards between battles. Normal flow only, inside each screen's
+   own body (the screen frame and fit.ts belong to W2). */
+.map-strip { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
+.map-strip p { margin: 0; }
+.journey-bar { width: min(100%, 320px); height: 10px; border: 2px solid var(--ink); border-radius: 5px; background: #fff; overflow: hidden; }
+.journey-bar span { display: block; height: 100%; background: #58b040; }
+.map-legend { margin: 0; text-align: center; color: #505050; }
+.kanto-map .node.cleared { min-height: 44px; padding: 4px 10px; }
+.kanto-map .node-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.kanto-map .node-row b { flex: 1; }
+.kanto-map .node-row .badge { width: 18px; height: 18px; }
+.stamp { display: inline-block; border: 2px solid #307030; color: #307030; border-radius: 4px; padding: 0 5px; font-size: 11px; font-weight: 700; letter-spacing: 1px; transform: rotate(-6deg); background: #fff; }
+.stamp-now .stamp { animation: cleared-stamp-in var(--map-stamp, 400ms) cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes cleared-stamp-in { from { transform: rotate(-6deg) scale(2.4); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+.kanto-map .node.current { min-height: 0; padding: 8px 10px; gap: 6px; border-width: 4px; outline: 3px solid #f0a020; box-shadow: 0 0 0 6px rgba(240, 160, 32, 0.2); }
+.kanto-map .node.current .node-name { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; border: 0; background: transparent; font: inherit; font-size: 18px; text-align: start; padding: 0; cursor: pointer; color: inherit; }
+.kanto-map .node.current .pointer { color: #d07010; animation: pointer-nudge 1s ease-in-out infinite; }
+@keyframes pointer-nudge { 50% { transform: translateX(4px); } }
+.kanto-map .map-next { width: 100%; min-height: 52px; font: inherit; font-weight: 700; font-size: 16px; background: #f8d030; border: 3px solid var(--ink); border-radius: 6px; cursor: pointer; }
+.kanto-map .node.locked .unlock { color: #606060; }
+.map-more { text-align: center; color: #606060; margin: 4px 0 0; }
+.screen-route .trainer-row { display: flex; align-items: center; gap: 8px; }
+.screen-route .trainer-row .row-sprite { width: 40px; height: 40px; }
+.screen-route .trainer-row .trainer-name { flex: 1; }
+.screen-route .trainer-row .check { color: #307030; }
+.screen-route .trainer-row.next { background: #fff4c8; }
+.progress-card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(92vw, 360px); cursor: pointer; }
+.progress-card .card-title { font-size: 20px; }
+.progress-card p { margin: 0; }
+.progress-card .pips { font-size: 22px; letter-spacing: 6px; }
+.progress-card .badge-line { display: flex; align-items: center; gap: 6px; }
+.progress-card .stamp { font-size: 14px; }
+.progress-card .open { font-weight: 700; color: #307030; }
+.progress-card .tb-tick { position: static; align-self: flex-end; }
+.warmup-intro { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(92vw, 380px); }
+.warmup-intro p { margin: 0; font-weight: 700; }
+.start-next { margin: 0 0 4px; padding: 4px 8px; font-size: 14px; font-weight: 700; border-bottom: 2px solid var(--ink); }
+.summary { flex-wrap: wrap; }
+.summary-next { flex-basis: 100%; margin: 0; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .kanto-map .node.current .pointer { animation: none; } }
+/* ===== Fix, 13 Oct (journey group). J3, the catch's beat: the ball flies to the wild Pokémon, which goes into it; the
+   ball wobbles (three times, or twice before it breaks free) and clicks shut, or pops open and the Pokémon comes back
+   out; then the result and what it gave. Straight up and down, so it needs no RTL mirror; under reduced motion the ball
+   fades in and the Pokémon fades out. J1: the Pokédex entry's line and the numbers OAK changed. J4: the gift card and
+   a picked choice. J13: "wants to battle!" after a story pops by scale only, so the trainer in it never fades out (B2).
+   ===== */
+.catch-stage { position: relative; display: flex; justify-content: center; }
+.catch-ball { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; box-sizing: border-box; border: 3px solid var(--ink); border-radius: 50%; background: linear-gradient(#e03030 0 44%, var(--ink) 44% 56%, #fff 56%); pointer-events: none; }
+.catch-ball::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border: 2px solid var(--ink); border-radius: 50%; background: #fff; }
+.encounter.throwing .catch-ball { animation: journey-ball-fly calc(var(--catch-beat) * 0.25) ease-out both, journey-ball-wobble calc(var(--catch-beat) * 0.18) ease-in-out calc(var(--catch-beat) * 0.3) 3 both; }
+.encounter.throwing.fled .catch-ball { animation: journey-ball-fly calc(var(--catch-beat) * 0.25) ease-out both, journey-ball-wobble calc(var(--catch-beat) * 0.18) ease-in-out calc(var(--catch-beat) * 0.3) 2 both, journey-ball-pop calc(var(--catch-beat) * 0.12) ease-out calc(var(--catch-beat) * 0.7) both; }
+.encounter.throwing .catch-stage img { animation: journey-mon-in calc(var(--catch-beat) * 0.1) ease-in calc(var(--catch-beat) * 0.2) both; }
+.encounter.throwing.fled .catch-stage img { animation: journey-mon-in calc(var(--catch-beat) * 0.1) ease-in calc(var(--catch-beat) * 0.2) both, journey-mon-out calc(var(--catch-beat) * 0.15) ease-out calc(var(--catch-beat) * 0.72) forwards; }
+@keyframes journey-ball-fly { from { transform: translateY(200px) rotate(-540deg) scale(0.6); } to { transform: none; } }
+@keyframes journey-ball-wobble { 25% { transform: rotate(-20deg); } 75% { transform: rotate(20deg); } }
+@keyframes journey-ball-pop { to { transform: scale(1.5); opacity: 0; } }
+@keyframes journey-mon-in { to { transform: scale(0.1); opacity: 0; } }
+@keyframes journey-mon-out { from { transform: scale(0.1); opacity: 0; } to { transform: none; opacity: 1; } }
+.enc-gain { margin: 2px 0 0; font-size: 13px; font-weight: 700; }
+.dex-note { margin: 0; font-weight: 700; }
+.dex-detail .changed { border-radius: 4px; animation: journey-changed 1200ms ease-out both; }
+@keyframes journey-changed { from { background-color: rgba(255, 236, 120, 0.95); } to { background-color: rgba(255, 236, 120, 0); } }
+.gift-card .menu-sprite { align-self: center; }
+/* A choice once picked (review R2): the other one's place is kept but empty, the pick keeps its own colours. */
+.cards .card[hidden] { visibility: hidden; }
+.cards .card:disabled { color: inherit; }
+.overlay > .panel.handover { animation: journey-handover var(--card-in) ease-out both; }
+.overlay > .panel.handover .slide-in { animation: none; }
+@keyframes journey-handover { 0% { transform: scale(0.94); } 70% { transform: scale(1.03); } 100% { transform: none; } }
+@keyframes journey-handover-fade { from { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .encounter.throwing .catch-ball, .encounter.throwing.fled .catch-ball { animation: fade-in var(--reduced-fade) linear both; }
+  .encounter.throwing .catch-stage img, .encounter.throwing.fled .catch-stage img { animation: fade-out var(--reduced-fade) linear forwards; }
+  .dex-detail .changed { animation: none; background-color: rgba(255, 236, 120, 0.6); }
+  .overlay > .panel.handover { animation: journey-handover-fade var(--reduced-fade) linear both; }
+}
+/* Polish, 12 Oct (playtest replay). The ▼ marker sits in the text's own end strip, never over its last line
+   (the earlier `right: auto` cancelled its inline end inset, so it fell to the start under the text). */
+.plate .textbox { padding: 0; padding-inline-end: 16px; }
+.plate .tb-tick { right: auto; left: auto; inset-inline-end: 6px; }
+/* Oak's warm-up card: one button per row, each label on one line where it fits. */
+.warmup-intro .end-buttons { flex-direction: column; align-items: stretch; width: 100%; }
+.warmup-intro .end-buttons button { min-height: 48px; }
+/* The trainer slides in and ends centred (the plain slide-in ended at transform: none, half off the right edge). */
+.story-trainer.slide-in { animation-name: story-slide-in; }
+@keyframes story-slide-in { from { transform: translateX(60vw); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .story-trainer.slide-in { animation: none; } }
+.story-trainer.sil { position: fixed; } /* the silhouette's position: relative put it at the right edge */
+/* YELLOW's Big badge (decisions C5b) keeps its intent, a badge easy to read, as a corner chip at every size, so the
+   Pokémon under it shows whole; it is a little larger than the normal chip, and the sprite is no longer faded. */
+.chip.big { top: 1px; left: 1px; transform: none; width: max(22px, calc(var(--sq) * 0.44)); height: max(22px, calc(var(--sq) * 0.44)); font-size: max(14px, calc(var(--sq) * 0.32)); }
+.piece.faded { opacity: 1; }
+
+/* ===== Pacing, 12 Oct (owner: "transitions between screens ... cut too hard"). Durations come from config.ts through
+   setCssVars() (src/ui/cssVars.ts); geometry (scales, offsets, peak opacities) stays here beside its keyframes. Screens
+   never animate themselves (a transform or opacity on .stage, a screen or .game-view would break their fixed children):
+   the cover over #app does, from src/ui/transitions.ts. ===== */
+html { --dir: 1; }
+html[dir='rtl'] { --dir: -1; }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+/* The cover (z 49: over the battle, the coach and the intro card; under the modal and START) and the board's dip. */
+.screen-cover { position: fixed; inset: 0; z-index: 49; overflow: hidden; pointer-events: auto; }
+.cover-screen { background: var(--paper); }
+.cover-area, .cover-first { background: #fff; }
+.cover-bar { position: absolute; left: 0; right: 0; height: 12.6%; background: var(--ink); }
+.cover-bar:nth-child(2) { top: 12.5%; } .cover-bar:nth-child(3) { top: 25%; } .cover-bar:nth-child(4) { top: 37.5%; }
+.cover-bar:nth-child(5) { top: 50%; } .cover-bar:nth-child(6) { top: 62.5%; } .cover-bar:nth-child(7) { top: 75%; } .cover-bar:nth-child(8) { top: 87.5%; }
+.cover-label { position: absolute; left: 0; right: 0; top: 50%; margin: 0; transform: translateY(-50%); text-align: center; font-weight: 700; color: var(--ink); }
+.cover-label[hidden] { display: none; }
+.cover-battle .cover-label { color: #fff; }
+.board-dip { position: absolute; inset: 0; z-index: 6; background: var(--paper); opacity: 0; pointer-events: auto; }
+/* Cards (§3): the dim fades in when the modal opens (not on swaps), every card pops in, a story box rises and each
+   line fades; a guarded card shows its ▼ only once it takes taps (R4). The trainer slides in once per sequence. */
+.overlay { transition: background-color var(--dim-in) ease-out; }
+.overlay:not([hidden]) { animation: dim-in var(--dim-in) ease-out; }
+.overlay.clear { background-color: transparent; }
+@keyframes dim-in { from { background-color: rgba(0, 0, 0, 0); } }
+.overlay > .panel, .intro > .panel { animation: card-in var(--card-in) ease-out both; }
+@keyframes card-in { 0% { opacity: 0; transform: scale(0.94); } 50% { opacity: 1; } 70% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
+.overlay > .panel.story { animation: story-in var(--story-in) ease-out both; }
+@keyframes story-in { from { opacity: 0; transform: translateY(12px); } }
+.story-text.line-in { animation: fade-in var(--line-in) ease-out both; }
+[data-guard]:not([data-ready]) .tb-tick { visibility: hidden; }
+.slide-in { animation: slide-in var(--trainer-in) ease-out both; }
+/* RTL: trainers slide in from the left, only with motion on; outside this query these rules outranked the reduced
+   motion fade below, so trainers still slid in Hebrew (Fix, 13 Oct). The badge shine's RTL name is kept the same way. */
+@media (prefers-reduced-motion: no-preference) {
+  [dir='rtl'] .slide-in { animation-name: slide-in-rtl; }
+  [dir='rtl'] .story-trainer.slide-in { animation-name: story-slide-in-rtl; }
+}
+@keyframes slide-in-rtl { from { transform: translateX(-120%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes story-slide-in-rtl { from { transform: translateX(calc(-50% - 60vw)); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+/* R5, wide: when the side column (START, plates, the review, Who's who) outgrows the board, only the board's row may
+   take the extra height; with two auto rows the header's row took a share and the board slid down a pixel. */
+html.fit-wide main { grid-template-rows: auto 1fr; }
+/* A4: the Gen 1 "!" over the trainer you tapped, before the dim and the card. */
+.trainer-spot { position: fixed; left: 50%; top: 40%; padding: 0 12px; font-size: 32px; font-weight: 900; line-height: 1.2; color: var(--ink); background: #fff; border: 3px solid var(--ink); border-radius: 8px; transform: translate(-50%, -100%); animation: spot-pop var(--spot) ease-out both; pointer-events: none; }
+@keyframes spot-pop { 0% { opacity: 0; transform: translate(-50%, -60%) scale(0.4); } 30% { opacity: 1; transform: translate(-50%, -100%) scale(1.2); } 45%, 100% { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
+/* A12 to A14: the review fades in and keeps its slot when it goes (R5); arrows and marks fade in; a wrong piece shakes. */
+.review.review-in { animation: fade-in var(--review-in) ease-out both; }
+.review.gone, .path-bar.gone { visibility: hidden; }
+.review-layer > * { animation: fade-in var(--arrow-in) ease-out both; }
+.piece.miss-shake { animation: miss-shake var(--shake) linear; }
+@keyframes miss-shake { 20%, 60% { translate: -4px 0; } 40%, 80% { translate: 4px 0; } }
+/* §5: the win card slams in and its pips light one by one; the badge spins in and a shine crosses it; the unlock
+   card's CLEARED stamp slams once the card is in; on the map the row flashes with the stamp and ▶ pulses twice. */
+.overlay > .panel.win-card { animation: win-slam var(--win-card-in) ease-out both; }
+@keyframes win-slam { 0% { opacity: 0; transform: scale(1.5) rotate(-4deg); } 60% { opacity: 1; transform: scale(0.96) rotate(0deg); } 100% { opacity: 1; transform: none; } }
+.win-card .pip { display: inline-block; animation: pip-light var(--card-in) ease-out both; animation-delay: calc(var(--win-card-in) + var(--i, 0) * var(--pip-step)); }
+@keyframes pip-light { from { opacity: 0.15; transform: scale(0.5); } }
+.badge-card .badge-big { position: relative; width: 96px; height: 96px; border-width: 4px; overflow: hidden; animation: badge-spin var(--badge-in) ease-out both; }
+@keyframes badge-spin { 0% { transform: scale(0) rotate(-180deg); } 70% { transform: scale(1.15) rotate(0deg); } 100% { transform: none; } }
+.badge-card .badge-big::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(-120%); animation: badge-shine var(--badge-shine) ease-in-out var(--badge-in) both; }
+[dir='rtl'] .badge-card .badge-big::after { background: linear-gradient(-105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%); transform: translateX(120%); }
+@media (prefers-reduced-motion: no-preference) { [dir='rtl'] .badge-card .badge-big::after { animation-name: badge-shine-rtl; } }
+@keyframes badge-shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
+@keyframes badge-shine-rtl { from { transform: translateX(120%); } to { transform: translateX(-120%); } }
+.unlock-card .stamp, .town-card .stamp { animation: cleared-stamp-in var(--map-stamp) cubic-bezier(0.2, 1.6, 0.4, 1) var(--card-in) both; }
+.kanto-map .node.stamp-now { animation: row-flash var(--cleared-row) ease-in-out; }
+.kanto-map .node.stamp-wait .stamp { visibility: hidden; } /* the row just cleared, until its stamp slams (Fix, 13 Oct) */
+@keyframes row-flash { 0%, 50%, 100% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0); } 25%, 75% { box-shadow: inset 0 0 0 999px rgba(255, 236, 120, 0.65); } }
+.kanto-map .node.current.next-pulse { animation: next-pulse calc(var(--next-pulse) / 2) ease-in-out 2; }
+@keyframes next-pulse { 50% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(240, 160, 32, 0.35); } }
+/* YELLOW (D4 to D7): stars burst on a right move, Next fades in, the progress chip pops, the sticker bounces in and
+   hops twice, and the lesson that just opened pulses twice once the Path is in. */
+.cheer { position: absolute; z-index: 6; width: 0; height: 0; pointer-events: none; }
+.cheer-star { position: absolute; left: 0; top: 0; color: #f0c020; font-size: calc(var(--sq) * 0.4); line-height: 1; text-shadow: 0 0 2px var(--ink); animation: cheer var(--cheer) ease-out both; }
+@keyframes cheer { from { opacity: 1; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(0.4); } to { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--sq) * -0.9)) scale(1); } }
+.path-bar button.fade-in { animation: fade-in var(--line-in) ease-out both; }
+.path-progress.pop { animation: pip-pop 360ms ease-out; }
+.overlay > .panel.sticker { animation: sticker-in var(--sticker-in) ease-out both; }
+@keyframes sticker-in { 0% { opacity: 0; transform: scale(0.5); } 60% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
+.panel.sticker img { animation: sticker-hop calc(var(--sticker-in) / 2) ease-out var(--sticker-in) 2; }
+@keyframes sticker-hop { 40% { transform: translateY(-14px); } }
+.path-step.path-new { animation: path-new calc(var(--path-new) / 2) ease-in-out var(--screen-in) 2; }
+@keyframes path-new { 50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(248, 208, 48, 0.6); } }
+/* R7: under reduced motion nothing moves; what appears fades in over REDUCED_FADE_MS, and holds keep their length. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay:not([hidden]) { animation-duration: var(--reduced-fade); }
+  .overlay { transition-duration: var(--reduced-fade); }
+  .overlay > .panel, .overlay > .panel.story, .overlay > .panel.win-card, .overlay > .panel.sticker, .intro > .panel, .slide-in, .story-trainer.slide-in, .trainer-spot,
+  .review.review-in, .story-text.line-in, .path-bar button.fade-in, .review-layer > *, .unlock-card .stamp, .town-card .stamp, .stamp-now .stamp, .badge-card .badge-big { animation: fade-in var(--reduced-fade) linear both; }
+  .solved-stamp { animation: fade-in var(--reduced-fade) linear both, fade-out var(--reduced-fade) linear calc(var(--stamp-ms) - var(--reduced-fade)) forwards; }
+  .win-card .pip, .panel.sticker img, .badge-card .badge-big::after, .piece.miss-shake, .cheer, .path-progress.pop, .path-step.path-new, .kanto-map .node.next-pulse, .kanto-map .node.stamp-now, .piece.hop { animation: none; }
+  .piece.blast-off, .piece.faint { animation: fade-out var(--reduced-fade) linear forwards; }
 }

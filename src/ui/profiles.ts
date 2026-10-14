@@ -19,6 +19,11 @@ export interface SlotSummary {
   dex: number;
   /** Play time, h:mm. */
   time: string;
+  /** The player chose a name (else `name` is "Player n"), and YELLOW's Path lessons done. */
+  named?: boolean;
+  lessons?: number;
+  /** BLUE's next goal, "Next: YOUNGSTER TOBY at ROUTE 1" (W5). */
+  next?: string | null;
 }
 
 export interface ProfileActions {

@@ -6,6 +6,7 @@
 // ("TEAM ROCKET wants to battle!", reactions). With no trainers (Pikachu's Path) your bar keeps the text box.
 import type { Color } from '../board/pieces';
 import { el } from './dom';
+import { fmt } from '../game/text';
 import { trainerSprite } from './kanto';
 
 import type { Side } from '../look';
@@ -67,6 +68,18 @@ export class Plates {
     this.fill(this.top, bottom === 'w' ? 'b' : 'w');
   }
 
+  /** The name on a side's plate ("YOUNGSTER TOBY"), for lines that name the opponent (W3). */
+  nameOf(c: Color): string | undefined {
+    return this.sides[c]?.name;
+  }
+
+  /** The name for a line that says whose move it is or who won (C8): none without plates, or when both plates read
+   * the same name (one MEIR save stands twice in Two Players, review 14 Oct), so the line names the team instead. */
+  named(c: Color): string | undefined {
+    const name = this.top.hidden ? undefined : this.sides[c]?.name;
+    return name !== this.sides[c === 'w' ? 'b' : 'w']?.name ? name : undefined;
+  }
+
   /** The sprite standing on a side, for the battle screen (§B20 item 2). */
   spriteOf(c: Color): string | undefined {
     return this.sides[c]?.sprite;
@@ -107,12 +120,25 @@ export class Plates {
       name.append(sep, title);
     }
     who.replaceChildren(sprite, name);
+    // Puzzles (W3): a YOU tag on your plate, so there is no doubt which side is yours.
+    if (s.you) {
+      const you = el('span', 'plate-you');
+      you.dataset.testid = 'plate-you';
+      you.textContent = fmt('plate.you');
+      who.append(you);
+    }
   }
 
   /** A capture: that side hops, the other shakes. */
   capture(by: Color): void {
     this.pulse(this.plateOf(by), 'hop');
     this.pulse(this.plateOf(by === 'w' ? 'b' : 'w'), 'shake');
+  }
+
+  /** A battle decided (pacing §5): the winner hops, the loser shakes and fades. */
+  beat(winner: Color): void {
+    this.capture(winner);
+    this.end(winner);
   }
 
   /** "!" over the side in check; null clears it. */

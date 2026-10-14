@@ -31,7 +31,9 @@ export interface SeatInfo {
 }
 
 export type ServerMsg =
-  | { type: 'state'; you: Seat; moves: string[]; fen: string; seats: Record<Seat, SeatInfo>; result: Result | null; rematch: Seat[]; skins: Partial<Record<Seat, Skin>>; looks?: Partial<Record<Seat, Look>> }
+  /** `rematch`: the seats that asked for a rematch since the result; `swap`: one of them asked to swap sides (an older
+   * relay sends no swap). */
+  | { type: 'state'; you: Seat; moves: string[]; fen: string; seats: Record<Seat, SeatInfo>; result: Result | null; rematch: Seat[]; swap?: boolean; skins: Partial<Record<Seat, Skin>>; looks?: Partial<Record<Seat, Look>> }
   | { type: 'reject'; reason: string }
   | { type: 'reaction'; id: number; from: Seat }
   | { type: 'error'; reason: 'unknown' | 'full' | 'replaced' };

@@ -3,12 +3,12 @@
 // start menu (CONTINUE, NEW GAME, OPTION, SWITCH TRAINER), the save list, the "replace which save?" list, and the
 // Two Players picker where each side plays as a save or as a guest. Moved out of main.ts.
 import { CARTRIDGE_HOLD_MS } from './config';
-import type { Color, TeamSkin } from './board/pieces';
+import { knownTeam, type Color, type TeamSkin } from './board/pieces';
 import type { Campaign } from './campaign/kanto';
 import type { Lang } from './game/text';
 import { fmt } from './game/text';
-import { abandonNewGame, addProfile, creatingFrom, deleteProfile, isFull, needsPicker, renameProfile, replaceProfile, slotCount, summaries, switchTo, takeIntent } from './profiles';
-import { currentSlot, loadFrom } from './store/persist';
+import { abandonNewGame, addProfile, creatingInPlace, deleteProfile, hasProgress, isCreating, isFull, leaveCreating, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
+import { currentSlot, loadFrom, PLAYER_TRAINER } from './store/persist';
 import { button, el, screen } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
 import { holdButton } from './ui/settings';
@@ -30,6 +30,8 @@ export interface StartHost {
   newGame(): void;
   /** PLAY CHESS (§B22 item 4): a guest game, nothing saved. */
   quickPlay(kind: 'computer' | 'friend' | 'online'): void;
+  /** A save was renamed: the game reloads its copy, so nothing writes the old name back (bugs #6). */
+  renamed(): void;
 }
 
 /** A save as a Two Players side: its trainer, name and team (null slot = guest). */
@@ -44,9 +46,9 @@ export function duoSide(slot: number | null, color: Color): DuoSide {
   if (slot === null) return { slot, name: fmt(color === 'w' ? 'plate.red' : 'plate.blue'), trainer: 'red', team: {} };
   const c = loadFrom<Partial<Campaign>>(slot, 'campaign');
   const yellow = loadFrom<string>(slot, 'cartridge') === 'yellow';
-  const team: TeamSkin = { ...(c?.team ?? {}) };
+  const team = knownTeam(c?.team); // a stored team as Import keeps it: species this build knows (boot fix, 14 Oct)
   if (yellow) delete team.k; // the King is always Pikachu in YELLOW
-  return { slot, name: c?.name || fmt('profiles.slot', { n: String(slot) }), trainer: loadFrom<string>(slot, 'trainer') === 'meir' ? 'meir' : 'red', team };
+  return { slot, name: c?.name || fmt('profiles.slot', { n: String(slot) }), trainer: loadFrom<string>(slot, PLAYER_TRAINER) === 'meir' ? 'meir' : 'red', team };
 }
 
 export class StartFlow {
@@ -54,16 +56,25 @@ export class StartFlow {
 
   constructor(private readonly host: StartHost) {}
 
-  /** Runs once the splash is dismissed. Tests (?debug=1) skip the start menu unless they ask for it with &menu. */
+  /** The current save has real progress and a cartridge: CONTINUE and its summary show (playtest, 12 Oct). */
+  private canContinue(): boolean {
+    return this.host.hasCart() && hasProgress(currentSlot());
+  }
+
+  /** Runs once the splash is dismissed. Tests (?debug=1) skip the start menu unless they ask for it with &menu.
+   * A save with no progress (a brand-new device) goes from the splash to the shelf and straight into that
+   * cartridge's new game: no menu in between, and BACK on the way leads to the menu (playtest, 12 Oct). */
   afterSplash(): void {
     const intent = takeIntent();
-    if (intent === 'menu') return this.host.hasCart() ? this.menu() : this.shelf(() => this.menu());
-    if (intent === 'continue' && this.host.hasCart()) return this.host.resume();
+    if (intent === 'menu') return this.menu();
+    if (intent === 'continue' && this.canContinue()) return this.host.resume();
     if (intent === 'newgame') return this.host.hasCart() ? this.host.newGame() : this.shelf(() => this.host.newGame());
-    if (this.params.has('debug') && !this.params.has('menu')) {
+    const debug = this.params.has('debug');
+    if (debug && !this.params.has('menu')) {
       if (needsPicker()) return this.players();
       return this.host.hasCart() ? this.host.goTitle() : this.shelf(() => this.host.goTitle());
     }
+    if (!debug && reuseEmpty()) return this.shelf(() => this.host.newGame());
     if (!this.host.hasCart()) return this.shelf(() => this.menu());
     this.menu();
   }
@@ -72,14 +83,19 @@ export class StartFlow {
    * Oak's intro and the name step, plus Escape, and B except on the shelf (where B is part of the secret code). */
   decorate(view: HTMLElement): void {
     const id = view.dataset.testid ?? '';
-    if (creatingFrom() === null || !['screen-shelf', 'screen-intro', 'screen-name'].includes(id)) return;
-    view.prepend(button('newgame.back', abandonNewGame, 'newgame-back', 'newgame-back'));
+    if (!['screen-shelf', 'screen-intro', 'screen-name'].includes(id) || !isCreating()) return;
+    view.querySelector('[data-testid="back"]')?.remove(); // one back control on the name step (ux #14)
+    // The shelf of a fresh device's empty save: nothing chosen yet, so BACK shows the menu in place, with no reload
+    // through the splash (playtest, 12 Oct). Left, not ended: a save NEW GAME made stays droppable at boot.
+    const back = () => (id === 'screen-shelf' && !this.host.hasCart() && creatingInPlace() ? (leaveCreating(), this.menu()) : abandonNewGame());
+    view.prepend(button('newgame.back', back, 'newgame-back', 'newgame-back'));
     view.classList.add('has-newgame-back');
     const onKey = (e: KeyboardEvent) => {
       if (!view.isConnected) return window.removeEventListener('keydown', onKey, true);
+      if (!isCreating()) return;
       if (e.key === 'Escape' || (id !== 'screen-shelf' && (e.code === 'KeyB' || e.key.toLowerCase() === 'b'))) {
         e.preventDefault();
-        abandonNewGame();
+        back();
       }
     };
     window.addEventListener('keydown', onKey, true);
@@ -94,13 +110,14 @@ export class StartFlow {
     return summaries().find((s) => s.n === currentSlot());
   }
 
+  /** CONTINUE and the summary only for a save with progress; SWITCH TRAINER only when another save has some. */
   menu(): void {
     const items: MenuItem[] = [];
-    const me = this.current();
-    if (this.host.hasCart()) items.push({ id: 'continue', run: () => this.host.resume() });
+    const me = this.canContinue() ? this.current() : undefined;
+    if (me) items.push({ id: 'continue', run: () => this.host.resume(), name: me.named ? me.name : undefined });
     items.push({ id: 'new', run: () => this.newGame() }, { id: 'play', run: () => this.quick() }, { id: 'option', run: () => this.host.settings(() => this.menu()) });
-    if (slotCount() > 1) items.push({ id: 'switch', run: () => this.players(() => this.menu()) });
-    this.host.show(startMenu(items, me && this.host.hasCart() ? summaryBox(me) : null));
+    if (summaries().some((s) => s.n !== currentSlot())) items.push({ id: 'switch', run: () => this.players(() => this.menu()) });
+    this.host.show(startMenu(items, me ? summaryBox(me) : null));
   }
 
   /** PLAY CHESS (§B22 item 4): straight into a game as a guest. Nothing is saved; the Journey is never touched. */
@@ -122,17 +139,19 @@ export class StartFlow {
         add: () => this.newGame(),
         refresh: again,
         back,
-        rename: (n, name) => (renameProfile(n, name), again()),
+        rename: (n, name) => (renameProfile(n, name), this.host.renamed(), again()),
         remove: (n) => deleteProfile(n) || again(),
       }),
     );
   }
 
-  /** NEW GAME: a fresh save in the next free slot; with all 4 in use, a named 2 s hold picks the one to replace. */
+  /** NEW GAME: an empty current save is reused in place (no reload, no second splash); else a fresh save in the
+   * next free slot; with all 4 in use, a named 2 s hold picks the one to replace. */
   newGame(): void {
+    if (reuseEmpty()) return this.shelf(() => this.host.newGame());
     if (!isFull()) return addProfile();
     const list = el('div', 'replace-list');
-    for (const s of summaries()) {
+    for (const s of summaries(true)) {
       const row = el('div', 'replace-row');
       row.append(summaryBox(s, `replace-box-${s.n}`), holdButton(fmt('start.replaceHold', { name: s.name }), CARTRIDGE_HOLD_MS, () => replaceProfile(s.n), `replace-${s.n}`));
       list.append(row);

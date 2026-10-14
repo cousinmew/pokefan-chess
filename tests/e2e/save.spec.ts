@@ -14,11 +14,18 @@ const settings = async (page: Page) => {
 };
 
 test('an old save moves into slot 1; a second player gets the picker, own cartridge and own language', async ({ page }) => {
+  // The old save has a name: a cartridge alone is no progress, and NEW GAME would reuse that slot (playtest 12 Oct).
+  await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ name: 'ASH' })));
   await enter(page);
   await expect(page.getByTestId('screen-title')).toBeVisible();
   const keys = await page.evaluate(() => Object.keys(localStorage).sort());
   expect(keys).toContain('kc:v1:p1:cartridge');
+  expect(keys).toContain('kc:v1:p1:campaign');
   expect(keys).toContain('kc:v1:profiles');
+  // Moved, not copied: the old save itself is in slot 1 and its old keys are gone.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign')!).name)).toBe('ASH');
+  expect(keys).not.toContain('kc:v1:campaign');
+  expect(keys).not.toContain('kc:v1:cartridge');
   await settings(page);
   await page.getByTestId('players').click();
   await expect(page.getByTestId('slot-1')).toBeVisible();
@@ -28,7 +35,7 @@ test('an old save moves into slot 1; a second player gets the picker, own cartri
   await page.getByTestId('lang-fr').click();
   await page.getByTestId('cart-yellow').click();
   await expect(page.getByTestId('screen-yellow')).toBeVisible();
-  // A new visit asks who's playing.
+  // A new visit asks who's playing; the YELLOW save is kept with no lesson done yet (its cartridge is its progress).
   await page.evaluate(() => sessionStorage.clear());
   await page.reload();
   await page.getByTestId('screen-splash').click();

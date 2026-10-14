@@ -28,7 +28,7 @@ describe('journey data (§B11)', () => {
       keys.push(...(p.story ?? []));
       for (const t of p.trainers ?? []) keys.push(t.class, t.name, t.defeat);
     }
-    keys.push('story.oak.starter', 'story.route.cleared', 'trainer.wants', 'trainer.lost');
+    keys.push('story.oak.starter', 'trainer.wants', 'trainer.lost');
     for (const k of keys) expect(strings, k).toHaveProperty([k]);
   });
 

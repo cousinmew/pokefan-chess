@@ -2,12 +2,6 @@
 // Species lookup: role + colour + square colour -> species (Part I §2, bishop species rule).
 import roster from '../data/roster.gen1.json';
 import kanto from '../data/kanto.json';
-import namesFr from '../data/names.fr.json';
-import namesEs from '../data/names.es.json';
-import namesDe from '../data/names.de.json';
-import namesIt from '../data/names.it.json';
-import namesJa from '../data/names.ja.json';
-import namesZh from '../data/names.zh-Hans.json';
 import { ASSET_BASE } from '../config';
 
 export type Color = 'w' | 'b';
@@ -28,9 +22,19 @@ export const MOVES: Record<MoveId, MoveInfo> = { ...(kanto.moves as Record<strin
 
 const EN_NAMES = { species: Object.fromEntries(Object.entries(SPECIES).map(([k, v]) => [k, v.name])), moves: Object.fromEntries(Object.entries(MOVES).map(([k, v]) => [k, v.name])) };
 // nl, pt, he and ru have no localized names in PokéAPI: they use the English ones, in Latin script (§B17, §B20 item 4).
-const LOCAL: Record<string, { species: Record<string, string>; moves: Record<string, string> }> = { fr: namesFr, es: namesEs, de: namesDe, it: namesIt, ja: namesJa, 'zh-Hans': namesZh };
+// N1 (14 Oct): each table is its own chunk, fetched once by loadNames (src/i18n.ts loadLanguage), not in the entry bundle.
+type Names = { species: Record<string, string>; moves: Record<string, string> };
+const NAMES = import.meta.glob<Names>('../data/names.*.json', { import: 'default' });
+const LOCAL: Record<string, Names> = {};
 
-/** Species and move names for a language (§B17): PokéAPI's names for fr, es, de, it, ja (kana) and zh-Hans; English otherwise. */
+/** Fetches a language's species and move names once (fr, es, de, it, ja, zh-Hans; the rest have none). */
+export async function loadNames(lang: string): Promise<void> {
+  const load = NAMES[`../data/names.${lang}.json`];
+  if (load && !LOCAL[lang]) LOCAL[lang] = await load();
+}
+
+/** Species and move names for a language (§B17): PokéAPI's names for fr, es, de, it, ja (kana) and zh-Hans; English
+ * otherwise, and until loadNames has fetched them. Synchronous. */
 export function applyNames(lang: string): void {
   const local = LOCAL[lang];
   for (const [id, s] of Object.entries(SPECIES)) s.name = local?.species[id] ?? EN_NAMES.species[id]!;
@@ -49,8 +53,33 @@ export interface TeamSkin {
   bDark?: SpeciesId;
 }
 export const SKIN_ROLES = ['k', 'q', 'r', 'bLight', 'bDark', 'n', 'p'] as const;
+
+/** Whether this build knows a species, or a variant of one ("pidgey:s:2"): a save from another build or an edited
+ * backup can name one it does not ("missingno"), and an own key only (not "constructor"). */
+export const knownSpecies = (id: unknown): id is SpeciesId => typeof id === 'string' && Object.hasOwn(SPECIES, parseVariant(id).base);
+
+/** A save's My Team with only the slots this build can show (boot fix, 14 Oct): an unknown species crashed boot (the
+ * Journey's My Team prefetch), so its slot goes back to the default piece. The slots keep their order (the §B14
+ * migration's notice lists them in it). Anything else that is not a team: none. */
+export function knownTeam(team: unknown): TeamSkin {
+  const out: TeamSkin = {};
+  if (!team || typeof team !== 'object' || Array.isArray(team)) return out;
+  for (const [role, id] of Object.entries(team)) if ((SKIN_ROLES as readonly string[]).includes(role) && knownSpecies(id)) out[role as (typeof SKIN_ROLES)[number]] = id;
+  return out;
+}
 let skins: Partial<Record<Color, TeamSkin>> = {};
 let stages: Partial<Record<Color, TeamSkin>> = {};
+// Which team's look each colour wears (W3, playtest 12 Oct): Red on white and Rocket on black, except in puzzles,
+// where you are always TEAM RED, so a black to move puzzle puts Red's look on black.
+let wears: Record<Color, Color> = { w: 'w', b: 'b' };
+
+/** You (RED) play `red`: that colour wears Red's look, the other Rocket's. Every other mode keeps Red on white. */
+export function setWears(red: Color): void {
+  wears = red === 'w' ? { w: 'w', b: 'b' } : { w: 'b', b: 'w' };
+}
+
+/** The colour whose team look `color` wears ('w' Red, 'b' Rocket). */
+export const lookOf = (color: Color): Color => wears[color];
 
 /** BLUE story stage per side (§B18 item 5): species that stand in for the default team until it evolves. */
 export function setStages(next: Partial<Record<Color, TeamSkin>>): void {
@@ -107,8 +136,9 @@ export function speciesIdFor(color: Color, role: Role, square: string): SpeciesI
   const skin = skins[color];
   const key = role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role;
   const pick = skin?.[key] ?? stages[color]?.[key];
-  if (pick && SPECIES[parseVariant(pick).base]) return pick;
-  return defaultSpecies(color, role, isDarkSquare(square));
+  // An own key only (boot fix, 14 Oct): a stored team's "constructor" or "toString" named Object's members on the board.
+  if (knownSpecies(pick)) return pick;
+  return defaultSpecies(wears[color], role, isDarkSquare(square));
 }
 
 /** The v1 roster's species for a role (the fully evolved team). */
@@ -122,12 +152,12 @@ const variants = new Map<string, Species>();
 
 /** A species by id; a variant id ("pidgey:s:2") returns that species with its shiny and star flags. */
 export function species(id: SpeciesId): Species {
-  const direct = SPECIES[id];
+  const direct = Object.hasOwn(SPECIES, id) ? SPECIES[id] : undefined;
   if (direct) return direct;
   let v = variants.get(id);
   if (!v) {
     const { base, shiny, stars } = parseVariant(id);
-    const s = SPECIES[base];
+    const s = Object.hasOwn(SPECIES, base) ? SPECIES[base] : undefined;
     if (!s) throw new Error(`unknown species ${id}`);
     v = { ...s, shiny, stars };
     variants.set(id, v);

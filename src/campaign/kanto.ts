@@ -3,12 +3,12 @@
 // route mastery, and saved progress. Pure logic: the screens live in src/ui/kanto.ts.
 import kanto from '../data/kanto.json';
 import { CANDY_COST, CANDY_PER_CATCH, CANDY_PER_OAK, CATCH, MASTERY_NEED, MASTERY_WINDOW, RARE_SLOT_BELOW, SHINY_ODDS, SHINY_STREAK, STAR_STEPS, STREAK_FOR_RARE } from '../config';
-import { PLACES, placeUnlocked } from './journey';
+import { PLACES, placeUnlocked, WARMUP_PLACE } from './journey';
 import sources from '../data/sources.kanto.json';
 import { enforce, type SkinRole } from '../../worker/src/team';
 import type { Rng } from '../game/rng';
 import { load, save } from '../store/persist';
-import type { TeamSkin } from '../board/pieces';
+import { knownTeam, type TeamSkin } from '../board/pieces';
 
 export interface Encounter {
   species: string;
@@ -114,6 +114,12 @@ export interface Campaign {
   /** YELLOW wins vs Computer after the 12 lessons, and how many linear unlocks are already in the sticker book. */
   yellowWins: number;
   yellowGiven: number;
+  /** One time tips already shown (W3): 'puzzle' is the first puzzle's coach marks. */
+  tips: string[];
+  /** Puzzles started on this save; the first few say how to make a move (W3). */
+  puzzlesStarted: number;
+  /** Oak's Route 1 warm-up (W5, design G) was played or skipped. */
+  warmup: boolean;
 }
 
 export const TEAM_RULES_VERSION = 2;
@@ -129,7 +135,12 @@ const fresh = (): Campaign => ({
   journey: { cleared: [], beaten: [], visited: [] }, team: {}, playMs: 0,
   badges: [], introSeen: false, lessonsSeen: [], teamRules: TEAM_RULES_VERSION, teamNotice: [],
   queenOpen: false, champion: false, hallOfFame: [], rewards: [], path: 0, yellowWins: 0, yellowGiven: 0,
+  tips: [], puzzlesStarted: 0, warmup: false,
 });
+
+/** A stored save that has solved a puzzle: a trainer beaten, or a solve recorded on a route (Training, tall grass). */
+export const solvedBefore = (c: Partial<Campaign> | null): boolean =>
+  !!c?.journey?.beaten?.length || Object.values(c?.routes ?? {}).some((r) => (r?.streak ?? 0) > 0 || !!r?.last?.some(Boolean));
 
 /** Loads the save, migrating a C2 (v1) save without losing a single catch:
  * every catch so far earns its candy, caught species count as seen, and a mastered route counts as cleared. */
@@ -138,7 +149,8 @@ export function loadCampaign(): Campaign {
   const out: Campaign = {
     ...fresh(), ...c,
     caught: { ...c?.caught }, shiny: { ...c?.shiny }, oak: { ...c?.oak }, candy: { ...c?.candy }, seen: [...(c?.seen ?? [])],
-    caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: { ...c?.team },
+    // My Team keeps only the species this build knows (boot fix, 14 Oct): one it does not crashed boot.
+    caughtAt: { ...c?.caughtAt }, routes: { ...c?.routes }, team: knownTeam(c?.team),
     badges: [...(c?.badges ?? [])], lessonsSeen: [...(c?.lessonsSeen ?? [])], teamNotice: [...(c?.teamNotice ?? [])],
     hallOfFame: [...(c?.hallOfFame ?? [])], rewards: [...(c?.rewards ?? [])],
     // Grandfathered queen (C3 quick fix): a save with a starter but no introSeen predates C2c's Oak intro.
@@ -146,6 +158,12 @@ export function loadCampaign(): Campaign {
     // Saves from before §B14 have no teamRules: their teams are checked once below.
     teamRules: c ? (c.teamRules ?? 0) : TEAM_RULES_VERSION,
     journey: { cleared: [...(c?.journey?.cleared ?? [])], beaten: [...(c?.journey?.beaten ?? [])], visited: [...(c?.journey?.visited ?? [])] },
+    // W3: saves from before the coach marks that already solved a puzzle (a trainer beaten, or Training and tall grass
+    // on a route, review fix) have seen puzzles; they skip the first tips.
+    tips: [...(c?.tips ?? (solvedBefore(c) ? ['puzzle'] : []))],
+    puzzlesStarted: c?.puzzlesStarted ?? (solvedBefore(c) ? 3 : 0),
+    // W5: saves from before the warm-up that already beat a Route 1 trainer, or walked Route 1, skip it.
+    warmup: c?.warmup ?? (!!c?.journey?.visited?.includes(WARMUP_PLACE) || !!PLACES.find((p) => p.id === WARMUP_PLACE)?.trainers?.some((t) => c?.journey?.beaten?.includes(t.id))),
   };
   if (c && (c.v ?? 1) < CAMPAIGN_VERSION) {
     for (const [id, n] of Object.entries(out.caught)) {
@@ -184,6 +202,15 @@ export function loadCampaign(): Campaign {
 
 export function saveCampaign(c: Campaign): void {
   save('campaign', c);
+}
+
+/** Adds play time to the save as stored (bugs #6): merged into what is on disk, never a copy kept in memory, so a
+ * rename or a YELLOW lesson written elsewhere in the meantime is never overwritten. Returns the stored save. */
+export function addPlayTime(ms: number): Campaign {
+  const c = loadCampaign();
+  const next = { ...c, playMs: c.playMs + ms };
+  saveCampaign(next);
+  return next;
 }
 
 export function chooseStarter(c: Campaign, id: string): Campaign {
@@ -297,16 +324,46 @@ export function unlocked(c: Campaign, index: number): boolean {
   return at >= 0 && c.starter !== null && placeUnlocked(c, at);
 }
 
-/** Throws a Poké Ball. A guaranteed rare catch spends the streak. */
-export function throwBall(c: Campaign, routeId: string, slot: Slot, solve: Solve, rng: Rng, shiny = false): { campaign: Campaign; caught: boolean } {
+/** Throws a Poké Ball. A guaranteed rare catch spends the streak; `force` always catches (the warm-up's first catch, W5). */
+export function throwBall(c: Campaign, routeId: string, slot: Slot, solve: Solve, rng: Rng, shiny = false, force = false): { campaign: Campaign; caught: boolean } {
   const st = c.routes[routeId] ?? { last: [], streak: 0 };
   const guaranteed = isRare(slot) && solve === 'first' && st.streak >= STREAK_FOR_RARE;
-  const caught = guaranteed || rng.next() < catchChance(slot, solve, st.streak);
+  const caught = force || guaranteed || rng.next() < catchChance(slot, solve, st.streak);
   let next = c;
   if (guaranteed) next = { ...next, routes: { ...next.routes, [routeId]: { ...st, streak: 0 } } };
   if (caught && shiny && (next.routes[routeId]?.shinyStreak ?? 0) >= SHINY_STREAK) next = { ...next, routes: { ...next.routes, [routeId]: { ...next.routes[routeId]!, shinyStreak: 0 } } };
   if (caught) next = addCatch(next, slot.species, shiny, routeId);
   return { campaign: next, caught };
+}
+
+/** What a throw gave (J3): the family's candy, how many of the species you own now, and the Pokédex count when it is new
+ * (null for a duplicate). */
+export interface CatchGains {
+  candy: number;
+  family: string;
+  count: number;
+  dex: number | null;
+}
+export function catchGains(before: Campaign, after: Campaign, id: string): CatchGains {
+  const family = familyOf(id);
+  const dex = before.caught[id] ? null : DEX.filter((s) => after.caught[s]).length;
+  return { candy: (after.candy[family] ?? 0) - (before.candy[family] ?? 0), family, count: after.caught[id] ?? 0, dex };
+}
+
+/** BLUE's team as a rival battle's pieces (J12): the lead is the king, then queen, rooks, knights and bishops in order,
+ * the rest of the team taking them in turn when it is shorter (review R2: a role left unset fell back to Rocket's
+ * species); the pawns are the most basic species (the later one on a tie), as his Champion party has PIDGEY pawns. */
+export function rivalSkin(team: string[]): TeamSkin {
+  const skin: TeamSkin = {};
+  if (!team.length) return skin;
+  const rest = team.length > 1 ? team.slice(1) : team;
+  const of = (i: number) => team[i] ?? rest[(i - 1) % rest.length]!;
+  [skin.k, skin.q, skin.r, skin.n] = [of(0), of(1), of(2), of(3)];
+  skin.bLight = skin.bDark = of(4);
+  const stage = (id: string) => EVOLUTIONS.find((e) => e.to === id)?.stage ?? 0;
+  const pawn = team.reduce<string | undefined>((best, id) => (best === undefined || stage(id) <= stage(best) ? id : best), undefined);
+  if (pawn) skin.p = pawn;
+  return skin;
 }
 
 /** Distinct species of a route, in table order. */

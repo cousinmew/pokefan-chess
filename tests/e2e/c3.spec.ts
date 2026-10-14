@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { passCoach } from './coach';
+import { noTransition, skipHold } from './pace';
 
 type Save = { badges: string[]; caught: Record<string, number>; journey: { cleared: string[] }; champion: boolean; hallOfFame: unknown[] };
 const kc = <T>(page: Page, fn: string, arg?: unknown) => page.evaluate(([f, a]) => (window as unknown as { __kc: Record<string, (x?: unknown) => unknown> }).__kc[f as string]!(a) as T, [fn, arg] as const);
@@ -17,23 +19,36 @@ async function open(page: Page, save: object = SAVE) {
   await expect(page.getByTestId('screen-map')).toBeVisible();
 }
 
-/** Plays whatever the Journey shows (stories, cards, choices, puzzles) until the map is back with nothing over it. */
-async function playThrough(page: Page) {
+/** The drill or Champion game is on the board: the battle bars closed, the game started and the bars opened (pacing). */
+async function onBoard(page: Page) {
+  await expect(page.getByTestId('screen-game')).toBeVisible();
+  await noTransition(page);
+}
+
+/** Plays whatever the Journey shows (stories, cards, choices, puzzles) until the map is back with nothing over it.
+ * Returns how many times the first puzzle's coach marks showed (and were tapped through). */
+async function playThrough(page: Page): Promise<number> {
+  let coached = 0;
   // The Elite Four is four battles in one go, so allow plenty of steps.
   for (let i = 0; i < 1500; i++) {
     const vis = (id: string) => page.getByTestId(id).first().isVisible();
-    if (await vis('story')) await page.getByTestId('story').first().click();
+    // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct), tapped through as a player does.
+    // A fast player skips the holds (the "Watch!" set up, replies, the solve beat, the review replay): pacing §6.
+    if (await vis('coach')) coached += await passCoach(page).then(() => 1);
+    else if (await page.locator('body[data-skippable]').count()) await skipHold(page).catch(() => undefined);
+    else if (await vis('story')) await page.getByTestId('story').first().click();
     else if (await vis('goal-card')) await page.getByTestId('goal-card').click();
     else if (await vis('trainer-intro')) await page.getByTestId('trainer-intro').click();
     else if (await vis('lesson-ok')) await page.getByTestId('lesson-ok').click();
     else if (await vis('review-continue')) await page.getByTestId('review-continue').click();
+    else if (await page.locator('.overlay .progress-card').first().isVisible()) await page.locator('.overlay .progress-card').first().click(); // W5 win, unlock and town cards
     else if (await page.locator('[data-testid^="choose-"]').first().isVisible()) await page.locator('[data-testid^="choose-"]').first().click();
     else if ((await kc<string>(page, 'puzzlePhase')) === 'player' && (await page.getByTestId('screen-game').isVisible())) {
       const uci = (await kc<string>(page, 'puzzleAnswer'))!;
       await page.click(`[data-square="${uci.slice(0, 2)}"]`);
       await page.click(`[data-square="${uci.slice(2, 4)}"]`);
       if (uci.length > 4) await page.click(`[data-testid="promotion"] button[data-role="${uci[4]}"]`);
-    } else if (await vis('screen-map')) return;
+    } else if ((await vis('screen-map')) && !(await page.locator('#app > .overlay:not([hidden]), [data-testid="screen-cover"]').count())) return coached; // not under the "!" or the battle bars (pacing)
     await page.waitForTimeout(150);
   }
   const state = await page.evaluate(() => ({ phase: (window as unknown as { __kc: { puzzlePhase(): string } }).__kc.puzzlePhase(), screens: [...document.querySelectorAll('[data-testid^="screen-"]')].map((e) => e.getAttribute('data-testid')), overlay: document.querySelector('.overlay:not([hidden])')?.textContent?.slice(0, 120), text: document.querySelector('[data-testid="text-main"]')?.textContent, banner: document.querySelector('[data-testid="puzzle-banner"]')?.textContent, beaten: (window as unknown as { __kc: { journey(): { journey: { beaten: string[] } } } }).__kc.journey().journey.beaten.filter((b) => b.startsWith('e4')) }));
@@ -49,14 +64,16 @@ test('@slow gyms 1 to 8 and the Elite Four complete via the harness; badges, gif
   for (const [i, gym] of gyms.entries()) {
     await kc(page, 'enterPlace', gym);
     await expect(page.locator('.overlay .story-trainer img')).toHaveAttribute('data-trainer', /-gen1$/);
-    await playThrough(page);
+    // The save has never started a puzzle (no tips, puzzlesStarted 0), so BROCK's first one is its first: coach marks
+    // once, then never again.
+    expect(await playThrough(page), `${gym}: coach marks`).toBe(i === 0 ? 1 : 0);
     expect((await kc<Save>(page, 'journey')).badges, gym).toHaveLength(i + 1);
   }
   const save = await kc<Save>(page, 'journey');
   expect(save.badges).toEqual(['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']);
   expect(save.caught).toMatchObject({ eevee: 1, lapras: 1, hitmonlee: 1 });
   await kc(page, 'enterPlace', 'indigo-plateau');
-  await playThrough(page);
+  expect(await playThrough(page), 'Elite Four: coach marks').toBe(0);
   expect((await kc<Save>(page, 'journey')).journey.cleared).toContain('indigo-plateau');
   await page.getByTestId('open-team').click();
   await expect(page.getByTestId('team-q')).toBeEnabled();
@@ -68,6 +85,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
   await expect(page.getByTestId('goal-card')).toContainText('QUEEN VS LONE KING');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7Q w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');
@@ -75,6 +93,7 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   await page.getByTestId('story').click();
   await expect(page.getByTestId('goal-card')).toContainText('ROOK VS LONE KING');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7R w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');
@@ -86,8 +105,9 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   for (let i = 0; i < 2; i++) await page.getByTestId('story').click();
   await expect(page.getByTestId('trainer-intro')).toContainText('CHAMPION BLUE wants to battle!');
   await page.getByTestId('trainer-intro').click();
-  await expect(page.getByTestId('goal-card')).toContainText('He plays at level 1: Youngster.');
+  await expect(page.getByTestId('goal-card')).toContainText('He plays at level 1: Easy.');
   await page.getByTestId('goal-card').click();
+  await onBoard(page);
   await kc(page, 'loadFen', 'k7/8/1K6/8/8/8/8/7Q w - - 0 1');
   await page.click('[data-square="h1"]');
   await page.click('[data-square="h8"]');
@@ -95,6 +115,9 @@ test('Victory Road drills detect mate; Champion BLUE, then the Hall of Fame with
   await page.getByTestId('story').click();
   await expect(page.getByTestId('hof-team').locator('img')).toHaveCount(2);
   await page.getByTestId('hof-ok').click();
+  // J4 (Fix, 13 Oct): the first Champion win gets a trainer place's ceremony, the unlock card and then the map's stamp.
+  await expect(page.getByTestId('unlock-card')).toContainText('cleared!');
+  await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('open-hof')).toBeVisible();
   const save = await kc<Save>(page, 'journey');
   expect(save.champion).toBe(true);

@@ -151,6 +151,9 @@
         "sprite": {
          "type": "string"
         },
+        "easy": {
+         "type": "boolean"
+        },
         "boost": {
          "type": "integer",
          "minimum": 0,
@@ -173,6 +176,10 @@
      },
      "optional": {
       "type": "boolean"
+     },
+     "here": {
+      "type": "string",
+      "pattern": "^town\\."
      },
      "reward": {
       "type": "object",

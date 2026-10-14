@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, test, type Page } from '@playwright/test';
+import { COACH_EN, passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string; journey(): { journey: { cleared: string[]; beaten: string[] }; name: string; starter: string } };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -19,19 +20,25 @@ async function solveOne(page: Page) {
   await page.getByTestId('review-continue').click();
 }
 
-/** A whole trainer battle: the lesson the first time, intro card, goal card, then puzzles until the defeat story. */
-async function beatTrainer(page: Page) {
+/** A Route 1 trainer battle: the lesson the first time, intro card, goal card, then puzzles until "You won!" (pacing §5:
+ * the win card comes first, then the defeat story). `first`: the save's first puzzle, whose coach marks come before
+ * its set up move (fix, 14 Oct). */
+async function beatTrainer(page: Page, who: string, first: boolean) {
   if (await page.getByTestId('lesson-ok').isVisible()) await page.getByTestId('lesson-ok').click();
   await page.getByTestId('trainer-intro').click();
   await expect(page.getByTestId('goal-card')).toBeVisible();
   await page.getByTestId('goal-card').click();
-  await expect(page.getByTestId('puzzle-banner')).toContainText('Goal:');
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  // W3: the banner keeps the trainer, the pips and what is still needed (2 of 3); the goal is in the header, and
+  // Route 1's trainers are easy, mate in 1 only (W5).
+  await expect(page.getByTestId('puzzle-banner')).toHaveText(`${who} ○○○ need 2`);
+  await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
+  if (first) expect(await passCoach(page)).toEqual(COACH_EN);
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solveOne(page);
-    // After a short pause either the next puzzle starts or the defeat story shows.
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    // After a short pause either the next puzzle starts or the win card shows.
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  await expect(page.getByTestId('story')).toBeVisible();
+  await expect(page.getByTestId('win-card')).toBeVisible();
 }
 
 async function readStory(page: Page, boxes: number) {
@@ -59,6 +66,7 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await expect(page.getByTestId('place-viridian')).toBeDisabled();
 
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await expect(page.locator('.trainer-row')).toHaveCount(2);
   for (const who of ['YOUNGSTER TOBY', 'LASS MINA']) {
     await expect(page.getByTestId('battle-trainer')).toHaveText(`Battle ${who}`);
@@ -69,12 +77,23 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
       await page.getByTestId('lesson-ok').click();
     }
     await expect(page.getByTestId('trainer-intro')).toContainText(`${who} wants to battle!`);
-    await beatTrainer(page);
-    await readStory(page, who === 'LASS MINA' ? 2 : 1);
+    await beatTrainer(page, who, who === 'YOUNGSTER TOBY');
+    await page.getByTestId('win-card').click(); // W5: what you won, first (pacing §5)
+    await readStory(page, 1); // the defeat line
+    // "Next: …" once, last: on the unlock card when the route is cleared, else the story's last line.
+    if (who === 'LASS MINA') {
+      await expect(page.getByTestId('unlock-card')).toContainText('Next: Go to VIRIDIAN CITY');
+      await page.getByTestId('unlock-card').click(); // W5: what opened
+    } else {
+      await expect(page.getByTestId('story-text')).toHaveText('Next: LASS MINA at ROUTE 1');
+      await readStory(page, 1);
+    }
   }
   await expect(page.getByTestId('place-viridian')).toBeEnabled();
   await page.getByTestId('place-viridian').click();
   await readStory(page, 2);
+  await expect(page.getByTestId('town-card')).toContainText('Next: Battle RIVAL BLUE'); // W5: a town says what is there
+  await page.getByTestId('town-card').click();
   await page.getByTestId('place-rival-1').click();
   await expect(page.getByTestId('story-text')).toContainText('BLUE:');
   await readStory(page, 2);
@@ -85,21 +104,27 @@ test('fresh save: Pallet, Route 1 trainers, Viridian, then rival BLUE (§B11 gat
   await expect(page.getByTestId('goal-card')).toContainText('BLUE leads with CHARMANDER.');
   await expect(page.getByTestId('pips')).toHaveText('○○○○○');
   await page.getByTestId('goal-card').click();
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await solveOne(page);
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
-  // BLUE's defeat line, then Oak's reward: the starter neither of you picked (§B12).
+  // The win card, BLUE's defeat line, Oak's gift: the starter neither of you picked (§B12), on its own card with the
+  // Pokédex count; then the unlock card with the next goal, said last (J4, Fix 13 Oct: the gift came after "Next:").
+  await page.getByTestId('win-card').click();
   await readStory(page, 1);
-  await expect(page.getByTestId('story-text')).toContainText('SQUIRTLE wanted to come along!');
-  await readStory(page, 1);
+  await expect(page.getByTestId('gift-card')).toContainText('SQUIRTLE wanted to come along!');
+  await expect(page.getByTestId('gift-card')).toContainText('Pokédex: 2 of 151 caught');
+  await page.getByTestId('gift-card').click();
+  await expect(page.getByTestId('unlock-card')).toContainText('Next: ');
+  await page.getByTestId('unlock-card').click();
   await expect(page.getByTestId('route-viridian-forest')).toBeEnabled();
   const save = await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.journey());
   expect(save.journey.cleared).toEqual(expect.arrayContaining(['route-1', 'viridian', 'rival-1']));
   expect(save).toMatchObject({ name: 'LEAF', starter: 'bulbasaur' });
   await page.getByTestId('open-card').click();
   await expect(page.getByTestId('trainer-card')).toContainText('NAME: LEAF');
-  await expect(page.getByTestId('trainer-card')).toContainText(/Trainer Level ~\d+/);
+  // 7 rated puzzles (TOBY 2, MINA 2, BLUE 3; the warm-up was skipped): no number before 10 (playtest, 12 Oct).
+  await expect(page.getByTestId('trainer-card')).toContainText('Trainer Level: new (7/10)');
 });
 
 test('Pokédex: candy evolution adds the new species, shiny and stars show', async ({ page }) => {

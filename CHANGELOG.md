@@ -140,3 +140,21 @@
 
 - One START button instead of Menu and START; the status line stays centred over the board.
 - Each side's moves show in that side's own plate; names and titles fit on one line.
+
+## 2.13.0 (playtest polish)
+
+- A new device sees NEW GAME, not someone else's CONTINUE; CONTINUE shows whose save it is, and NEW GAME never leaves an empty "Player 1" behind.
+- The shelf asks "Do you know how chess pieces move?" and YELLOW, the gentle start, comes first.
+- In every puzzle you are TEAM RED at the bottom with your own team, the goal ("Checkmate in 1 move") is always in the header, and the plate names the trainer you face.
+- Route 1 starts with Oak's three-move warm-up and a first catch that can't fail; the first trainers set the easiest puzzles.
+- The map marks cleared places, points to what's next, and says what opens the next place; win and unlock cards after each battle.
+- Every screen fits any window, from a 320 px phone to a desktop or a small embed, in portrait and landscape, with no page scroll.
+- INSTALL FOR OFFLINE PLAY in OPTION (Android, Windows and other Chrome or Edge browsers; steps for iPhone).
+- vs Computer levels are named Easy to Super hard; the trainer shown is the one you face.
+- Fixed: the computer stalling after OPTION, old popups acting in a later game, renames being undone, a wrong move in a lesson hiding its goal.
+- Screens change with short fades and wipes instead of hard cuts, and big moments (a solve, a win, a badge, a new place) get their beat; every hold can be skipped with a tap after its first quarter second.
+- Screens, cards and boards open once their art is drawn (with a cap and a "Loading Pokémon…" line on a slow connection), so no square is blank when you can move; capture battles start with both Pokémon drawn.
+- Sprites and cries load in the order you need them: the next board's teams, your My Team and YELLOW's mascots first; the Pokédex and sticker book load only what is on screen. Cries play with their moment, and a cry that would come late is skipped.
+- A smaller first download: only English ships at first, other languages load when chosen.
+- Every action answers in time: the Journey's evolutions, badges, catches, gifts and Training say what happened, in order; online rematches, a friend leaving or coming back, and a lost connection say what is going on.
+- The computer answers one request at a time, so a review and a game can no longer get each other's moves.

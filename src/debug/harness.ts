@@ -107,6 +107,8 @@ export function installHarness(app: App): void {
     species: () => Object.values(SPECIES).map((s) => [s.dex, s.name] as const).sort((a, b) => a[0] - b[0]),
     /** Plain puzzles (Training without a route; the title menu now opens the Kanto Journey). */
     openPuzzles: () => void app.puzzle.start(null),
+    /** A puzzle set by a rival who brings their own team (C10): the context's opponent.team plays on their side. */
+    puzzleVs: (team: Record<string, string>) => void app.puzzle.start({ themes: ['mateIn1'], onResult: () => undefined, onLeave: () => undefined, opponent: { sprite: 'blue-gen1', name: fmt('plate.blue'), title: fmt('title.rival'), team } }),
     /** Kanto Journey: adds catches straight into the save (tests only), and reads the live campaign. */
     grant: (id: string, n = 1, shiny = false) => app.journey.grant(id, n, shiny),
     journey: () => app.journey.campaign,
@@ -120,6 +122,8 @@ export function installHarness(app: App): void {
     /** Puzzle player state for tests: the move it expects next and its phase. */
     puzzleAnswer: () => app.puzzle.run?.expected() ?? null,
     puzzlePhase: () => app.puzzle.phase,
+    /** The next puzzle to start, instead of a random one: a Lichess row and its theme (W3 tests). */
+    forcePuzzle: (row: [string, string, string, number], theme: string) => void (app.puzzle.forced = { row, theme }),
     /** The last refutation shown in a review (§B15): position, reply, and whether Stockfish found it. */
     refutation: () => app.puzzle.lastRefutation,
     /** True once every background sprite preload has decoded. */

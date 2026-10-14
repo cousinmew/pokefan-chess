@@ -62,6 +62,7 @@ export const readMeta = () => parse<ProfileMeta>(get(META));
 /** Device level values (kc:v1:dev:<key>), shared by every save: the feedback waiting to send (§B23 item 2). */
 export const readDevice = <T>(key: string): T | null => parse<T>(get(`${STORAGE_NS}dev:${key}`));
 export const writeDevice = (key: string, value: unknown) => set(`${STORAGE_NS}dev:${key}`, JSON.stringify(value));
+export const removeDevice = (key: string) => drop(`${STORAGE_NS}dev:${key}`);
 export const writeMeta = (m: ProfileMeta) => set(META, JSON.stringify(m));
 export const currentSlot = () => slot;
 
@@ -72,8 +73,11 @@ export function useProfile(n: number): void {
 }
 
 /** Boot: the slot list (slot 1 on a new device), and old style kc:v1:<key> data moved into the current slot.
- * That migrates a save from before profiles into slot 1 once, without losing anything. */
-export function bootProfiles(): ProfileMeta {
+ * That migrates a save from before profiles into slot 1 once, without losing anything; an old MEIR unlock moves to
+ * its own key in every save (moveMeir). `abandoned(n)` says a save is a NEW GAME left empty (profiles.ts bootSaves
+ * decides; a save it has no note for never is): it is dropped while another save remains, and when it was the
+ * current one the first remaining save loads instead (playtest, 12 Oct; bootSaves then prefers one with progress). */
+export function bootProfiles(abandoned?: (n: number) => boolean): ProfileMeta {
   const m = readMeta() ?? { slots: [1], current: 1 };
   if (!m.slots.includes(m.current)) m.current = m.slots[0] ?? 1;
   useProfile(m.current);
@@ -83,6 +87,14 @@ export function bootProfiles(): ProfileMeta {
     if (v !== null) set(prefix + k.slice(STORAGE_NS.length), v);
     drop(k);
   }
+  for (const n of m.slots) moveMeir(n);
+  for (const n of abandoned ? [...m.slots] : []) {
+    if (m.slots.length < 2 || !abandoned!(n)) continue;
+    clearProfile(n);
+    m.slots = m.slots.filter((x) => x !== n);
+    if (m.current === n) m.current = m.slots[0]!;
+  }
+  useProfile(m.current);
   writeMeta(m);
   return m;
 }
@@ -99,6 +111,22 @@ export const save = (key: string, value: unknown) => (guest ? void guest.set(key
 export const remove = (key: string) => (guest ? void guest.delete(key) : drop(prefix + key));
 export const loadFrom = <T>(n: number, key: string): T | null => parse<T>(get(profilePrefix(n) + key));
 export const saveTo = (n: number, key: string, value: unknown) => set(profilePrefix(n) + key, JSON.stringify(value));
+export const removeFrom = (n: number, key: string) => drop(profilePrefix(n) + key);
+
+/** The player's trainer: "meir" once the secret code is entered (§B18 item 7), else nothing (RED). Its own key since
+ * the data loss review (13 Oct): it shared 'trainer' with the puzzle record, so the first rated puzzle put RED back
+ * and the MEIR code wiped the Trainer Level. */
+export const PLAYER_TRAINER = 'playerTrainer';
+/** An old save (boot) or backup (restore) with 'trainer' = "meir": MEIR moves to its own key and 'trainer' is left
+ * to the puzzle record. A puzzle record there is never touched. The old key goes only once the new one reads back
+ * (fix, 14 Oct: on a full device the write failed and the only copy of the unlock went). A save whose unlock a rated
+ * puzzle already erased (6 to 13 Oct) gets MEIR back from its name: the name MEIR only ever came with the unlock. */
+function moveMeir(n: number): void {
+  if (loadFrom(n, 'trainer') === 'meir') {
+    saveTo(n, PLAYER_TRAINER, 'meir');
+    if (loadFrom(n, PLAYER_TRAINER) === 'meir') removeFrom(n, 'trainer');
+  } else if (loadFrom<{ name?: unknown }>(n, 'campaign')?.name === 'MEIR' && loadFrom(n, PLAYER_TRAINER) === null) saveTo(n, PLAYER_TRAINER, 'meir');
+}
 
 /** Every key of a slot, for export, save codes and delete. */
 export function profileData(n: number): Record<string, unknown> {
@@ -117,4 +145,5 @@ export function clearProfile(n: number): void {
 export function restoreProfile(n: number, data: Record<string, unknown>): void {
   clearProfile(n);
   for (const [k, v] of Object.entries(data)) if (/^[a-zA-Z0-9:_-]{1,60}$/.test(k)) saveTo(n, k, v);
+  moveMeir(n);
 }

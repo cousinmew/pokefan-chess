@@ -23,9 +23,16 @@ for (const size of [{ width: 360, height: 640 }, { width: 1280, height: 800 }]) 
       await expect(tile.locator('.tile-sub'), id).toBeVisible();
       expect((await tile.locator('.tile-sub').textContent())!.length, id).toBeGreaterThan(10);
     }
-    // One column at every width (§B16 addendum): every tile starts at the same x.
-    const boxes = await Promise.all(TILES.map((id) => page.getByTestId(id).boundingBox()));
-    expect(new Set(boxes.map((b) => Math.round(b!.x))).size).toBe(1);
+    // One column per zone (§B16 addendum); W2 sets the zones side by side when the window is wide enough. On a phone
+    // they stack: every tile starts at the same x.
+    for (const zone of await page.locator('.hub-zone').all()) {
+      const xs = await zone.locator('.tile').evaluateAll((ts) => ts.map((t) => Math.round(t.getBoundingClientRect().x)));
+      expect(new Set(xs).size).toBe(1);
+    }
+    if (size.width < 600) {
+      const boxes = await Promise.all(TILES.map((id) => page.getByTestId(id).boundingBox()));
+      expect(new Set(boxes.map((b) => Math.round(b!.x))).size).toBe(1);
+    }
     // No mascots; item icons load; the five original pixel icons are drawn; one static Oak in the Journey header.
     await expect(page.locator('.tile-mascot, .tile img[data-species]')).toHaveCount(0);
     // Item icons come from one preloaded sheet (load fix).
@@ -75,7 +82,7 @@ test('Continue resumes a journey save', async ({ page }) => {
     localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'JADE', starter: 'charmander', introSeen: true, teamRules: 2, caught: { charmander: 1 }, journey: { cleared: ['route-1'], beaten: [], visited: [] } }));
     localStorage.setItem('kc:v1:last', JSON.stringify('journey'));
   });
-  await expect(page.getByTestId('continue')).toContainText('Kanto Journey: VIRIDIAN CITY');
+  await expect(page.getByTestId('continue')).toContainText('Next: Go to VIRIDIAN CITY'); // W5: the next goal
   await expect(page.getByTestId('hub-card-mini')).toContainText('JADE');
   await expect(page.getByTestId('kanto')).toContainText('0/8 badges');
   await page.getByTestId('continue').click();

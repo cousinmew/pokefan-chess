@@ -2,6 +2,7 @@
 // §B17 gates: the shelf on first launch only; a 2 s hold to switch cartridge; a full YELLOW lesson and a BLUE
 // trainer battle in Hebrew with the board still left to right.
 import { expect, test, type Page } from '@playwright/test';
+import { passCoach } from './coach';
 
 type KC = { puzzleAnswer(): string | null; puzzlePhase(): string };
 const phase = (p: Page) => p.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzlePhase());
@@ -62,6 +63,8 @@ test('YELLOW in Hebrew: a full lesson of Pikachu\'s Path, board left to right, a
     localStorage.setItem('kc:v1:lang', JSON.stringify('he'));
   });
   await page.goto('./?debug=1');
+  // Boot waits for the Hebrew table (N1, 14 Oct), which can land after the page's load event.
+  await expect(page.getByTestId('screen-splash')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
   await page.getByTestId('screen-splash').click();
   await expect(page.getByTestId('yellow-play')).toBeVisible();
@@ -98,11 +101,15 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
   await page.getByTestId('screen-splash').click();
   await page.getByTestId('kanto').click();
   await page.getByTestId('route-route-1').click();
+  await page.getByTestId('warmup-skip').click(); // Oak's warm-up (W5): covered in progress.spec.ts
   await page.getByTestId('battle-trainer').click();
   await page.getByTestId('trainer-intro').click();
   await page.getByTestId('goal-card').click();
   await boardIsLtr(page);
-  for (let i = 0; i < 6 && !(await page.getByTestId('story').isVisible()); i++) {
+  // The save's first puzzle: its set up move waits for the coach marks (fix, 14 Oct), which read in Hebrew.
+  const marks = await passCoach(page);
+  for (const line of marks) expect(line, line).toMatch(/[\u0590-\u05FF]/);
+  for (let i = 0; i < 6 && !(await page.getByTestId('win-card').isVisible()); i++) {
     await expect.poll(() => phase(page), { timeout: 10_000 }).toBe('player');
     for (let j = 0; j < 6 && (await phase(page)) === 'player'; j++) {
       const uci = (await page.evaluate(() => (window as unknown as { __kc: KC }).__kc.puzzleAnswer()))!;
@@ -112,8 +119,10 @@ test('BLUE in Hebrew: a trainer battle completes, board left to right', async ({
       await expect.poll(() => phase(page), { timeout: 10_000 }).toMatch(/player|review/);
     }
     await page.getByTestId('review-continue').click();
-    await expect.poll(async () => (await page.getByTestId('story').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await page.getByTestId('win-card').isVisible()) || (await phase(page)) === 'player', { timeout: 10_000 }).toBe(true);
   }
+  // Pacing §5: "You won!" first, then the defeat story.
+  await page.getByTestId('win-card').click();
   await expect(page.getByTestId('story')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
 });

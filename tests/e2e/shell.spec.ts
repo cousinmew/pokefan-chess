@@ -37,26 +37,31 @@ test.describe('360x640', () => {
     const errors = watchErrors(page);
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
-    // With storage blocked nothing is remembered, so the cartridge shelf shows: pick BLUE.
+    // With storage blocked nothing is remembered, so every launch is a first launch: the shelf, then Oak's intro.
     await page.getByTestId('cart-blue').click();
-    // The Gen 1 style start menu follows (change C): CONTINUE goes home.
-    await page.getByTestId('start-continue').click();
-    await page.getByTestId('vs-computer').click();
+    await expect(page.getByTestId('screen-intro')).toBeVisible();
+    // ◀ BACK leads to the start menu (playtest 12 Oct), with nothing to CONTINUE; PLAY CHESS plays as a guest.
+    await page.getByTestId('newgame-back').click();
+    await page.getByTestId('screen-splash').click();
+    await expect(page.getByTestId('start-continue')).toHaveCount(0);
+    await page.getByTestId('start-play').click();
+    await page.getByTestId('quick-computer').click();
     await page.getByTestId('team-rocket').click();
     await page.getByTestId('level-1').click();
     await page.getByTestId('intro').click();
-    await expect(page.getByTestId('turn')).toHaveText('TEAM ROCKET to move', { timeout: 5000 });
+    await expect(page.getByTestId('turn')).toHaveText('Guest to move', { timeout: 5000 }); // the header names the plate (C8, 14 Oct)
     expect(await page.locator('.sq').first().getAttribute('data-square')).toBe('h1');
     await expect(page.getByTestId('takeback')).toBeVisible();
     await page.getByTestId('start-button').click(); // START replaced Menu (§B24 item 1)
     await page.getByTestId('start-menu-quit').click();
-    await page.getByTestId('start-continue').click(); // the real start menu, then home
-    await page.getByTestId('how-to').click();
-    await expect(page.getByTestId('screen-howto')).toContainText('Bishop, light squares');
+    await page.getByTestId('quit-yes').click(); // a guest game in progress asks first (playtest, 12 Oct)
+    await expect(page.getByTestId('screen-start')).toBeVisible(); // the real start menu
     expect(errors).toEqual([]);
   });
 
   test('settings persist and Continue resumes a game', async ({ page }) => {
+    // A returning player: a cartridge alone is no progress and would open the new game flow (playtest 12 Oct).
+    await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ name: 'ASH' })));
     await page.goto('./');
     await page.getByTestId('screen-splash').click();
     await page.getByTestId('start-continue').click();
@@ -80,6 +85,21 @@ test.describe('360x640', () => {
     await page.getByTestId('start-option').click(); // SAVE & QUIT lands on the start menu: its OPTION
     await expect(page.getByTestId('set-anim')).toHaveValue('off');
   });
+
+  test('a returning player opens How to Play from the hub', async ({ page }) => {
+    // A named save, so CONTINUE goes home (a cartridge alone opens the new game flow, playtest 12 Oct).
+    await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:p1:campaign', JSON.stringify({ name: 'ASH' })));
+    const errors = watchErrors(page);
+    await page.goto('./');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('start-continue').click();
+    await page.getByTestId('how-to').click();
+    await expect(page.getByTestId('screen-howto')).toContainText('Bishop, light squares');
+    await page.getByTestId('manual-tab-pieces').click();
+    await expect(page.getByTestId('manual-page-pieces')).toBeVisible();
+    await expect(page.getByTestId('manual-page-pieces')).toContainText('Bishop, light squares');
+    expect(errors).toEqual([]);
+  });
 });
 
 test('music: title loop on the title screen, board loop in a game, music slider defaults to 30%', async ({ page }) => {
@@ -93,6 +113,6 @@ test('music: title loop on the title screen, board loop in a game, music slider 
   await expect(page.getByTestId('set-music')).toHaveValue('0.3');
   await page.getByTestId('back').click();
   await page.getByTestId('two-players').click();
-  expect(await cue()).toBe('board');
+  await expect.poll(cue).toBe('board'); // once the battle bars have closed (pacing §2)
   expect(errors).toEqual([]);
 });

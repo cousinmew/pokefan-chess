@@ -60,6 +60,8 @@ test('a real capture plays the battle, tap skips it in under 100 ms', async ({ p
   const battle = page.getByTestId('battle');
   await expect(battle).toBeVisible();
   await expect(page.getByTestId('battle-text')).toContainText('EEVEE used');
+  // Pacing A17: the tap that made the capture never skips it; a tap counts after HOLD_MIN_MS of battle clock.
+  await page.locator('[data-testid="battle"][data-skippable]').waitFor({ state: 'attached' });
   const ms = await page.evaluate(async () => {
     const t0 = performance.now();
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));

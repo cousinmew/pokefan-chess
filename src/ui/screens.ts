@@ -1,21 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Splash, title, team select, level select, How to Play and the intro card (Part I §5).
-import { AI_LEVELS, INTRO_MS, SPLASH_AUTO_MS, type AiLevel } from '../config';
+import { AI_LEVELS, SPLASH_AUTO_MS, type AiLevel } from '../config';
+import { hold } from './pace';
 import { faceoff, opponentTag } from './ladder';
 import type { Side } from '../look';
-import { speciesFor, spriteUrl, type Color, type Role } from '../board/pieces';
+import { parseVariant, SKIN_ROLES, species, speciesFor, speciesIdFor, spriteUrl, type Color, type Role, type TeamSkin } from '../board/pieces';
 import { fmt, type StringKey } from '../game/text';
 import { sound } from '../audio/audio';
 import { button, el, footer, screen, toast } from './dom';
 import { manualScreen, type Page } from './manual';
-import { trainerSprite } from './kanto';
+import { mon, trainerSprite, trainerSrc } from './kanto';
+import { levelNewVars, type ShownLevel } from '../campaign/trainer';
 import { itemIcon, pixelIcon, type PixelIcon } from './icons';
+import { decodedSrc, decodeImage, onDecoded, stillUrl } from '../battle/sprites';
 
-function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLElement {
-  const sp = speciesFor(color, role, square);
-  const img = el('img', cls);
-  img.src = spriteUrl(sp.dex);
-  img.alt = sp.name;
+/** A Poké Ball outline drawn under a menu sprite's retro stand-in: its box is never empty while both load. */
+const WAITING = 'radial-gradient(circle, transparent 0 9%, rgba(128, 128, 128, 0.45) 9% 13%, transparent 13% 31%, rgba(128, 128, 128, 0.45) 31% 35%, transparent 35%)';
+
+/** A menu Pokémon (team picker, intro card) that is never an empty box (loading fix, 14 Oct): kanto.ts mon(), whose
+ * retro sprite stands in while the animated one loads, over a drawn outline while the retro one loads too. */
+function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLImageElement {
+  const { base, shiny } = parseVariant(speciesIdFor(color, role, square));
+  const img = mon(base, cls, false, shiny, true);
+  img.style.backgroundImage = [img.style.backgroundImage, WAITING].filter(Boolean).join(', ');
   return img;
 }
 
@@ -25,18 +32,24 @@ function heading(): HTMLElement {
   return h;
 }
 
+/** The title: moves on by itself after SPLASH_AUTO_MS, or on a tap, Enter, Space or B once HOLD_MIN_MS has passed
+ * (a hold, pacing E1), so the tap that loaded the page never skips it. */
 export function splash(onDone: () => void): HTMLElement {
-  let done = false;
-  const go = () => {
-    if (done) return;
-    done = true;
-    window.clearTimeout(timer);
-    onDone();
-  };
-  const s = screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
-  s.onclick = go;
-  const timer = window.setTimeout(go, SPLASH_AUTO_MS);
+  const s = splashScreen();
+  // Started once the splash is on screen (the hold belongs to the screen showing then).
+  queueMicrotask(() => void hold(SPLASH_AUTO_MS, 'splash').then((how) => how !== 'cancel' && s.isConnected && onDone()));
   return s;
+}
+
+const splashScreen = () => screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
+
+/** The splash on screen, in the language now in use: a saved language whose table landed after boot stopped waiting
+ * for it (boot fix, 14 Oct). Its words only, in place, so its hold runs on. */
+export function relabelSplash(): void {
+  const s = document.querySelector<HTMLElement>('[data-testid="screen-splash"]');
+  if (!s) return;
+  const fresh = splashScreen();
+  for (const part of ['.logo', '.menu-body']) s.querySelector(part)?.replaceWith(fresh.querySelector(part)!);
 }
 
 export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | 'online' | 'dex' | 'team' | 'card' | 'settings' | 'share';
@@ -44,8 +57,11 @@ export type HubTile = 'journey' | 'training' | 'battle' | 'computer' | 'two' | '
 /** What the hub shows about you: the Continue target, the mini Trainer Card and each tile's progress chip. */
 export interface HubData {
   continueText: string | null;
-  card: { name: string; level: number; badges: string[] };
+  /** `level` is null before the first puzzle (shown as "new"). */
+  card: { name: string; level: ShownLevel; badges: string[] };
   chips: Partial<Record<HubTile, string>>;
+  /** A tile subtitle in place of its usual one (the Battle tile on a brand-new save). */
+  subs?: Partial<Record<HubTile, StringKey>>;
 }
 
 // Tile icons (§B16 addendum): item sprites where PokeAPI has one, original pixel art otherwise. No mascots.
@@ -95,7 +111,7 @@ export function title(a: TitleActions): HTMLElement {
     pic.append('item' in icon ? itemIcon(icon.item) : pixelIcon(icon.pixel));
     const txt = el('span', 'tile-text');
     const h = el('span', 'tile-title', `hub.${id}.title` as StringKey);
-    const sub = el('span', 'tile-sub', `hub.${id}.sub` as StringKey);
+    const sub = el('span', 'tile-sub', data?.subs?.[id] ?? (`hub.${id}.sub` as StringKey));
     txt.append(h, sub);
     const chip = data?.chips[id];
     if (chip) {
@@ -149,7 +165,8 @@ export function title(a: TitleActions): HTMLElement {
     const name = el('b');
     name.textContent = data.card.name;
     const lvl = el('span');
-    lvl.textContent = fmt('hub.card.miniLevel', { level: String(Math.round(data.card.level)) });
+    const level = data.card.level;
+    lvl.textContent = level.r === null ? fmt('hub.card.miniLevelNew', levelNewVars(level)) : fmt('hub.card.miniLevel', { level: String(Math.round(level.r)) });
     const dots = el('span', 'badges');
     for (const b of ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth']) dots.append(el('span', `badge ${data.card.badges.includes(b) ? `won ${b}` : 'empty'}`));
     mini.append(name, lvl, dots);
@@ -203,13 +220,32 @@ export interface Faces {
 
 export function levelSelect(pick: (l: AiLevel) => void, back: () => void, faces?: Faces): HTMLElement {
   const list = el('div', 'buttons');
+  let view: HTMLElement | null = null;
   for (const lvl of AI_LEVELS) {
-    const b = button(`level.${lvl.id}` as StringKey, () => pick(lvl.id), `level-${lvl.id}`, 'level');
+    const b = button(`level.${lvl.id}` as StringKey, () => (leaving(view, faces?.them(lvl.id), faces?.me), pick(lvl.id)), `level-${lvl.id}`, 'level');
     b.append(el('small', '', `level.${lvl.id}.feel` as StringKey));
     if (faces) b.append(opponentTag(faces.them(lvl.id), lvl.id));
     list.append(b);
   }
-  return screen('level', el('h2', '', 'level.pick'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
+  view = screen('level', el('h2', '', 'level.pick'), faces ? faceoff(faces.me, list) : list, button('back', back, 'back', 'secondary'));
+  return view;
+}
+
+/** A level is chosen (loading fix, 14 Oct): the picker's loads still going stop (the bars close over them), so the
+ * board gets the connections, and the chosen trainer's board starts loading while the bars close: its stills, then
+ * its animated fronts at low priority, behind the board's own pieces. */
+function leaving(view: HTMLElement | null, them: Side | undefined, me: Side | undefined): void {
+  // The two trainers stay decoded for the plates (a new <img> would ask the server again).
+  for (const side of [them, me]) if (side) void decodeImage(trainerSrc(side.sprite));
+  const team: TeamSkin | null | undefined = them?.team;
+  for (const img of view?.querySelectorAll('img') ?? []) {
+    if (img.complete) continue;
+    img.onerror = null;
+    img.style.backgroundImage = '';
+    img.removeAttribute('src');
+  }
+  const mons = SKIN_ROLES.map((key) => team?.[key]).filter((id): id is string => !!id).map((id) => species(id));
+  void Promise.all(mons.map((s) => decodeImage(stillUrl(s.dex, s.shiny), 'high'))).then(() => mons.forEach((s) => void decodeImage(spriteUrl(s.dex, 'front', s.shiny), 'low')));
 }
 
 /** How to Play is now the manual (§B16), open on `page`. */
@@ -217,23 +253,29 @@ export function howTo(back: () => void, page: Page = 'journey', tryIt: (p: Page)
   return manualScreen(page, tryIt, back, footer());
 }
 
-/** "X wants to battle!" for INTRO_MS, tap to skip. */
-export function intro(key: StringKey, opponent: Color, onDone: () => void): HTMLElement {
-  let done = false;
+/** "X wants to battle!": the game holds it INTRO_MS (a hold, skippable after HOLD_MIN_MS, pacing C3). */
+export function intro(key: StringKey, opponent: Color): HTMLElement {
   const card = el('div', 'intro');
   card.dataset.testid = 'intro';
-  const finish = () => {
-    if (done) return;
-    done = true;
-    window.clearTimeout(timer);
-    card.remove();
-    onDone();
-  };
   const inner = el('div', 'panel');
-  inner.append(sprite(opponent, 'k', opponent === 'w' ? 'e1' : 'e8'), el('p', '', key));
+  const square = opponent === 'w' ? 'e1' : 'e8';
+  const img = sprite(opponent, 'k', square);
+  // Drawn the moment the card goes in (loading fix, 14 Oct): the animated king once it has decoded, else its still (a
+  // board on screen decodes both kings' stills, whatever its piece style, and its cover waits for them); the animated
+  // one replaces the still when it decodes. Should neither be in (a cover that hit its cap), the card still shows at
+  // once with mon()'s retro sprite or the drawn outline until one decodes: a card held back would lose its guard.
+  const sp = speciesFor(opponent, 'k', square);
+  const front = spriteUrl(sp.dex, 'front', sp.shiny);
+  const still = stillUrl(sp.dex, sp.shiny);
+  const now = decodedSrc(front) ?? decodedSrc(still);
+  if (now) img.src = now;
+  if (!decodedSrc(front)) {
+    onDecoded(front, (src) => (img.src = src));
+    if (!now) onDecoded(still, (src) => void (decodedSrc(front) || (img.src = src)));
+    void decodeImage(still);
+  }
+  inner.append(img, el('p', '', key));
   card.append(inner);
-  card.onclick = finish;
-  const timer = window.setTimeout(finish, INTRO_MS);
   sound.sparkle();
   return card;
 }

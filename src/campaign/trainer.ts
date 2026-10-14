@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Puzzle pools (loaded per theme on demand), puzzle choice by Trainer Rating, and saved progress.
-import { PUZZLE_RD, PUZZLE_SEEN_MAX, PUZZLE_WIDEN, PUZZLE_WINDOW } from '../config';
+import { EASY_MAX_PIECES, PUZZLE_RD, RATING_SETTLE, PUZZLE_SEEN_MAX, PUZZLE_WIDEN, PUZZLE_WINDOW } from '../config';
 import type { Rng } from '../game/rng';
 import { load, save } from '../store/persist';
 import type { PuzzleRow } from './puzzle';
@@ -27,6 +27,18 @@ export function pick(rows: PuzzleRow[], rating: number, seen: readonly string[],
   return rows[Math.floor(rng.next() * rows.length)]!;
 }
 
+/** Pieces on the board of a FEN. */
+export const pieceCount = (fen: string) => (fen.split(' ')[0] ?? '').replace(/[^a-zA-Z]/g, '').length;
+
+/** The first trainers' pick (W5, design G): unseen puzzles with at most EASY_MAX_PIECES pieces, the fewest pieces
+ * first, then the lowest rating. Null when none is left (the normal pick takes over). */
+export function pickEasy(rows: PuzzleRow[], seen: readonly string[]): PuzzleRow | null {
+  const skip = new Set(seen);
+  // No promotion in the set up move or the answer (playtest, 12 Oct: a first easy puzzle opened with one).
+  const easy = rows.filter((r) => pieceCount(r[1]) <= EASY_MAX_PIECES && !skip.has(r[0]) && !r[2].split(' ').some((m) => m.length > 4));
+  return easy.sort((a, b) => pieceCount(a[1]) - pieceCount(b[1]) || a[3] - b[3])[0] ?? null;
+}
+
 export interface Trainer {
   rating: Rating;
   solved: number;
@@ -39,6 +51,18 @@ export function loadTrainer(): Trainer {
   const t = load<Partial<Trainer>>('trainer');
   return { rating: t?.rating ?? startRating(), solved: t?.solved ?? 0, missed: t?.missed ?? 0, assisted: t?.assisted ?? 0, seen: t?.seen ?? [] };
 }
+
+/** The Trainer Level to show: `r` is null until RATING_SETTLE rated puzzles (playtest, 12 Oct: kids saw it jump by
+ * hundreds; ux #15 hid only the starting guess); `n` counts them up to that ("new (3/10)"). */
+export interface ShownLevel {
+  r: number | null;
+  n: number;
+}
+export function shownLevel(t: Trainer): ShownLevel {
+  const n = t.solved + t.missed; // a hint leaves the rating where it was, so it doesn't count
+  return n >= RATING_SETTLE ? { r: t.rating.r, n: RATING_SETTLE } : { r: null, n };
+}
+export const levelNewVars = (l: ShownLevel): Record<string, string> => ({ n: String(l.n), of: String(RATING_SETTLE) });
 
 /** Records a result. A puzzle solved with a hint leaves the rating unchanged. */
 export function record(t: Trainer, row: PuzzleRow, result: 'solved' | 'missed' | 'assisted'): Trainer {

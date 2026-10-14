@@ -5,6 +5,7 @@ import { fmt, type Lang } from '../game/text';
 import { langPicker, type Cartridge } from './shelf';
 import type { StringKey } from '../game/text';
 import { button, el, screen } from './dom';
+import { installRow } from './installRow';
 
 type Settings = typeof DEFAULT_SETTINGS;
 type Toggle = 'sound' | 'captions' | 'glyphs' | 'autoFlip' | 'takeBack' | 'animate' | 'coords';
@@ -14,7 +15,8 @@ export interface CartridgeSettings {
   lang: Lang;
   onLang(l: Lang): void;
   cartridge: Cartridge;
-  onSwitch(): void;
+  /** Left out for a guest (PLAY CHESS), who has no save to switch. */
+  onSwitch?: () => void;
 }
 
 export function holdButton(label: string, ms: number, done: () => void, testid = 'switch-cartridge'): HTMLButtonElement {
@@ -133,13 +135,15 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
     const lr = el('div', 'setting lang-setting');
     lr.append(el('span', '', 'settings.lang'), langPicker(cart.lang, cart.onLang));
     rows.prepend(lr);
-    const sw = el('div', 'setting cart-setting');
-    const now = el('span');
-    now.textContent = fmt('settings.cartridgeNow', { name: fmt(`shelf.${cart.cartridge}.name` as StringKey) });
-    sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
-    rows.prepend(sw);
+    if (cart.onSwitch) {
+      const sw = el('div', 'setting cart-setting');
+      const now = el('span');
+      now.textContent = fmt('settings.cartridgeNow', { name: fmt(`shelf.${cart.cartridge}.name` as StringKey) });
+      sw.append(now, holdButton(`${fmt('settings.cartridge')} (${fmt('settings.cartridgeHold')})`, CARTRIDGE_HOLD_MS, cart.onSwitch));
+      rows.prepend(sw);
+    }
   }
-  const view = screen('settings', el('h2', '', 'title.settings'), rows, ...extra, button('back', back, 'back', 'secondary'));
+  const view = screen('settings', el('h2', '', 'title.settings'), rows, installRow(), ...extra, button('back', back, 'back', 'secondary'));
   // B and Escape go back too (§B23 item 1), unless the player is typing.
   const onKey = (e: KeyboardEvent) => {
     if (!view.isConnected) return window.removeEventListener('keydown', onKey);

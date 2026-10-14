@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Gentle hub notes (§B18 item 2): "Back up your save" after each badge, and a one time Add to Home Screen tip.
 import type { StringKey } from '../game/text';
+import { installState } from '../pwa';
 import { exportSave } from '../store/backup';
 import { load, save } from '../store/persist';
 import { button, el } from './dom';
 
-const standalone = () =>
-  (window.matchMedia?.('(display-mode: standalone)').matches ?? false) || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 function note(key: StringKey, testid: string, ...buttons: HTMLButtonElement[]): HTMLElement {
   const n = el('div', 'hub-note');
@@ -18,8 +17,8 @@ function note(key: StringKey, testid: string, ...buttons: HTMLButtonElement[]): 
   return n;
 }
 
-/** The note to show above the hub, if any. The tip counts as seen once shown. */
-export function hubNote(): HTMLElement | null {
+/** The note to show above the hub, if any. The tip counts as seen once shown; YELLOW (small children) never gets it. */
+export function hubNote(kids = false): HTMLElement | null {
   if (load<boolean>('backupDue')) {
     const n: HTMLElement = note(
       'backup.prompt',
@@ -29,9 +28,11 @@ export function hubNote(): HTMLElement | null {
     );
     return n;
   }
-  if (load<boolean>('homeTip') || standalone()) return null;
+  const state = installState();
+  if (kids || load<boolean>('homeTip') || state === 'installed') return null;
   save('homeTip', true);
-  const n: HTMLElement = note('tip.home', 'home-tip', button('tip.ok', () => n.remove(), 'home-tip-ok', 'secondary'));
+  // Where OPTION's install row can only say "Open in Chrome or Edge", the tip says so too (playtest, 12 Oct).
+  const n: HTMLElement = note(state === 'none' ? 'tip.homeBrowser' : 'tip.home', 'home-tip', button('tip.ok', () => n.remove(), 'home-tip-ok', 'secondary'));
   return n;
 }
 
@@ -39,7 +40,7 @@ export function hubNote(): HTMLElement | null {
 export function decorateHome(view: HTMLElement, lang: HTMLElement): HTMLElement {
   const top = view.querySelector('.hub-top');
   if (top) top.prepend(lang);
-  const n = hubNote();
+  const n = hubNote(!!view.querySelector('.yellow-top'));
   if (n) view.querySelector('.hub-top, .yellow-top')?.after(n);
   return view;
 }
