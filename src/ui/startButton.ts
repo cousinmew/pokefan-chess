@@ -15,8 +15,8 @@ export type StartActions = Partial<Record<StartItem, () => void>> & { guest?: bo
 /** A story box, popup or card over the screen (the modal layer, or the "wants to battle" card). */
 const popup = () => document.querySelector<HTMLElement>('#app > .overlay:not([hidden]), [data-testid="intro"]');
 
-// Screens before or inside the intro, and the start flow itself, have no START.
-const NO_START = new Set(['screen-splash', 'screen-shelf', 'screen-start', 'screen-replace', 'screen-profiles', 'screen-duo', 'screen-intro', 'screen-name', 'screen-oak', 'screen-quick']);
+// Screens before or inside the intro, and the start flow itself, have no START; nor has About, a page with one Back.
+const NO_START = new Set(['screen-splash', 'screen-shelf', 'screen-start', 'screen-replace', 'screen-profiles', 'screen-duo', 'screen-intro', 'screen-name', 'screen-oak', 'screen-quick', 'screen-about']);
 
 export class StartButton {
   /** The one in the game screen's top bar. */

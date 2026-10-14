@@ -1148,3 +1148,36 @@ html.fit-wide main { grid-template-rows: auto 1fr; }
 
 /* Trust pass (14 Oct): the splash's quiet fan line under the credit. */
 .fan-line { margin: -6px 0 0; font-size: 12px; color: #505050; }
+/* The trust row under the start menu and the shelf ("Free fan project · About · Source on GitHub"), About in the
+   footers, and the About & privacy screen. */
+.menu button.link-btn, button.link-btn { min-height: 0; min-width: 0; padding: 0 4px; border: 0; border-radius: 0; background: none; font: inherit; font-weight: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+.trust-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 4px; margin: 0; font-size: 11px; line-height: 1.3; color: #505050; text-align: center; }
+.trust-links { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.trust-fan { padding-inline-end: 4px; }
+.trust-row a { color: inherit; padding: 0 4px; }
+.screen-start > .trust-row, .screen-shelf > .trust-row { flex: none; width: 100%; }
+/* The menu never slides out of its box when the window is short (its top was cut, not scrollable), and short
+   windows get 44 px items, so the trust row fits under five of them. */
+.screen-start > .menu-body { justify-content: safe center; }
+html.fit-land .screen-start > .menu-body { align-items: safe center; }
+html.fit-short .screen-start button.start-item { min-height: 44px; }
+html.fit-short .screen-start .start-list { padding-block: 10px; }
+html.fit-short.fit-land .screen-start button.start-item { font-size: 20px; }
+@media (min-width: 900px) {
+  .screen-start { align-content: flex-start; }
+  .screen-start > .trust-row { flex: 0 0 100%; }
+}
+.screen-about { width: min(100vw - 16px, 560px); }
+.screen-about > .menu-body { align-items: stretch; gap: 10px; text-align: start; }
+.screen-about h3 { margin: 4px 0 0; }
+.about-lead { margin: 0; font-size: 15px; line-height: 1.4; }
+.about-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-inline-start: 20px; font-size: 14px; line-height: 1.4; }
+.about-link { margin: 0; font-size: 14px; line-height: 1.4; }
+.about-ask + .about-link { margin-top: -8px; } /* the issues link right under its question */
+.about-link a { color: #2848c8; font-weight: 700; }
+.about-small { margin: 0; font-size: 12px; line-height: 1.4; color: #505050; }
+.about-box { width: 100%; display: flex; flex-direction: column; align-items: center; }
+@media (pointer: coarse), (max-width: 900px) {
+  .menu button.link-btn, .trust-row a, .about-link a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); min-width: var(--tap); padding: 0 4px; }
+  .about-link a { margin-inline: -4px; } /* the link's words line up with the text around it */
+}

@@ -47,14 +47,49 @@ export function screen(name: string, ...children: Node[]): HTMLElement {
   return s;
 }
 
+/** A real link to the repository (`path`: a page in it), opened in a new tab so an installed app keeps the game. */
+export function repoLink(key: StringKey, path = '', testid?: string): HTMLAnchorElement {
+  const a = el('a', 'repo-link', key);
+  a.href = REPO_URL + path;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  if (testid) a.dataset.testid = testid;
+  return a;
+}
+
+// How an About link opens the About & privacy screen (trust pass, 14 Oct): main.ts sets it at boot, and Back returns
+// to the screen it was opened from.
+let aboutOpener: (() => void) | null = null;
+export const onAbout = (open: () => void): void => void (aboutOpener = open);
+
+/** "About" as a link-styled button: it opens a screen of the game, not a page. */
+function aboutButton(open: () => void, testid: string): HTMLButtonElement {
+  return button('trust.about', open, testid, 'link-btn');
+}
+
+/** The trust row under the start menu and the cartridge shelf (trust pass, 14 Oct): "Free fan project · About ·
+ * Source on GitHub", the same three on every first screen a visitor sees. */
+export function trustRow(about: () => void): HTMLElement {
+  const dot = () => {
+    const d = el('span', 'trust-sep');
+    d.textContent = '·';
+    d.setAttribute('aria-hidden', 'true');
+    return d;
+  };
+  // The two links stay together: on a narrow window in a long language they wrap as one, under the words.
+  const links = el('span', 'trust-links');
+  links.append(aboutButton(about, 'trust-about'), dot(), repoLink('footer.github', '', 'trust-github'));
+  const row = el('p', 'trust-row');
+  row.dataset.testid = 'trust-row';
+  row.append(el('span', 'trust-fan', 'trust.fan'), dot(), links);
+  return row;
+}
+
 export function footer(): HTMLElement {
   const f = el('footer', 'site-footer');
   const p = el('p', '', 'footer.disclaimer');
   const links = el('p', 'links');
-  const gh = el('a', '', 'footer.github');
-  gh.href = REPO_URL;
-  gh.rel = 'noopener';
-  links.append(gh);
+  links.append(aboutButton(() => aboutOpener?.(), 'footer-about'), ' · ', repoLink('footer.github', '', 'footer-github'));
   if (DISCORD_URL) {
     const dc = el('a', '', 'footer.discord');
     dc.href = DISCORD_URL;

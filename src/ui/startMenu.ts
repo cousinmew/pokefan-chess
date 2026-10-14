@@ -49,7 +49,8 @@ export function summaryBox(s: SlotSummary, testid = 'start-summary'): HTMLElemen
   return box;
 }
 
-export function startMenu(items: MenuItem[], summary: HTMLElement | null): HTMLElement {
+/** `trust`: the row under the menu (trust pass, 14 Oct), outside the body that scrolls, so it is always on screen. */
+export function startMenu(items: MenuItem[], summary: HTMLElement | null, trust?: HTMLElement): HTMLElement {
   const list = el('div', 'gb-box start-list');
   list.setAttribute('role', 'menu');
   let at = 0;
@@ -78,13 +79,14 @@ export function startMenu(items: MenuItem[], summary: HTMLElement | null): HTMLE
   };
   move(0);
   const view = screen('start', list, ...(summary ? [summary] : []));
+  if (trust) view.append(trust);
   const onKey = (e: KeyboardEvent) => {
     if (!view.isConnected) return window.removeEventListener('keydown', onKey);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       move(at + (e.key === 'ArrowDown' ? 1 : -1));
       buttons[at]?.focus();
-    } else if (e.key === 'Enter' && document.activeElement?.closest('.start-list') === null) items[at]?.run();
+    } else if (e.key === 'Enter' && document.activeElement?.closest('.start-list, .trust-row') === null) items[at]?.run(); // a focused About or GitHub link takes its own Enter
   };
   window.addEventListener('keydown', onKey);
   window.setTimeout(() => buttons[0]?.focus(), 0);

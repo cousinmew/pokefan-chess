@@ -4,7 +4,7 @@
 import { LESSON_COUNT } from '../campaign/path';
 import { LANGS, fmt, type Lang, type StringKey } from '../game/text';
 import { loadLanguage } from '../i18n';
-import { button, el, screen } from './dom';
+import { button, el, screen, trustRow } from './dom';
 import { pixelIcon } from './icons';
 import { codeDots, codeReader, dpad, listenForCode } from './secret';
 import { faceoff, opponentTag } from './ladder';
@@ -105,8 +105,8 @@ export function langButton(current: Lang, pick: (l: Lang) => void): HTMLElement 
 
 /** The cartridge shelf as a question (design A, playtest 12 Oct): YELLOW first for players new to the pieces, BLUE
  * for those who know them. Still one tap. The language list is the only language control here (ux #17: the EN
- * button above it only repeated the list). */
-export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void, unlock: () => void): HTMLElement {
+ * button above it only repeated the list). `about` adds the trust row at the foot (trust pass, 14 Oct). */
+export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (l: Lang) => void, unlock: () => void, about?: () => void): HTMLElement {
   const row = el('div', 'shelf');
   const read = codeReader();
   const dots = codeDots();
@@ -114,7 +114,7 @@ export function shelfScreen(current: Lang, pick: (c: Cartridge) => void, lang: (
   const openPad = () => view.querySelector('.dpad') ?? row.after(dpad(read, unlock, dots));
   row.append(cartridge('yellow', () => pick('yellow'), openPad, dots.el), cartridge('blue', () => pick('blue')));
   const picker = langPicker(current, lang);
-  view.append(el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker);
+  view.append(el('h2', '', 'shelf.title'), row, el('h3', '', 'shelf.lang'), picker, ...(about ? [trustRow(about)] : []));
   listenForCode(view, unlock, read, dots);
   return view;
 }
