@@ -7,6 +7,7 @@
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { coldGoto, tapSplash } from './pace';
 
 test.skip(!process.env.CI && !process.env.REAL_ART, 'Real trainer art is in CI and production only (network policy here); REAL_ART=1 runs these on the stand-ins.');
 
@@ -114,9 +115,11 @@ async function fresh(browser: Browser, store: Record<string, unknown>, slow = fa
   return { context, page };
 }
 const blue = (save: object | null = SAVE, extra: Record<string, unknown> = {}) => ({ 'kc:v1:cartridge': 'blue', ...(save ? { 'kc:v1:campaign': save } : {}), 'kc:v1:settings': { v: 2, anim: 'off' }, ...extra });
+/** A page load to the screen after the splash, tapped as soon as it can be. Not page.goto's `load` (see coldGoto): on a
+ * cold Slow 4G load, a busy runner's `load` came after the splash had moved on, and the tap timed out (test 3). */
 async function boot(page: Page, query = '?debug=1'): Promise<void> {
-  await page.goto(`./${query}`, { timeout: 120_000 });
-  await page.getByTestId('screen-splash').click({ timeout: 120_000 });
+  await coldGoto(page, query);
+  await tapSplash(page);
 }
 /** No cover or dip, no hold. */
 const settled = (page: Page, timeout = 30_000) =>

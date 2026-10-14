@@ -88,7 +88,8 @@ function boot(): App {
   else preloadNow([trainerSrc('oak'), ...STARTERS.flatMap((id) => [spriteUrl(SPECIES[id]!.dex, 'retro'), spriteUrl(SPECIES[id]!.dex)])], releaseIdle); // Oak first (§B22 item 1)
   // An animated WebP the browser cannot show falls back to its GIF.
   document.addEventListener('error', (e) => e.target instanceof HTMLImageElement && e.target.src.endsWith('.webp') && (e.target.src = e.target.src.replace(/\.webp$/, '.gif')), true);
-  startLanguage(reviewFromUrl() ?? savedLang(), relabelSplash); // ?review=<lang>: translation review mode (§B21 item 3); a late table relabels the splash
+  let lateLang: (() => boolean) | null = null; // a saved language's table that landed after boot (src/i18n.ts)
+  startLanguage(reviewFromUrl() ?? savedLang(), (apply) => ((lateLang = apply), lateLanguage())); // ?review=<lang>: translation review mode (§B21 item 3)
   const stored = load<Partial<typeof DEFAULT_SETTINGS>>('settings');
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   // v1 forced Quick (no battle screen) under reduced motion and could save it. Reduced motion now keeps Full, calmer.
@@ -383,6 +384,7 @@ function boot(): App {
     endGame.flush(); // what an ended game brought, if its end panel never came (C5)
     for (const stop of [() => online.close(), () => puzzle.stop(), () => path.stop(), leaveGuest, () => (journey.campaign = loadCampaign())]) stop();
     if ((load<Cartridge>('cartridge') ?? cart) !== cart) setCart(load<Cartridge>('cartridge')!); // the save's own cartridge after a guest game (bugs #9)
+    lateLang?.();
     return params.has('debug') && !params.has('menu') ? goTitle() : flow.menu(); // tests skip the start menu, as after the splash
   }
   /** START's items that end a game in progress ask first (C7, 14 Oct). */
@@ -401,8 +403,24 @@ function boot(): App {
     next: yellow() || isGuest() ? null : goalLine(journey.campaign), // W5: the first line says what is next
   });
 
+  /** A saved language's table that landed after boot stopped waiting for it (BOOT_LANG_MS): the splash takes its words
+   * in place (its hold runs on); the hub, YELLOW's home or the start menu is rebuilt in it, as a language change there
+   * is (no cover), once nothing moves or is open over it. Any other screen keeps its words: the language applies on the
+   * way home (goTitle, quit), so no screen is ever half in one language or turned right to left in English. */
+  function lateLanguage(): void {
+    const on = document.body.dataset.screen ?? '';
+    if (on === 'screen-splash') return void (lateLang?.() && relabelSplash());
+    if (!['screen-title', 'screen-yellow', 'screen-start'].includes(on)) return;
+    if (!modal.hidden || document.querySelector('.start-overlay') || document.documentElement.dataset.transition !== undefined) return void window.setTimeout(lateLanguage, 250);
+    if (!lateLang?.()) return;
+    if (on === 'screen-start') return flow.menu();
+    if (document.querySelector('[data-testid="home-tip"]')) save('homeTip', false); // the one-time tip comes again, in it
+    goTitle();
+  }
+
   function goTitle(): void {
     if (isGuest()) return quit(); // PLAY CHESS ends at the start menu, never at a save's hub (§B22 item 4)
+    lateLang?.();
     endGame.flush();
     duo = null;
     journey.campaign = loadCampaign(); // YELLOW's path and team write the save directly

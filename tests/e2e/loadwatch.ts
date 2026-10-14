@@ -3,6 +3,7 @@
 // (Slow 4G and Fast 4G as in the brief, an empty HTTP cache, the service worker blocked) with a recorder of what the
 // player sees and hears, frame by frame, from the page's first script.
 import { test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { coldGoto, tapSplash } from './pace';
 
 export const SLOW_4G = { offline: false, latency: 562.5, downloadThroughput: 180_000, uploadThroughput: 84_375 };
 export const FAST_4G = { offline: false, latency: 165, downloadThroughput: 1_012_500, uploadThroughput: 84_375 };
@@ -180,12 +181,16 @@ export async function fresh(browser: Browser, store: Record<string, unknown>, ne
   return { context, page };
 }
 
-/** Boots on ?debug=1 and leaves the splash once the first screen's own loads are done (a player reads it). */
+/** Boots on ?debug=1 and leaves the splash once the first screen's own loads are done (a player reads it): the page's
+ * `load` (boot's image preloads) and the first sprites. The splash is caught from the navigation's commit and the tap
+ * takes a splash already gone by itself (see coldGoto, tapSplash): on a busy runner the Slow 4G `load` came after it
+ * had left, and the wait for it timed out. */
 export async function boot(page: Page, query = '?debug=1', tap = true): Promise<void> {
-  await page.goto(`./${query}`, { timeout: 120_000 });
+  await coldGoto(page, query);
   await page.getByTestId('screen-splash').waitFor({ timeout: 120_000 });
+  await page.waitForLoadState('load', { timeout: 120_000 });
   await page.waitForFunction(() => performance.getEntriesByType('resource').filter((r) => /assets\/(front|retro|trainers)\//.test(r.name)).length >= 4, null, { timeout: 60_000 }).catch(() => undefined);
-  if (tap) await page.getByTestId('screen-splash').click({ timeout: 60_000 });
+  if (tap) await tapSplash(page, 60_000);
 }
 
 /** The first frame at or after `t0` where `pred` holds. */

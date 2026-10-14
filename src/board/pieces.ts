@@ -136,7 +136,8 @@ export function speciesIdFor(color: Color, role: Role, square: string): SpeciesI
   const skin = skins[color];
   const key = role === 'b' ? (isDarkSquare(square) ? 'bDark' : 'bLight') : role;
   const pick = skin?.[key] ?? stages[color]?.[key];
-  if (pick && SPECIES[parseVariant(pick).base]) return pick;
+  // An own key only (boot fix, 14 Oct): a stored team's "constructor" or "toString" named Object's members on the board.
+  if (knownSpecies(pick)) return pick;
   return defaultSpecies(wears[color], role, isDarkSquare(square));
 }
 
@@ -151,12 +152,12 @@ const variants = new Map<string, Species>();
 
 /** A species by id; a variant id ("pidgey:s:2") returns that species with its shiny and star flags. */
 export function species(id: SpeciesId): Species {
-  const direct = SPECIES[id];
+  const direct = Object.hasOwn(SPECIES, id) ? SPECIES[id] : undefined;
   if (direct) return direct;
   let v = variants.get(id);
   if (!v) {
     const { base, shiny, stars } = parseVariant(id);
-    const s = SPECIES[base];
+    const s = Object.hasOwn(SPECIES, base) ? SPECIES[base] : undefined;
     if (!s) throw new Error(`unknown species ${id}`);
     v = { ...s, shiny, stars };
     variants.set(id, v);

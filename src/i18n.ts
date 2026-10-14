@@ -3,7 +3,7 @@
 // but the chess board, coordinates and move notation stay left to right (see .board in style.css).
 import { BOOT_LANG_MS, STORAGE_NS } from './config';
 import { applyNames, loadNames } from './board/pieces';
-import { currentLang, LANGS, RTL, loadStrings, setLang, type Lang } from './game/text';
+import { LANGS, RTL, loadStrings, setLang, type Lang } from './game/text';
 import { load, save } from './store/persist';
 
 export function savedLang(): Lang {
@@ -11,8 +11,12 @@ export function savedLang(): Lang {
   return (LANGS as readonly string[]).includes(l ?? '') ? (l as Lang) : 'en';
 }
 
+/** A saved language whose table was still on its way when boot stopped waiting for it (BOOT_LANG_MS). */
+let pending: Lang | null = null;
+
 /** Synchronous: the language must be loaded (loadLanguage), or it reads in English. */
 export function applyLanguage(lang: Lang, remember = true): void {
+  if (remember) pending = null; // the player picked one: a table still coming no longer applies
   setLang(lang);
   applyNames(lang);
   document.documentElement.lang = lang;
@@ -61,30 +65,39 @@ const storage = (): Storage | null => {
   }
 };
 
-/** The device's languages still on their way when boot stopped waiting for them (each resolves true once it is in). */
-const coming = new Map<Lang, Promise<boolean>>();
+/** The device's languages as boot fetched them: `done` resolves true once one is in, false if it failed; `ok` says
+ * which once it has (still undefined: on its way). */
+const tables = new Map<Lang, { done: Promise<boolean>; ok?: boolean }>();
 
-/** Boot's language: `lang` at once, as the save says. A table still on its way when boot stopped waiting for it
- * (BOOT_LANG_MS) reads in English until it lands; then, unless another language was picked meanwhile, `lang` applies
- * again with its own words and `landed` redraws what shows (the splash; later screens are built in it anyway). */
-export function startLanguage(lang: Lang, landed: () => void): void {
-  applyLanguage(lang, false);
-  void coming.get(lang)?.then((ok) => ok && currentLang() === lang && (applyLanguage(lang, false), landed()));
+/** Boot's language, as the save says. Its table missing (still on its way when boot stopped waiting, BOOT_LANG_MS, or
+ * failed: offline and not cached), the page reads English in full until it lands: its words, left to right, the
+ * language button EN (review R2: a Hebrew save was laid out right to left in English words); the save keeps `lang`.
+ * Once it lands, unless a language was picked meanwhile, `landed` gets `apply`: it switches to `lang` (true) when
+ * the screen showing can take it. */
+export function startLanguage(lang: Lang, landed: (apply: () => boolean) => void): void {
+  const t = tables.get(lang);
+  if (!t || t.ok) return applyLanguage(lang, false);
+  applyLanguage('en', false);
+  if (t.ok === false) return;
+  pending = lang;
+  void t.done.then((ok) => ok && pending === lang && landed(() => pending === lang && (applyLanguage(lang, false), (pending = null), true)));
 }
 
 // Before boot runs (main.ts imports this module, so it waits for this top level await): the device's languages are
-// fetched, so a French save's splash paints in French from its first frame and setLang stays synchronous. A table that
-// cannot be fetched (offline and not cached) leaves that language reading in English. Boot fix, 14 Oct: the wait is
-// capped at BOOT_LANG_MS, since a request that stalls (a dropped mobile connection) kept the splash away for good.
+// fetched, so a French save's splash paints in French from its first frame and setLang stays synchronous. Boot fix,
+// 14 Oct: the wait is capped at BOOT_LANG_MS, since a request that stalls (a dropped mobile connection) kept the
+// splash away for good.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   const loads = bootLangs(location.search, storage()).map((l) => {
-    const p = loadLanguage(l).then(
-      () => true,
-      (err: unknown) => (console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), false),
-    );
-    coming.set(l, p);
-    void p.then(() => coming.delete(l));
-    return p;
+    const t: { done: Promise<boolean>; ok?: boolean } = {
+      done: loadLanguage(l).then(
+        () => true,
+        (err: unknown) => (console.warn(`language ${l} unavailable:`, err instanceof Error ? err.message : err), false),
+      ),
+    };
+    void t.done.then((ok) => (t.ok = ok));
+    tables.set(l, t);
+    return t.done;
   });
   await Promise.race([Promise.all(loads), new Promise((r) => window.setTimeout(r, BOOT_LANG_MS))]);
 }

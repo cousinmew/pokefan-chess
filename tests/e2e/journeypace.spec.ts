@@ -6,7 +6,7 @@
 // the Pokédex and My Team load only what shows; Training says what its number is. Real timings, measured in the page.
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { noTransition, ready, settled } from './pace';
+import { coldGoto, noTransition, ready, settled, tapSplash } from './pace';
 
 type KC = Record<string, (...a: unknown[]) => unknown>;
 const kc = <T>(page: Page, fn: string, ...args: unknown[]) => page.evaluate(([f, a]) => (window as unknown as { __kc: KC }).__kc[f as string]!(...(a as unknown[])) as T, [fn, args] as const);
@@ -29,7 +29,10 @@ function upTo(id: string, extra: object = {}) {
   return { ...SAVE, badges, rewards: cleared, journey: { cleared, beaten, visited: ['route-1'] }, ...extra };
 }
 
-async function open(page: Page, save: object = SAVE, o: { settings?: object; cartridge?: string; trainer?: object } = {}) {
+/** A page load into the hub (YELLOW: its home), the splash tapped once the page has loaded. `cold`: the network is
+ * throttled from the first request, so the tap takes a splash already gone by itself (see coldGoto, tapSplash: on a
+ * busy runner `load` came after the splash had moved on, and J9's tap timed out). */
+async function open(page: Page, save: object = SAVE, o: { settings?: object; cartridge?: string; trainer?: object; cold?: boolean } = {}) {
   await page.addInitScript(probe);
   await page.addInitScript(([s, set, cart, tr]) => {
     if (sessionStorage.getItem('seeded')) return;
@@ -39,9 +42,15 @@ async function open(page: Page, save: object = SAVE, o: { settings?: object; car
     localStorage.setItem('kc:v1:settings', JSON.stringify(set));
     if (tr) localStorage.setItem('kc:v1:trainer', JSON.stringify(tr));
   }, [save, o.settings ?? { v: 2, anim: 'off', sound: false }, o.cartridge ?? 'blue', o.trainer ?? null] as const);
-  await page.goto('./?debug=1');
-  await page.getByTestId('screen-splash').click();
-  await expect(page.getByTestId(o.cartridge === 'yellow' ? 'screen-yellow' : 'screen-title')).toBeVisible();
+  if (o.cold) {
+    await coldGoto(page);
+    await page.waitForLoadState('load', { timeout: 120_000 });
+    await tapSplash(page);
+  } else {
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+  }
+  await expect(page.getByTestId(o.cartridge === 'yellow' ? 'screen-yellow' : 'screen-title')).toBeVisible(o.cold ? { timeout: 60_000 } : {});
 }
 
 async function throttle(page: Page, net: object, cpu = 1): Promise<void> {
@@ -672,7 +681,7 @@ for (const cpu of [1, 4]) {
   test(`J9: Slow 4G${cpu > 1 ? ' + 4x CPU' : ''} cold, MY TEAM straight from the hub tile: every row painted in every frame`, async ({ page }) => {
     test.setTimeout(120_000);
     await throttle(page, SLOW_4G, cpu); // from the first request: a cold load
-    await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey', n: 'rattata' } });
+    await open(page, { ...SAVE, caught: { bulbasaur: 1, pidgey: 1, rattata: 1 }, team: { p: 'pidgey', n: 'rattata' } }, { cold: true });
     await page.getByTestId('hub-team').click();
     noEmptyRow(await teamFrames(page));
   });
