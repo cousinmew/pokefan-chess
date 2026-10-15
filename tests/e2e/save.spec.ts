@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Keeping progress safe (§B18 item 2), the language button (item 3) and YELLOW's level picker (item 4).
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const RELAY = '&relay=http://localhost:8788';
@@ -95,6 +95,79 @@ test('a save code restores progress on another device', async ({ browser }) => {
   await b.getByTestId('save-code-restore').click();
   await b.getByTestId('screen-splash').click();
   expect(await b.evaluate(() => JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name)).toBe('PIP');
+});
+
+// Trust fix (14 Oct): the player's own way to remove the server copy, after one question; the device keeps its save.
+test('Delete my save code deletes the server copy at once and keeps the save on this device', async ({ page }) => {
+  await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'LEAF', badges: ['boulder'] })));
+  await enter(page, RELAY);
+  await settings(page);
+  await expect(page.getByTestId('save-code-delete')).toBeHidden(); // no code yet, nothing to delete
+  await page.getByTestId('save-code-make').click();
+  await expect(page.getByTestId('save-code')).toContainText(/[A-Z2-9]{4}-[A-Z2-9]{4}/);
+  const code = /([A-Z2-9]{4})-([A-Z2-9]{4})/.exec((await page.getByTestId('save-code').textContent()) ?? '')!.slice(1).join('');
+  const onRelay = async () => (await page.request.get(`http://localhost:8788/save/${code}`, { headers: { Origin: 'http://localhost:4173' } })).status();
+  expect(await onRelay()).toBe(200);
+  // One question first; Keep leaves everything as it was.
+  await expect(page.getByTestId('save-code-delete')).toHaveText('Delete my save code');
+  await page.getByTestId('save-code-delete').click();
+  await expect(page.locator('.save-confirm')).toHaveText('Delete the copy on the server now? The code stops working; your save stays on this device.');
+  await page.getByTestId('save-code-delete-no').click();
+  await expect(page.getByTestId('save-code-delete')).toBeVisible();
+  expect(await onRelay()).toBe(200);
+  await page.getByTestId('save-code-delete').click();
+  await page.getByTestId('save-code-delete-yes').click();
+  await expect(page.getByTestId('toast')).toHaveText('Save code deleted. Your save is still on this device.');
+  await expect(page.getByTestId('save-code')).toBeHidden();
+  await expect(page.getByTestId('save-code-delete')).toBeHidden();
+  await expect(page.getByTestId('save-code-make')).toHaveText('Make a save code');
+  expect(await onRelay()).toBe(404);
+  expect(await page.evaluate(() => [localStorage.getItem('kc:v1:p1:saveCode'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name])).toEqual([null, 'LEAF']);
+  // A second delete of the same code (already gone) is not an error for the relay either: 204, the only answer the
+  // game counts as deleted (an old relay's 404 is not one, below).
+  expect((await page.request.delete(`http://localhost:8788/save/${code}`, { headers: { Origin: 'http://localhost:4173' } })).status()).toBe(204);
+});
+
+// 15 Oct: the production relay is deployed by hand, so the game may meet one from before DELETE /save/:code. That relay
+// answers 404 (its catch-all), a proxy may answer 405, and a browser stops the cross-origin DELETE at its CORS preflight
+// (a network error, as aborted here). None of them deleted anything: the code, the save and the server copy stay, and
+// OPTION says so in the row, until the next try works.
+test('Delete my save code against a relay that cannot delete keeps the code and the save, and says so', async ({ page }) => {
+  await page.addInitScript(() => localStorage.getItem('kc:v1:p1:campaign') ?? localStorage.setItem('kc:v1:campaign', JSON.stringify({ v: 2, name: 'LEAF', badges: ['boulder'] })));
+  await enter(page, RELAY);
+  await settings(page);
+  await page.getByTestId('save-code-make').click();
+  await expect(page.getByTestId('save-code')).toContainText(/[A-Z2-9]{4}-[A-Z2-9]{4}/);
+  const shown = (await page.getByTestId('save-code').textContent())!;
+  const code = /([A-Z2-9]{4})-([A-Z2-9]{4})/.exec(shown)!.slice(1).join('');
+  const onRelay = async () => (await page.request.get(`http://localhost:8788/save/${code}`, { headers: { Origin: 'http://localhost:4173' } })).status();
+  const cors = { 'Access-Control-Allow-Origin': 'http://localhost:4173', 'Content-Type': 'text/plain' };
+  const answers: [string, (r: Route) => Promise<void>][] = [
+    ['404', (r) => r.fulfill({ status: 404, body: 'not found', headers: cors })],
+    ['405', (r) => r.fulfill({ status: 405, body: 'method not allowed', headers: cors })],
+    ['no answer', (r) => r.abort('failed')],
+  ];
+  for (const [what, answer] of answers) {
+    await page.route(`http://localhost:8788/save/${code}`, (r) => (r.request().method() === 'DELETE' ? answer(r) : r.fallback()));
+    await page.getByTestId('save-code-delete').click();
+    await page.getByTestId('save-code-delete-yes').click();
+    await expect(page.getByTestId('save-code-delete-failed'), what).toHaveText("The server couldn't delete the code right now. It still works, and your save is unchanged. Please try again later.");
+    await expect(page.getByTestId('save-code-delete-failed')).toHaveAttribute('role', 'status');
+    await expect(page.getByTestId('toast'), what).toHaveCount(0); // no "Save code deleted."
+    await expect(page.getByTestId('save-code'), what).toHaveText(shown);
+    await expect(page.getByTestId('save-code-delete'), what).toBeVisible();
+    await expect(page.getByTestId('save-code-make'), what).toHaveText('Update my save code');
+    expect(await page.evaluate(() => [JSON.parse(localStorage.getItem('kc:v1:p1:saveCode') ?? 'null'), JSON.parse(localStorage.getItem('kc:v1:p1:campaign') ?? '{}').name]), what).toEqual([code, 'LEAF']);
+    expect(await onRelay(), what).toBe(200);
+    await page.unroute(`http://localhost:8788/save/${code}`);
+  }
+  // The relay can delete again: the next try works, and the line goes with the code.
+  await page.getByTestId('save-code-delete').click();
+  await page.getByTestId('save-code-delete-yes').click();
+  await expect(page.getByTestId('toast')).toHaveText('Save code deleted. Your save is still on this device.');
+  await expect(page.getByTestId('save-code-delete-failed')).toHaveCount(0);
+  await expect(page.getByTestId('save-code')).toBeHidden();
+  expect(await onRelay()).toBe(404);
 });
 
 test('Save protected shows yes or no in Settings @both', async ({ page }, info) => {

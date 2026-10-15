@@ -16,10 +16,26 @@ export function normalizeCode(raw: string): string {
     .slice(0, 4);
 }
 
-/** The relay origin. Tests point it at `wrangler dev` with ?debug=1&relay=... */
-export function relayBase(): string {
-  const p = new URLSearchParams(location.search);
-  return (p.has('debug') && p.get('relay')) || RELAY_URL;
+/** Hosts a ?relay= may name: this machine only (trust fix, 14 Oct). */
+const LOCAL_HOSTS = ['localhost', '127.0.0.1']; // the same two as index.html's connect-src (vite.config.ts connectPolicy)
+
+/** The origin of a relay on this machine (http or https, any port), else null. */
+export function localRelay(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && LOCAL_HOSTS.includes(u.hostname) ? u.origin : null;
+  } catch (err) {
+    console.warn('relay param ignored:', err instanceof Error ? err.name : err);
+    return null;
+  }
+}
+
+/** The relay origin. Tests point it at `wrangler dev` with ?debug=1&relay=..., honoured only for a relay on this
+ * machine: a shared link can never send saves, notes or games to another server (trust fix, 14 Oct). */
+export function relayBase(search: string = location.search): string {
+  const p = new URLSearchParams(search);
+  return (p.has('debug') && localRelay(p.get('relay'))) || RELAY_URL;
 }
 
 export async function createRoom(): Promise<string> {

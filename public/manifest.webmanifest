@@ -1,7 +1,7 @@
 {
   "name": "PokeFan Chess",
   "short_name": "PokeFan Chess",
-  "description": "An unofficial, free, noncommercial fan chess game.",
+  "description": "Real chess with Pokémon as the pieces. Unofficial, free, noncommercial fan project.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

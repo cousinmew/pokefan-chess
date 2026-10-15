@@ -89,7 +89,7 @@ for (const [w, h] of SIZES) {
     await page.reload();
     await page.getByTestId('screen-splash').click();
     await noScroll(page, `${w}x${h} shelf`);
-    for (const id of ['cart-yellow', 'cart-blue', 'lang-zh-Hans']) await inView(page, id, `${w}x${h} shelf`);
+    for (const id of ['cart-yellow', 'cart-blue', 'lang-zh-Hans', 'trust-about', 'trust-github']) await inView(page, id, `${w}x${h} shelf`); // trust row (14 Oct)
   });
 }
 
@@ -233,6 +233,11 @@ test('@both W2: the menus fit every window', async ({ page }) => {
   await seeded(page, 'blue', './?debug=1&menu');
   await expect(page.getByTestId('screen-start')).toBeVisible();
   out.push(...(await sweep(page, 'start menu')));
+  // About & privacy (trust pass, 14 Oct), from the start menu's trust row.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByTestId('trust-about').click();
+  await expect(page.getByTestId('screen-about')).toBeVisible();
+  out.push(...(await sweep(page, 'about')));
   for (const [tile, screen] of [['how-to', 'screen-howto'], ['settings', 'screen-settings'], ['hub-card', 'trainer-card'], ['kanto', 'screen-map']] as const) {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('./?debug=1');
@@ -251,6 +256,30 @@ test('@both W2: the menus fit every window', async ({ page }) => {
   await page.getByTestId('team-red').click();
   out.push(...(await sweep(page, 'level picker')));
   expect(out).toEqual([]);
+});
+
+// Trust fix (14 Oct): in French at 320 px, OPTION's "À PROPOS ET CONFIDENTIALITÉ" was wider than its 152 px button and
+// its last letter was cut at the border. Every language's label now fits its button at 320 px.
+test('OPTION\'s ABOUT & PRIVACY fits its button in every language at 320x480', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 480 });
+  const misfit: string[] = [];
+  for (const lang of ['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans', 'ru']) {
+    await page.addInitScript((l) => localStorage.setItem('kc:v1:lang', JSON.stringify(l)), lang);
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('settings').first().click();
+    const btn = page.getByTestId('open-about');
+    await btn.scrollIntoViewIfNeeded();
+    const m = await btn.evaluate((b) => {
+      const r = document.createRange();
+      r.selectNodeContents(b);
+      const text = r.getBoundingClientRect();
+      const box = b.getBoundingClientRect();
+      return { text: b.textContent, sw: b.scrollWidth, cw: b.clientWidth, left: text.left - box.left, right: box.right - text.right };
+    });
+    if (m.sw > m.cw || m.left < 0 || m.right < 0) misfit.push(`${lang}: "${m.text}" ${m.sw} px in ${m.cw} px (${Math.round(m.left)} / ${Math.round(m.right)})`);
+  }
+  expect(misfit).toEqual([]);
 });
 
 test('@both W2: the game, a puzzle review and its Continue fit every window', async ({ page }) => {

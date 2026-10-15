@@ -41,7 +41,14 @@ export function splash(onDone: () => void): HTMLElement {
   return s;
 }
 
-const splashScreen = () => screen('splash', heading(), el('p', 'credit', 'splash.credit'), el('p', 'hint', 'splash.tap'));
+/** The credit, then a quiet line that says what this is (trust pass, 14 Oct): plain text, so a tap on it starts the game. */
+function splashScreen(): HTMLElement {
+  const credit = el('p', 'credit', 'splash.credit');
+  credit.dataset.testid = 'splash-credit';
+  const fan = el('p', 'fan-line', 'splash.fan');
+  fan.dataset.testid = 'splash-fan';
+  return screen('splash', heading(), credit, fan, el('p', 'hint', 'splash.tap'));
+}
 
 /** The splash on screen, in the language now in use: a saved language whose table landed after boot stopped waiting
  * for it (boot fix, 14 Oct). Its words only, in place, so its hold runs on. */

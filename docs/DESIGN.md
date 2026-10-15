@@ -131,8 +131,8 @@ Rules are standard FIDE chess, enforced by chess.js. Everything below is present
 
 ```
 Splash ──▶ Title ──▶ [Battle!]  (quick play: last used side and level, 1 tap to board)
-  "Made for Jeremy       ├─▶ Play vs Computer ─▶ Pick team ─▶ Pick level ─▶ Intro ─▶ Board
-   by Cousin Mew"            ├─▶ Two Players (same device) ─────────────────────▶ Intro ─▶ Board
+  "Made by Cousin Mew    ├─▶ Play vs Computer ─▶ Pick team ─▶ Pick level ─▶ Intro ─▶ Board
+   for my little cousin"     ├─▶ Two Players (same device) ─────────────────────▶ Intro ─▶ Board
                              ├─▶ How to Play (one screen: both teams, piece legend)
                              └─▶ Settings
 Board ─▶ End screen ─▶ Rematch (same settings) | Menu
@@ -172,7 +172,7 @@ Take back: available vs Youngster and Gym Leader (one move pair per tap). Off fo
 
 | Key | Text |
 |---|---|
-| `splash.credit` | Made for Jeremy by Cousin Mew |
+| `splash.credit` | Made by Cousin Mew for my little cousin |
 | `intro.vsRocket` | TEAM ROCKET wants to battle! |
 | `intro.vsRed` | RED wants to battle! |
 | `battle.used` | {attacker} used {move}! |

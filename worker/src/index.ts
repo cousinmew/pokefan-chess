@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Relay routes: POST /room -> {code}; GET /room/:code/ws -> WebSocket into that room's Durable Object.
-// Save codes (§B18 item 2): POST /save -> {code}; PUT /save/:code updates; GET /save/:code restores.
+// Save codes (§B18 item 2): POST /save -> {code}; PUT /save/:code updates; GET /save/:code restores; DELETE /save/:code
+// deletes it at once (trust fix, 14 Oct: the player's own way to remove the server copy, no request to anyone).
 // Feedback (§B21 item 3): POST /feedback stores one note; GET /feedback/export (owner token) lists them.
 // Budget guard (§B23 item 3): every Durable Object request is counted per UTC day; from 80% of the free allowance new
 // rooms and new feedback get a 503, while games already running (WebSocket joins) and save codes carry on.
@@ -84,7 +85,7 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
     const url = new URL(req.url);
     const origin = req.headers.get('Origin') ?? '';
     const allowed = env.ALLOWED_ORIGINS.split(',').includes(origin);
-    const cors: Record<string, string> = allowed ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, PUT, GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' } : {};
+    const cors: Record<string, string> = allowed ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, PUT, GET, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin' } : {};
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (url.pathname === '/health') return new Response('ok', { headers: cors });
     if (url.pathname === '/room' && req.method === 'POST') {
@@ -102,7 +103,8 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       if (await spend(env, ctx, 1)) return busy(cors);
       const body = await req.text();
       if (body.length > FEEDBACK_MAX_BYTES) return new Response('too big', { status: 413, headers: cors });
-      // The rate limit sees a hash of the address and the hour, never the address.
+      // The rate limit sees a short-lived hash of the address and the hour (cleared within about two hours), never the
+      // address. Unsalted, so it is a pseudonym while it lasts, not anonymity (README, Privacy).
       const ip = env.TEST_CLIENTS === '1' ? (req.headers.get('X-Test-Client') ?? crypto.randomUUID()) : (req.headers.get('CF-Connecting-IP') ?? 'local');
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${ip}:${Math.floor(Date.now() / 3_600_000)}`));
       const who = [...new Uint8Array(digest)].slice(0, 8).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -127,11 +129,12 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       return new Response('busy', { status: 503, headers: cors });
     }
     const s = /^\/save\/([A-Z0-9]{8})$/.exec(url.pathname);
-    if (s && VAULT_CODE_RE.test(s[1]!) && (req.method === 'GET' || req.method === 'PUT')) {
+    if (s && VAULT_CODE_RE.test(s[1]!) && (req.method === 'GET' || req.method === 'PUT' || req.method === 'DELETE')) {
       if (!allowed) return new Response('forbidden', { status: 403 });
       await spend(env, ctx, 2);
       const vault = env.VAULT.get(env.VAULT.idFromName(s[1]!));
       if (req.method === 'GET') return withCors(await vault.fetch('https://vault/get'), cors);
+      if (req.method === 'DELETE') return withCors(await vault.fetch('https://vault/delete', { method: 'POST' }), cors);
       // An update only reaches a code that exists, so a typo can't plant a save under someone else's future code.
       if ((await vault.fetch('https://vault/get')).status === 404) return new Response('not found', { status: 404, headers: cors });
       const body = await saveBody(req);

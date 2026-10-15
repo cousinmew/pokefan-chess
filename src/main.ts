@@ -17,7 +17,8 @@ import { currentLang, fmt, type Line, type StringKey } from './game/text';
 import { Engine } from './ai/engine';
 import { cancelThink, computerTurn, thinkingNow } from './ai/turn';
 import { TextBox } from './ui/textBox';
-import { button, el } from './ui/dom';
+import { button, el, onAbout } from './ui/dom';
+import { aboutOption, aboutPlace, aboutScreen } from './ui/about';
 import { howTo, intro, levelSelect, relabelSplash, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
 import { currentSlot, enterGuest, isGuest, leaveGuest, load, remove, save } from './store/persist';
@@ -314,12 +315,16 @@ function boot(): App {
   function showSettings(backTo?: unknown): void {
     const back = typeof backTo === 'function' ? (backTo as () => void) : returnHere();
     const cartSet: CartridgeSettings = { lang: currentLang(), onLang: (l) => (applyLanguage(l), showSettings(back)), cartridge: cart ?? 'blue', ...(isGuest() ? {} : { onSwitch: () => (setCart(yellow() ? 'blue' : 'yellow'), goTitle()) }) }; // a guest can't switch cartridge (bugs #9)
-    const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => (forgetNewGame(currentSlot()), switchTo(currentSlot(), 'continue')) }), feedbackButton()];
+    const extra = [saveSection({ players: () => flow.players(() => showSettings(back)), restored: () => (forgetNewGame(currentSlot()), switchTo(currentSlot(), 'continue')) }), feedbackButton(), aboutOption(() => showAbout(() => showSettings(back)))];
     show(settingsScreen(settings, () => (save('settings', settings), applySettings()), back, cartSet, extra));
   }
 
+  /** About & privacy (trust pass, 14 Oct): Back returns to where it was opened, like OPTION. Footers open it here. */
+  const showAbout = (back: () => void = returnHere(), place = aboutPlace(stage)) => show(aboutScreen(() => (back(), place())));
+  onAbout(() => showAbout());
+
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.
-  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()), renamed: () => (journey.campaign = loadCampaign()) });
+  const flow = new StartFlow({ show, goTitle: () => goTitle(), resume: () => resume(), settings: (back) => showSettings(back), pickCart: setCart, lang: (l) => applyLanguage(l), currentLang, unlockMeir, hasCart: () => !!cart, quickPlay: (kind) => (enterGuest(), (duo = null), kind === 'computer' ? vsComputer() : kind === 'friend' ? startGame({ mode: 'two-players', human: 'w', level: 1 }) : showOnline()), newGame: () => (yellow() ? (endCreating(), goTitle()) : journey.open()), renamed: () => (journey.campaign = loadCampaign()), about: (back) => showAbout(back) });
   /** Two Players: each side as a save or a guest when the device has more than one (change C). */
   let duo: Record<Color, DuoSide> | null = null;
   const twoPlayers = () => (slotCount() > 1 && !isGuest() ? flow.duo((w, b) => ((duo = { w: duoSide(w, 'w'), b: duoSide(b, 'b') }), startGame({ mode: 'two-players', human: 'w', level: 1 })), goTitle) : startGame({ mode: 'two-players', human: 'w', level: 1 }));

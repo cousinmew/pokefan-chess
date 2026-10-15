@@ -147,6 +147,7 @@ export function settingsScreen(s: Settings, changed: () => void, back: () => voi
   // B and Escape go back too (§B23 item 1), unless the player is typing.
   const onKey = (e: KeyboardEvent) => {
     if (!view.isConnected) return window.removeEventListener('keydown', onKey);
+    if (e.repeat) return; // a held B or Escape goes back once (trust fix, 14 Oct)
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || document.querySelector('.start-overlay')) return;
     if (e.key === 'Escape' || e.code === 'KeyB' || e.key.toLowerCase() === 'b') {

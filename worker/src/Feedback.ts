@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Feedback (§B21 item 3): translation suggestions and player notes, kept in one Durable Object. No accounts, no names,
-// no emails. A rate limit per IP uses a hash of the address and the hour, never the address itself.
+// no emails. A rate limit per IP uses a short-lived hash of the address and the hour, never the address itself. A note
+// is deleted 180 days after it was sent (trust fix, 14 Oct; KEEP_MS in keep.ts).
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './Room';
+import { HOUR_MS, nextFeedbackAlarm, noteKey, notesExpiredBefore } from './keep';
 
 export const FEEDBACK_PER_HOUR = 20;
 export const FEEDBACK_MAX_BYTES = 4096;
@@ -31,6 +33,8 @@ export class Feedback extends DurableObject<Env> {
     const url = new URL(req.url);
     if (url.pathname === '/export') {
       const all = await this.ctx.storage.list<Entry>({ prefix: 'f:' });
+      // Notes kept from before the 180 day rule get their alarm here at the latest.
+      if (all.size && !(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + 60_000);
       return Response.json([...all.values()]);
     }
     const who = url.searchParams.get('who') ?? '';
@@ -40,17 +44,24 @@ export class Feedback extends DurableObject<Env> {
     if (count >= FEEDBACK_PER_HOUR) return new Response('slow down', { status: 429 });
     const entry = cleanEntry(await req.json().catch(() => null), Date.now());
     if (!entry) return new Response('bad feedback', { status: 400 });
-    await this.ctx.storage.put({ [rk]: count + 1, [`f:${entry.at}:${crypto.randomUUID().slice(0, 8)}`]: entry });
-    // Rate limit counters are cleared hourly.
-    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + 3_600_000);
+    await this.ctx.storage.put({ [rk]: count + 1, [noteKey(entry.at, crypto.randomUUID().slice(0, 8))]: entry });
+    // Rate limit counters are cleared hourly; the alarm then waits for the oldest note's 180 days.
+    const alarm = await this.ctx.storage.getAlarm();
+    if (!alarm || alarm > Date.now() + HOUR_MS) await this.ctx.storage.setAlarm(Date.now() + HOUR_MS);
     return new Response('ok', { status: 201 });
   }
 
   async alarm(): Promise<void> {
-    const hour = Math.floor(Date.now() / 3_600_000);
+    const now = Date.now();
+    const hour = Math.floor(now / HOUR_MS);
     const old = [...(await this.ctx.storage.list({ prefix: 'rl:' })).keys()].filter((k) => Number(k.split(':').pop()) < hour);
-    if (old.length) await this.ctx.storage.delete(old);
-    // Only while there are counters to clear: an idle relay costs nothing.
-    if ((await this.ctx.storage.list({ prefix: 'rl:', limit: 1 })).size) await this.ctx.storage.setAlarm(Date.now() + 3_600_000);
+    // Notes past their 180 days (keys sort by the time sent), at most 128 keys per delete.
+    const expired = [...(await this.ctx.storage.list({ prefix: 'f:', end: notesExpiredBefore(now) })).keys()];
+    const gone = [...old, ...expired];
+    for (let i = 0; i < gone.length; i += 128) await this.ctx.storage.delete(gone.slice(i, i + 128));
+    const counters = (await this.ctx.storage.list({ prefix: 'rl:', limit: 1 })).size > 0;
+    const oldest = [...(await this.ctx.storage.list({ prefix: 'f:', limit: 1 })).keys()][0];
+    const next = nextFeedbackAlarm(now, counters, oldest);
+    if (next !== null) await this.ctx.storage.setAlarm(next);
   }
 }

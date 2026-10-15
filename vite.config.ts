@@ -140,10 +140,30 @@ function preloadSavedLanguage(): Plugin {
   };
 }
 
+/**
+ * Trust fix, 14 Oct: the built page may connect only to itself, the relay (RELAY_URL, read from src/config.ts so the
+ * URL lives in one place) and a relay on this machine (the e2e suite's wrangler dev; src/net/online.ts honours
+ * ?relay= only for localhost). The browser then enforces README's "the only server the game talks to is its own",
+ * whatever a link says. Build only, so the dev server's own socket is left alone.
+ */
+function connectPolicy(): Plugin {
+  return {
+    name: 'connect-policy',
+    apply: 'build',
+    transformIndexHtml() {
+      const relay = /RELAY_URL = '(https:\/\/[^']+)'/.exec(readFileSync('src/config.ts', 'utf8'))?.[1];
+      if (!relay) throw new Error('connect policy: RELAY_URL missing from src/config.ts');
+      const local = ['localhost', '127.0.0.1'].flatMap((h) => [`http://${h}:*`, `ws://${h}:*`]);
+      const content = `connect-src 'self' ${relay} ${relay.replace(/^https:/, 'wss:')} ${local.join(' ')}`;
+      return [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content }, injectTo: 'head-prepend' as const }];
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
   define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __WEBP__: JSON.stringify(webp), __VERSION__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version) },
-  plugins: [resolvedOut(), stampWorker(), offlineList(), preloadSavedLanguage()],
+  plugins: [resolvedOut(), stampWorker(), offlineList(), preloadSavedLanguage(), connectPolicy()],
   build: { target: 'es2022', sourcemap: false },
   test: { include: ['tests/unit/**/*.test.ts'], environment: 'node' },
 });

@@ -9,7 +9,7 @@ import type { Lang } from './game/text';
 import { fmt } from './game/text';
 import { abandonNewGame, addProfile, creatingInPlace, deleteProfile, hasProgress, isCreating, isFull, leaveCreating, needsPicker, renameProfile, replaceProfile, reuseEmpty, summaries, switchTo, takeIntent } from './profiles';
 import { currentSlot, loadFrom, PLAYER_TRAINER } from './store/persist';
-import { button, el, screen } from './ui/dom';
+import { button, el, screen, trustRow } from './ui/dom';
 import { profileScreen, type SlotSummary } from './ui/profiles';
 import { holdButton } from './ui/settings';
 import { shelfScreen, type Cartridge } from './ui/shelf';
@@ -32,6 +32,8 @@ export interface StartHost {
   quickPlay(kind: 'computer' | 'friend' | 'online'): void;
   /** A save was renamed: the game reloads its copy, so nothing writes the old name back (bugs #6). */
   renamed(): void;
+  /** About & privacy (trust pass, 14 Oct); its Back runs `back`. */
+  about(back: () => void): void;
 }
 
 /** A save as a Two Players side: its trainer, name and team (null slot = guest). */
@@ -103,7 +105,7 @@ export class StartFlow {
 
   shelf(then: () => void): void {
     const again = () => this.shelf(then);
-    this.host.show(shelfScreen(this.host.currentLang(), (c) => (this.host.pickCart(c), then()), (l) => (this.host.lang(l), again()), () => this.host.unlockMeir()));
+    this.host.show(shelfScreen(this.host.currentLang(), (c) => (this.host.pickCart(c), then()), (l) => (this.host.lang(l), again()), () => this.host.unlockMeir(), () => this.host.about(again)));
   }
 
   private current(): SlotSummary | undefined {
@@ -117,7 +119,7 @@ export class StartFlow {
     if (me) items.push({ id: 'continue', run: () => this.host.resume(), name: me.named ? me.name : undefined });
     items.push({ id: 'new', run: () => this.newGame() }, { id: 'play', run: () => this.quick() }, { id: 'option', run: () => this.host.settings(() => this.menu()) });
     if (summaries().some((s) => s.n !== currentSlot())) items.push({ id: 'switch', run: () => this.players(() => this.menu()) });
-    this.host.show(startMenu(items, me ? summaryBox(me) : null));
+    this.host.show(startMenu(items, me ? summaryBox(me) : null, trustRow(() => this.host.about(() => this.menu()))));
   }
 
   /** PLAY CHESS (§B22 item 4): straight into a game as a guest. Nothing is saved; the Journey is never touched. */
