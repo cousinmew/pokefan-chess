@@ -39,3 +39,7 @@ new_sqlite_classes = ["Feedback"]
 [[migrations]]
 tag = "v4"
 new_sqlite_classes = ["Budget"]
+
+# Workers Logs (stored invocation logs) off on every deploy, whatever the dashboard was set to (trust fix, 14 Oct).
+[observability]
+enabled = false

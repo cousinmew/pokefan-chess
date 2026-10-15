@@ -67,7 +67,7 @@ function aboutButton(open: () => void, testid: string): HTMLButtonElement {
   return button('trust.about', open, testid, 'link-btn');
 }
 
-/** The trust row under the start menu and the cartridge shelf (trust pass, 14 Oct): "Free fan project · About ·
+/** The trust row under the start menu and the cartridge shelf (trust pass, 14 Oct): "Free fan project   About ·
  * Source on GitHub", the same three on every first screen a visitor sees. */
 export function trustRow(about: () => void): HTMLElement {
   const dot = () => {
@@ -81,7 +81,7 @@ export function trustRow(about: () => void): HTMLElement {
   links.append(aboutButton(about, 'trust-about'), dot(), repoLink('footer.github', '', 'trust-github'));
   const row = el('p', 'trust-row');
   row.dataset.testid = 'trust-row';
-  row.append(el('span', 'trust-fan', 'trust.fan'), dot(), links);
+  row.append(el('span', 'trust-fan', 'trust.fan'), links); // set apart by the row's gap, not a dot (trust fix, 14 Oct)
   return row;
 }
 

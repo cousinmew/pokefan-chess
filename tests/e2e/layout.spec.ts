@@ -258,6 +258,30 @@ test('@both W2: the menus fit every window', async ({ page }) => {
   expect(out).toEqual([]);
 });
 
+// Trust fix (14 Oct): in French at 320 px, OPTION's "À PROPOS ET CONFIDENTIALITÉ" was wider than its 152 px button and
+// its last letter was cut at the border. Every language's label now fits its button at 320 px.
+test('OPTION\'s ABOUT & PRIVACY fits its button in every language at 320x480', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 480 });
+  const misfit: string[] = [];
+  for (const lang of ['en', 'fr', 'he', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh-Hans', 'ru']) {
+    await page.addInitScript((l) => localStorage.setItem('kc:v1:lang', JSON.stringify(l)), lang);
+    await page.goto('./?debug=1');
+    await page.getByTestId('screen-splash').click();
+    await page.getByTestId('settings').first().click();
+    const btn = page.getByTestId('open-about');
+    await btn.scrollIntoViewIfNeeded();
+    const m = await btn.evaluate((b) => {
+      const r = document.createRange();
+      r.selectNodeContents(b);
+      const text = r.getBoundingClientRect();
+      const box = b.getBoundingClientRect();
+      return { text: b.textContent, sw: b.scrollWidth, cw: b.clientWidth, left: text.left - box.left, right: box.right - text.right };
+    });
+    if (m.sw > m.cw || m.left < 0 || m.right < 0) misfit.push(`${lang}: "${m.text}" ${m.sw} px in ${m.cw} px (${Math.round(m.left)} / ${Math.round(m.right)})`);
+  }
+  expect(misfit).toEqual([]);
+});
+
 test('@both W2: the game, a puzzle review and its Continue fit every window', async ({ page }) => {
   test.setTimeout(150_000);
   const out: string[] = [];

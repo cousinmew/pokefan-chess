@@ -18,7 +18,7 @@ import { Engine } from './ai/engine';
 import { cancelThink, computerTurn, thinkingNow } from './ai/turn';
 import { TextBox } from './ui/textBox';
 import { button, el, onAbout } from './ui/dom';
-import { aboutOption, aboutScreen } from './ui/about';
+import { aboutOption, aboutPlace, aboutScreen } from './ui/about';
 import { howTo, intro, levelSelect, relabelSplash, splash, teamSelect, title } from './ui/screens';
 import { settingsScreen, type CartridgeSettings } from './ui/settings';
 import { currentSlot, enterGuest, isGuest, leaveGuest, load, remove, save } from './store/persist';
@@ -320,7 +320,7 @@ function boot(): App {
   }
 
   /** About & privacy (trust pass, 14 Oct): Back returns to where it was opened, like OPTION. Footers open it here. */
-  const showAbout = (back: () => void = returnHere()) => show(aboutScreen(back));
+  const showAbout = (back: () => void = returnHere(), place = aboutPlace(stage)) => show(aboutScreen(() => (back(), place())));
   onAbout(() => showAbout());
 
   // After the splash: shelf, start menu, saves, Two Players sides (change C), in src/startFlow.ts.

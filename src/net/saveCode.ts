@@ -24,6 +24,13 @@ export async function uploadSave(save: object, code?: string | null): Promise<st
   return out.code;
 }
 
+/** Deletes the server's copy under `code` at once (trust fix, 14 Oct). Resolves once it is gone, also when it already
+ * was (expired, or deleted from another device); throws when the relay can't be reached. */
+export async function deleteSave(code: string): Promise<void> {
+  const res = await fetch(`${relayBase()}/save/${code}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`relay answered ${res.status}`);
+}
+
 /** The save under `code`, or null when there is none (wrong or expired code). */
 export async function downloadSave(code: string): Promise<unknown> {
   const res = await fetch(`${relayBase()}/save/${code}`);

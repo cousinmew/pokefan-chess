@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The "Your save" part of Settings (§B18 item 2): players, Save protected, Export and Import, and opt in save codes.
 import { fmt } from '../game/text';
-import { downloadSave, normalizeSaveCode, SAVE_CODE_RE, uploadSave } from '../net/saveCode';
+import { deleteSave, downloadSave, normalizeSaveCode, SAVE_CODE_RE, uploadSave } from '../net/saveCode';
 import { exportSave, importSave, packSave, protectSave, unpackSave } from '../store/backup';
-import { isGuest, load, save } from '../store/persist';
+import { isGuest, load, remove, save } from '../store/persist';
 import { button, el, toast } from './dom';
 
 export interface SaveActions {
@@ -43,10 +43,33 @@ export function saveSection(a: SaveActions): HTMLElement {
 
   const codeOut = el('p', 'save-code');
   codeOut.dataset.testid = 'save-code';
+  // Delete my save code (trust fix, 14 Oct): the server's copy goes at once, after one question; the save on this
+  // device stays. Shown only while this save has a code.
+  const del = el('div', 'save-row save-delete');
+  const askDelete = () => {
+    const q = el('p', 'save-note save-confirm', 'save.code.deleteAsk');
+    const yes = button('profiles.yes', async () => {
+      const code = load<string>('saveCode');
+      yes.disabled = true;
+      try {
+        if (code) await deleteSave(code);
+        remove('saveCode');
+        showCode(null);
+        toast('save.code.deleted');
+      } catch (err) {
+        console.warn('save code delete failed:', err instanceof Error ? err.message : err);
+        toast('relay.down');
+        yes.disabled = false;
+      }
+    }, 'save-code-delete-yes', 'danger');
+    del.replaceChildren(q, yes, button('profiles.no', () => showCode(load<string>('saveCode')), 'save-code-delete-no', 'secondary'));
+  };
   const showCode = (code: string | null) => {
     codeOut.textContent = code ? fmt('save.code.yours', { code: `${code.slice(0, 4)}-${code.slice(4)}` }) : '';
     codeOut.hidden = !code;
     make.textContent = fmt(code ? 'save.code.update' : 'save.code.make');
+    del.replaceChildren(...(code ? [button('save.code.delete', askDelete, 'save-code-delete', 'secondary')] : []));
+    del.hidden = !code;
   };
   const make = button('save.code.make', async () => {
     make.disabled = true;
@@ -88,7 +111,7 @@ export function saveSection(a: SaveActions): HTMLElement {
 
   const files = el('div', 'save-row');
   files.append(button('save.export', exportSave, 'export-save'), button('save.import', () => file.click(), 'import-save', 'secondary'), file);
-  box.append(el('h3', '', 'save.title'), prot, button('profiles.switch', a.players, 'players', 'secondary'), files, make, codeOut, el('p', 'save-note', 'save.code.note'), restoreRow);
+  box.append(el('h3', '', 'save.title'), prot, button('profiles.switch', a.players, 'players', 'secondary'), files, make, codeOut, del, el('p', 'save-note', 'save.code.note'), restoreRow);
   showCode(load<string>('saveCode'));
   return box;
 }

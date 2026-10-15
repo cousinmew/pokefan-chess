@@ -411,6 +411,8 @@ button:active:not(:disabled) { filter: brightness(0.9); }
 .save-code { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
 .save-code[hidden] { display: none; }
 .save-note { font-size: 13px; }
+.save-delete[hidden] { display: none; }
+.save-delete > .save-confirm { flex-basis: 100%; font-weight: 700; }
 .install-box { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .install-box > button { width: 100%; min-height: 48px; }
 .install-box p { margin: 0; text-align: center; }
@@ -1148,12 +1150,16 @@ html.fit-wide main { grid-template-rows: auto 1fr; }
 
 /* Trust pass (14 Oct): the splash's quiet fan line under the credit. */
 .fan-line { margin: -6px 0 0; font-size: 12px; color: #505050; }
+/* Trust fix (14 Oct): the credit is longer than before and wraps on phones in some languages; both lines stay centred
+   under the centred title, balanced so no word hangs alone. */
+.credit, .fan-line { text-align: center; text-wrap: balance; }
 /* The trust row under the start menu and the shelf ("Free fan project · About · Source on GitHub"), About in the
    footers, and the About & privacy screen. */
 .menu button.link-btn, button.link-btn { min-height: 0; min-width: 0; padding: 0 4px; border: 0; border-radius: 0; background: none; font: inherit; font-weight: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
-.trust-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 4px; margin: 0; font-size: 11px; line-height: 1.3; color: #505050; text-align: center; }
+/* Its two parts are set apart by space, with the dot only between the two links, so a wrapped row never leaves a "·"
+   hanging at the end of its first line (trust fix, 14 Oct). */
+.trust-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; column-gap: 12px; margin: 0; font-size: 11px; line-height: 1.3; color: #505050; text-align: center; }
 .trust-links { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.trust-fan { padding-inline-end: 4px; }
 .trust-row a { color: inherit; padding: 0 4px; }
 .screen-start > .trust-row, .screen-shelf > .trust-row { flex: none; width: 100%; }
 /* The menu never slides out of its box when the window is short (its top was cut, not scrollable), and short
@@ -1177,6 +1183,14 @@ html.fit-short.fit-land .screen-start button.start-item { font-size: 20px; }
 .about-link a { color: #2848c8; font-weight: 700; }
 .about-small { margin: 0; font-size: 12px; line-height: 1.4; color: #505050; }
 .about-box { width: 100%; display: flex; flex-direction: column; align-items: center; }
+/* OPTION's ABOUT & PRIVACY may be long in some languages: the button grows to 280 px and a long word may break
+   rather than cut (trust fix, 14 Oct; fr at 320 px lost its last letter). */
+.menu .about-box > button.secondary { width: min(100%, 280px); overflow-wrap: anywhere; }
+/* On a desktop window the row is the smallest text on the page: a little larger, its links in ink. */
+@media (min-width: 900px) and (pointer: fine) {
+  .trust-row { font-size: 13px; }
+  .trust-links { color: var(--ink); }
+}
 @media (pointer: coarse), (max-width: 900px) {
   .menu button.link-btn, .trust-row a, .about-link a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); min-width: var(--tap); padding: 0 4px; }
   .about-link a { margin-inline: -4px; } /* the link's words line up with the text around it */
