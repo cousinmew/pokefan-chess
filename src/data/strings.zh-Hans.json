@@ -858,6 +858,7 @@
   "save.code.delete": "删除我的存档码",
   "save.code.deleteAsk": "现在删除服务器上的副本吗？存档码将失效；你的存档仍留在这台设备上。",
   "save.code.deleted": "存档码已删除。你的存档仍在这台设备上。",
+  "save.code.notDeleted": "服务器现在没能删除这个存档码。存档码仍然可用，你的存档也没有变化。请稍后再试。",
   "save.code.enter": "存档码",
   "save.code.restore": "恢复",
   "save.code.bad": "没有这个存档码的存档",

@@ -858,6 +858,7 @@
   "save.code.delete": "セーブコードをけす",
   "save.code.deleteAsk": "サーバーのコピーをいまけす？コードはつかえなくなるよ。このきかいのセーブはのこるよ。",
   "save.code.deleted": "セーブコードをけしたよ。このきかいのセーブはそのままだよ。",
+  "save.code.notDeleted": "いま サーバーで コードを けせなかったよ。コードは まだ つかえるし、セーブも そのままだよ。あとで もういちど ためしてね。",
   "save.code.enter": "セーブコード",
   "save.code.restore": "もとにもどす",
   "save.code.bad": "そのコードのセーブはありません",

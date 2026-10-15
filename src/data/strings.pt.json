@@ -858,6 +858,7 @@
   "save.code.delete": "Apagar meu código de progresso",
   "save.code.deleteAsk": "Apagar agora a cópia no servidor? O código para de funcionar; seu jogo salvo continua neste aparelho.",
   "save.code.deleted": "Código de progresso apagado. Seu jogo salvo continua neste aparelho.",
+  "save.code.notDeleted": "O servidor não conseguiu apagar o código agora. Ele continua funcionando e seu jogo salvo não mudou. Tente de novo mais tarde.",
   "save.code.enter": "Código de progresso",
   "save.code.restore": "Restaurar",
   "save.code.bad": "Nenhum progresso com esse código",

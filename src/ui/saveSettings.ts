@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The "Your save" part of Settings (§B18 item 2): players, Save protected, Export and Import, and opt in save codes.
-import { fmt } from '../game/text';
+import { fmt, type StringKey } from '../game/text';
 import { deleteSave, downloadSave, normalizeSaveCode, SAVE_CODE_RE, uploadSave } from '../net/saveCode';
 import { exportSave, importSave, packSave, protectSave, unpackSave } from '../store/backup';
 import { isGuest, load, remove, save } from '../store/persist';
@@ -57,18 +57,22 @@ export function saveSection(a: SaveActions): HTMLElement {
         showCode(null);
         toast('save.code.deleted');
       } catch (err) {
+        // Nothing changed (15 Oct): the code still opens the save, so it stays, with a line that says so in the row
+        // (a toast is gone in 1.6 s). Unreachable, a relay without DELETE, or a refusal: the line names no cause.
         console.warn('save code delete failed:', err instanceof Error ? err.message : err);
-        toast('relay.down');
-        yes.disabled = false;
+        showCode(code, 'save.code.notDeleted');
       }
     }, 'save-code-delete-yes', 'danger');
     del.replaceChildren(q, yes, button('profiles.no', () => showCode(load<string>('saveCode')), 'save-code-delete-no', 'secondary'));
   };
-  const showCode = (code: string | null) => {
+  const showCode = (code: string | null, note?: StringKey) => {
     codeOut.textContent = code ? fmt('save.code.yours', { code: `${code.slice(0, 4)}-${code.slice(4)}` }) : '';
     codeOut.hidden = !code;
     make.textContent = fmt(code ? 'save.code.update' : 'save.code.make');
-    del.replaceChildren(...(code ? [button('save.code.delete', askDelete, 'save-code-delete', 'secondary')] : []));
+    const said = el('p', 'save-note save-failed', note);
+    said.setAttribute('role', 'status');
+    said.dataset.testid = 'save-code-delete-failed';
+    del.replaceChildren(...(code ? [...(note ? [said] : []), button('save.code.delete', askDelete, 'save-code-delete', 'secondary')] : []));
     del.hidden = !code;
   };
   const make = button('save.code.make', async () => {

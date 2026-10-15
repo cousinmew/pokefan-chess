@@ -12,11 +12,12 @@ export const VAULT_MAX_BYTES = 256 * 1024;
 export class Vault extends DurableObject<Env> {
   async fetch(req: Request): Promise<Response> {
     const path = new URL(req.url).pathname;
+    // 204 also when the code had no copy left (expired, or deleted on another device): the game counts only a 204 as
+    // deleted, because a relay from before DELETE answers 404 to it and still holds the save (trust fix, 15 Oct).
     if (path === '/delete') {
-      const had = (await this.ctx.storage.get('save')) !== undefined;
       await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
-      return new Response(null, { status: had ? 204 : 404 });
+      return new Response(null, { status: 204 });
     }
     if (path === '/put' || path === '/create') {
       if (path === '/create' && (await this.ctx.storage.get('save')) !== undefined) return new Response('taken', { status: 409 });

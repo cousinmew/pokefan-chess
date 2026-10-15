@@ -857,6 +857,7 @@
   "save.code.delete": "Delete my save code",
   "save.code.deleteAsk": "Delete the copy on the server now? The code stops working; your save stays on this device.",
   "save.code.deleted": "Save code deleted. Your save is still on this device.",
+  "save.code.notDeleted": "The server couldn't delete the code right now. It still works, and your save is unchanged. Please try again later.",
   "save.code.enter": "Save code",
   "save.code.restore": "Restore",
   "save.code.bad": "No save with that code",

@@ -858,6 +858,7 @@
   "save.code.delete": "Borrar mi código de partida",
   "save.code.deleteAsk": "¿Borrar ahora la copia del servidor? El código dejará de funcionar; tu partida sigue en este dispositivo.",
   "save.code.deleted": "Código de partida borrado. Tu partida sigue en este dispositivo.",
+  "save.code.notDeleted": "El servidor no ha podido borrar el código ahora. Sigue funcionando y tu partida no ha cambiado. Inténtalo más tarde.",
   "save.code.enter": "Código de partida",
   "save.code.restore": "Restaurar",
   "save.code.bad": "No hay partida con ese código",

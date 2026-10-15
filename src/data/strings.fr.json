@@ -858,6 +858,7 @@
   "save.code.delete": "Effacer mon code de sauvegarde",
   "save.code.deleteAsk": "Effacer la copie sur le serveur maintenant ? Le code ne marchera plus ; ta sauvegarde reste sur cet appareil.",
   "save.code.deleted": "Code de sauvegarde effacé. Ta sauvegarde est toujours sur cet appareil.",
+  "save.code.notDeleted": "Le serveur n'a pas pu effacer le code pour l'instant. Il marche toujours, et ta sauvegarde n'a pas changé. Réessaie plus tard.",
   "save.code.enter": "Code de sauvegarde",
   "save.code.restore": "Restaurer",
   "save.code.bad": "Aucune sauvegarde avec ce code",

@@ -858,6 +858,7 @@
   "save.code.delete": "Mijn opslagcode verwijderen",
   "save.code.deleteAsk": "De kopie op de server nu verwijderen? De code werkt dan niet meer; je opgeslagen spel blijft op dit apparaat.",
   "save.code.deleted": "Opslagcode verwijderd. Je opgeslagen spel staat nog op dit apparaat.",
+  "save.code.notDeleted": "De server kon de code nu niet verwijderen. Hij werkt nog en je opgeslagen spel is niet veranderd. Probeer het later nog eens.",
   "save.code.enter": "Opslagcode",
   "save.code.restore": "Herstellen",
   "save.code.bad": "Geen opslag met die code",

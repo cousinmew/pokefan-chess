@@ -858,6 +858,7 @@
   "save.code.delete": "Cancella il mio codice di salvataggio",
   "save.code.deleteAsk": "Cancellare ora la copia sul server? Il codice smetterà di funzionare; il tuo salvataggio resta su questo dispositivo.",
   "save.code.deleted": "Codice di salvataggio cancellato. Il tuo salvataggio è ancora su questo dispositivo.",
+  "save.code.notDeleted": "Il server non è riuscito a cancellare il codice ora. Funziona ancora e il tuo salvataggio non è cambiato. Riprova più tardi.",
   "save.code.enter": "Codice di salvataggio",
   "save.code.restore": "Ripristina",
   "save.code.bad": "Nessun salvataggio con quel codice",

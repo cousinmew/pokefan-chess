@@ -412,7 +412,7 @@ button:active:not(:disabled) { filter: brightness(0.9); }
 .save-code[hidden] { display: none; }
 .save-note { font-size: 13px; }
 .save-delete[hidden] { display: none; }
-.save-delete > .save-confirm { flex-basis: 100%; font-weight: 700; }
+.save-delete > .save-confirm, .save-delete > .save-failed { flex-basis: 100%; font-weight: 700; }
 .install-box { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .install-box > button { width: 100%; min-height: 48px; }
 .install-box p { margin: 0; text-align: center; }
