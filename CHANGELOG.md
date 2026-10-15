@@ -162,6 +162,12 @@
 ## 2.14.0 (trust pass)
 
 - The splash credits the game without naming anyone, "Made by Cousin Mew for my little cousin", with "Free, unofficial fan project" under it.
-- The start menu and the first launch shelf end with "Free fan project · About · Source on GitHub"; the footer has About next to Source on GitHub.
+- The start menu and the first launch shelf end with "Free fan project", then "About · Source on GitHub"; the footer has About next to Source on GitHub.
 - A new About & privacy screen, from that row, OPTION and the footer: who made the game, that it is free with no advertising, accounts or tracking, what is stored and where, the source (AGPL-3.0), where to ask a question, the disclaimer and the version.
 - On short windows the start menu's items are a little smaller, so the new row fits, and the menu's top can no longer be cut off.
+- Delete my save code in OPTION removes the server copy at once (after one question); the save on the device stays.
+- Feedback notes are deleted 180 days after they are sent, like an unused save code.
+- OPTION, About and the README say the same about a save code: it keeps the trainer name picked in the game (like RED or LEAF), never a real name, and the progress. About adds how to delete a code, never to post one, and that GitHub links open GitHub's own site.
+- A link can no longer point the game at another server: ?relay= works only for a relay on the same machine (the tests), and the page itself allows connections only to the game and its relay.
+- The relay turns Workers Logs off on every deploy.
+- The splash credit stays centred when it wraps, the About button fits in every language, the trust row no longer leaves a dot hanging when it wraps and is easier to read on a desktop, and Back from About returns to the same place in OPTION and the hub.
