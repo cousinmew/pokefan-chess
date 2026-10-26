@@ -16,7 +16,6 @@ const BLANK_MS = 300; // @perf: longest an image may stay blank on screen with n
 /** Known pop-ins (paint lint, 23 Oct), each one in the fix plan: logged, and not failed by @perf until fixed, by
  * where they show. Anything else blank past BLANK_MS fails. */
 const KNOWN: [RegExp, string][] = [
-  [/\.legend-mon$/, "Who's who asks for its Gen 1 sprites only once the cover has gone (src/ui/legend.ts)"],
   [/^screen-dex dex-[a-z-]+ \.dex-sprite$/, 'the Pokédex opens at the SCREEN_READY_MS cap, 300 ms, with its stills loading'],
   [/^screen-(level|yellow-levels) loadout \.loadout-mon$/, 'the level pickers open at the same cap'],
   [/^screen-route \.dex-sprite$/, "a route's wild Pokémon (animated fronts) at the same cap"],
