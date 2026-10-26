@@ -19,3 +19,10 @@
   - "Win the next 2!" reads as a threat to the journey, while a lost trainer is only a rematch.
   - Every Journey trainer but the rival plays on Team Rocket's pieces: BROCK's board shows Rocket's Pokémon, not his.
   - MY TEAM is missing from the START menu.
+- Fixes of 23 Oct (2.14.0):
+  - New strings are drafts in every language: one more try, their reply, "Move 2 of 2", the miss review's lines and comparison, castling, the battle banner and the defeat line, and the My Team tile.
+  - On a phone, play VIRIDIAN FOREST from a fresh BLUE save. Check that LIAM's puzzles are one move, that OSKAR and PIP set castling you can solve, and that a miss's review reads well at 360 px. The comparison line is the longest.
+  - Check that every trainer's board feels like theirs. The owner may want different calls where Red/Blue had no trainers: Routes 1, 7 and 22, and the CINNABAR LAB.
+  - Translator notes for native review:
+    - French review.wrong.capture, .mate and .check read "aux {side}" / "Les {side}", which is wrong with a trainer's name ("aux BUG CATCHER LIAM"). The new lines use a bare {side}.
+    - The "even" wordings of review.pts.even are the weakest (es "queda igual", ru "поровну", ja "プラスマイナスゼロ").
