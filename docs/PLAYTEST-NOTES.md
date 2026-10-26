@@ -11,3 +11,11 @@
 - §B22: try NEW GAME then BACK on a phone (the button is top left), and the START button on every screen. New strings (BACK, PLAY CHESS, the START items, the guest note) are drafts in every language.
 - §B23: the two relay messages are drafts in every language.
 - Polish, 12 Oct (playtest of 8 Oct): on a phone, play a fresh device through shelf → Oak → Route 1 warm-up → first catch → TOBY, and check the goal line, the YOU plate and the coach marks read well. Try INSTALL FOR OFFLINE PLAY on a real Android phone (Chrome) and a Windows PC (Edge), then play vs Computer in airplane mode. WebKit (iPhone) e2e was not run in the cloud session, and trainer sprites were missing there, so plates, Oak and the rival were only seen as silhouettes. New strings (warm-up, map, cards, coach marks, install, levels Easy to Super hard) are drafts in every language.
+- Playtest, 23 Oct (owner, VIRIDIAN FOREST), logged before the fixes:
+  - About one puzzle in two is lost on the second move. The goal "grab the piece nobody defends" is true of the first move only. In the hanging piece pool, only 37% of second moves take another free piece (27% are quiet, 19% take a defended piece). Example: puzzle 0Are1, where taking back the bishop that took your queen loses, and Nxd7 first wins.
+  - An engine check of all 743 VIRIDIAN puzzles (Stockfish 19, depth 18) found the data sound: no equally good move is ever rejected.
+  - OSKAR and PIP (castling) serve puzzles rated 1000 to 1300 to a new player, because 141 of the 143 Lichess castling puzzles are rated 1200 or more.
+  - After a miss, the line between moves never says what the reply took or threatens. The miss review says "that one hurts!" for a quiet reply and shows one right move, not the line. The castling caption never says "castles".
+  - "Win the next 2!" reads as a threat to the journey, while a lost trainer is only a rematch.
+  - Every Journey trainer but the rival plays on Team Rocket's pieces: BROCK's board shows Rocket's Pokémon, not his.
+  - MY TEAM is missing from the START menu.
