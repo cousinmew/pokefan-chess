@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // A Journey trainer's own Pokémon on their pieces (playtest, 23 Oct: BROCK played on Team Rocket's): a canon loadout
-// per trainer from src/data/journey-boards.json, sourced like trainer-teams.json. As with BLUE (partyOf), no species
-// stands on both sides: one on yours gives way to the trainer's next free spare.
+// per trainer from src/data/journey-boards.json; its sources are in journey-boards.sources.json, kept out of the bundle.
+// As with BLUE (partyOf), no species stands on both sides: one on yours gives way to the trainer's next free spare.
 import boards from '../data/journey-boards.json';
 import { SKIN_ROLES, type TeamSkin } from '../board/pieces';
 import type { Trainer } from './journey';
@@ -11,7 +11,6 @@ import { yourSpecies } from './rivalTeam';
 interface Board {
   team: Required<TeamSkin>;
   spare: string[];
-  source: string;
 }
 export const BOARDS = boards.trainers as Record<string, Board>;
 

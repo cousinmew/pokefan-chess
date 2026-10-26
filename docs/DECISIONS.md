@@ -158,7 +158,7 @@
   - Gyms, the Elite Four and legendaries keep one try; they are the tests. This changes §B7's "a wrong reply ends the attempt" for route trainers only.
   - The banner after a miss is about this battle ("Win the next 2 to win the battle!"). A lost battle says "Rematch with new puzzles: nothing is lost!".
 - Fix, 23 Oct (playtest), trainers' own Pokémon:
-  - Every Journey trainer but the rivals plays on a canon loadout from src/data/journey-boards.json (40 trainers). The king is the trainer's ace. The other pieces come from their Red/Blue party, then the gym's or place's trainers, then the place's Red/Blue wild table. Pawns are its most basic common species. Sources are given as Bulbapedia page titles.
+  - Every Journey trainer but the rivals plays on a canon loadout from src/data/journey-boards.json (40 trainers). The king is the trainer's ace. The other pieces come from their Red/Blue party, then the gym's or place's trainers, then the place's Red/Blue wild table. Pawns are its most basic common species. Sources, as Bulbapedia page titles, are in journey-boards.sources.json; only the unit test reads it, which keeps about 5 KB gzip of citations out of the entry chunk.
   - A species that also stands on your side gives way to the trainer's next spare (boards.ts boardOf), as partyOf does for BLUE.
   - Judgment calls are recorded in the sources. Routes 1, 7 and 22 and the CINNABAR LAB have no Red/Blue trainers, so their boards use the wild tables and neighbouring trainers. The "most common" pawn at the four legendaries' places is unverified.
 - Fix, 23 Oct (playtest): in a puzzle battle, the Who's who names the trainer you face on their row ("YOUNGSTER TOBY"), since their pieces are their own Pokémon now; other modes keep TEAM ROCKET.

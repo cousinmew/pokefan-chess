@@ -6,6 +6,9 @@ import { PLACES, type Trainer } from '../../src/campaign/journey';
 import { loadCampaign } from '../../src/campaign/kanto';
 import { yourSpecies } from '../../src/campaign/rivalTeam';
 import { knownSpecies, SKIN_ROLES } from '../../src/board/pieces';
+import sources from '../../src/data/journey-boards.sources.json';
+
+const SOURCES = sources.trainers as Record<string, string>;
 
 const trainers = PLACES.flatMap((p) => (p.trainers ?? []).map((t) => ({ p, t })));
 const brock = trainers.find((x) => x.t.id === 'gym-brock')!.t;
@@ -22,7 +25,8 @@ describe('Journey trainers\' boards (playtest, 23 Oct)', () => {
       for (const role of SKIN_ROLES) expect(knownSpecies(b.team[role]), `${t.id} ${role}`).toBe(true);
       for (const id of t.team) expect(Object.values(b.team), `${t.id} shows ${id} on its card`).toContain(id);
       expect(b.spare.length, t.id).toBeGreaterThan(0);
-      expect(b.source, t.id).not.toMatch(/https?:/);
+      expect(SOURCES[t.id], t.id).toMatch(/Bulbapedia/);
+      expect(SOURCES[t.id], t.id).not.toMatch(/https?:/);
     }
   });
 

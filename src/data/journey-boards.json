@@ -1,5 +1,5 @@
 {
-  "_note": "Journey trainers' own pieces (playtest, 23 Oct: BROCK played on Team Rocket's). Roles: k, q, r, n, bLight, bDark, p. k is the trainer's ace, then their Red/Blue party, the same gym's or place's trainers, then the place's Red/Blue wild table; pawns are its most basic common species. spare: canon swaps, in order, for a species that stands on your side (My Team is yours to edit). No starter lines, no Eevee; PIKACHU and RAICHU only for LT. SURGE and the POWER PLANT. The rivals' pieces come from their party (kanto.ts rivalSkin).",
+  "_note": "Journey trainers' own pieces (playtest, 23 Oct: BROCK played on Team Rocket's). Roles: k, q, r, n, bLight, bDark, p. k is the trainer's ace, then their Red/Blue party, the same gym's or place's trainers, then the place's Red/Blue wild table; pawns are its most basic common species. spare: canon swaps, in order, for a species that stands on your side (My Team is yours to edit). No starter lines, no Eevee; PIKACHU and RAICHU only for LT. SURGE and the POWER PLANT. The rivals' pieces come from their party (kanto.ts rivalSkin). Sources: journey-boards.sources.json (not bundled).",
   "trainers": {
     "r1-toby": {
       "team": {
@@ -15,8 +15,7 @@
         "zubat",
         "jigglypuff",
         "sandshrew"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 1\": no trainers in Red/Blue; wild Pidgey, Rattata (pawns, bDark). Route 1 alone cannot fill a board, so the fill (judgment call) is the Youngster class's first Red/Blue parties on Bulbapedia pages \"Youngster\" and \"Kanto Route 3\" (Rattata + Ekans, Spearow) and the Route 22 wild table, reachable from Viridian at the same point (Bulbapedia page \"Kanto Route 22\": Spearow, Nidoran♂, Nidoran♀). Spare: Zubat (Youngster, Mt. Moon), Jigglypuff (Route 3 wild), Sandshrew (Youngster, Route 25)."
+      ]
     },
     "r1-mina": {
       "team": {
@@ -32,8 +31,7 @@
         "clefairy",
         "oddish",
         "bellsprout"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 1\": no trainers in Red/Blue; wild Pidgey, Rattata. Judgment call fill from the Lass class's first Red/Blue parties (Bulbapedia pages \"Lass\" and \"Kanto Route 3\": Pidgey + Pidgey, Rattata + Nidoran♂, Jigglypuff) and the Route 22 wild table (Bulbapedia page \"Kanto Route 22\": Spearow, Nidoran♀). Spare: Lass parties at Mt. Moon (Clefairy; Oddish + Bellsprout), Bulbapedia page \"Mt. Moon\"."
+      ]
     },
     "vf-oskar": {
       "team": {
@@ -50,8 +48,7 @@
         "butterfree",
         "pidgey",
         "rattata"
-      ],
-      "source": "Bulbapedia page \"Viridian Forest\", Red/Blue: Bug Catchers (Weedle + Caterpie; Weedle + Kakuna + Weedle; Weedle) and wild Weedle (most common, pawns), Kakuna, Caterpie, Metapod. Only four forest bugs, so species repeat. Wild Pikachu left out by the player-side rule. Spare: Beedrill and Butterfree are later Bug Catcher parties (Bulbapedia page \"Bug Catcher\": Route 9, Route 6); Pidgey and Rattata are Route 2 wild, around the forest (src/data/sources.kanto.json)."
+      ]
     },
     "vf-liam": {
       "team": {
@@ -68,8 +65,7 @@
         "butterfree",
         "pidgey",
         "rattata"
-      ],
-      "source": "Bulbapedia page \"Viridian Forest\", Red/Blue: Bug Catcher party Weedle + Kakuna + Weedle (Kakuna is its ace) and wild Weedle (pawns), Kakuna, Caterpie, Metapod. Kakuna and Metapod tie as strongest. Only four forest bugs, so species repeat. Spare: Beedrill and Butterfree are later Bug Catcher parties (Bulbapedia page \"Bug Catcher\"); Pidgey and Rattata are Route 2 wild."
+      ]
     },
     "vf-pip": {
       "team": {
@@ -86,8 +82,7 @@
         "butterfree",
         "pidgey",
         "rattata"
-      ],
-      "source": "Bulbapedia page \"Viridian Forest\", Red/Blue: Bug Catchers (Weedle, Caterpie, Kakuna) and wild Weedle (most common, pawns), Kakuna, Caterpie, Metapod. Only four forest bugs, so species repeat. Spare: Beedrill and Butterfree are later Bug Catcher parties (Bulbapedia page \"Bug Catcher\"); Pidgey and Rattata are Route 2 wild."
+      ]
     },
     "gym-brock": {
       "team": {
@@ -103,8 +98,7 @@
         "aerodactyl",
         "kabuto",
         "omanyte"
-      ],
-      "source": "Bulbapedia page \"Pewter Gym\", Red/Blue: Brock's party Geodude Lv12, Onix Lv14 (ace, k). Gym trainer: Jr. Trainer♂ Diglett + Sandshrew. Pewter has no wild table, so the four gym species repeat. Spare: the Old Amber (Aerodactyl) from Bulbapedia page \"Pewter Museum of Science\" and the Mt. Moon fossils, Kabuto and Omanyte (Bulbapedia page \"Mt. Moon\"); all rock types."
+      ]
     },
     "r3-dev": {
       "team": {
@@ -122,8 +116,7 @@
         "weedle",
         "kakuna",
         "metapod"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 3\", Red/Blue: Youngsters (Rattata + Ekans Lv11; Spearow Lv14) and wild Pidgey (pawns), Spearow, Jigglypuff. Spare: the other Route 3 trainers' parties (Lass Nidoran♂; Bug Catchers Caterpie, Weedle, Kakuna, Metapod)."
+      ]
     },
     "r3-rosa": {
       "team": {
@@ -140,8 +133,7 @@
         "caterpie",
         "weedle",
         "metapod"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 3\", Red/Blue: Lasses (Pidgey + Pidgey; Rattata + Nidoran♂; Jigglypuff Lv14, the strongest Lass party there) and wild Pidgey (pawns), Spearow, Jigglypuff. Spare: the other Route 3 trainers' parties (Youngster Ekans; Bug Catchers Caterpie, Weedle, Metapod)."
+      ]
     },
     "r3-finn": {
       "team": {
@@ -158,8 +150,7 @@
         "jigglypuff",
         "rattata",
         "nidoran-m"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 3\", Red/Blue: Bug Catchers (Caterpie + Weedle + Caterpie; Weedle + Kakuna + Caterpie + Metapod; Caterpie + Metapod), where Caterpie is the most common (pawns), and wild Spearow (his journey ace). Spare: Route 3 wild (Pidgey, Jigglypuff) and Lass parties (Rattata, Nidoran♂)."
+      ]
     },
     "mm-gus": {
       "team": {
@@ -176,8 +167,7 @@
         "grimer",
         "koffing",
         "onix"
-      ],
-      "source": "Bulbapedia page \"Mt. Moon\", Red/Blue: Super Nerds (Magnemite + Voltorb Lv11; Grimer + Voltorb + Koffing Lv12, the one guarding the Helix and Dome Fossils, i.e. Omanyte and Kabuto) and wild Clefairy, Zubat (most common, pawns), Paras, Geodude. Team Rocket's Mt. Moon parties left out on purpose. Spare: Super Nerd Magnemite, Grimer, Koffing; Hiker Onix (same cave)."
+      ]
     },
     "gym-misty": {
       "team": {
@@ -193,8 +183,7 @@
         "psyduck",
         "magikarp",
         "slowpoke"
-      ],
-      "source": "Bulbapedia page \"Cerulean Gym\", Red/Blue: Misty's party Staryu Lv18, Starmie Lv21 (ace, k). Gym trainers: Swimmer Horsea + Shellder, Jr. Trainer♀ Goldeen (pawns: in a gym party and in both rod tables). Gym-pool fishing (Generation I table on the same page): Magikarp, Goldeen, Poliwag, Psyduck, Krabby. Spare: Psyduck and Magikarp (gym fishing), then Slowpoke (Youngster on Route 25, the Cerulean arc; a stretch, but a water type)."
+      ]
     },
     "r6-kai": {
       "team": {
@@ -211,8 +200,7 @@
         "poliwag",
         "goldeen",
         "krabby"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 6\", Red/Blue: Jr. Trainer♂ (Red/Blue name of the Camper) Spearow + Raticate Lv16 (the Squirtle Jr. Trainer is excluded by the starter rule); wild Pidgey (both versions, pawns), Oddish and Mankey (Red), Meowth and Bellsprout (Blue). Spare: Jr. Trainer♀ Rattata (same route) and Route 6 fishing (Poliwag, Goldeen, Krabby; src/data/sources.kanto.json)."
+      ]
     },
     "r6-noor": {
       "team": {
@@ -229,8 +217,7 @@
         "raticate",
         "poliwag",
         "goldeen"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 6\", Red/Blue: Jr. Trainer♀ (Red/Blue name of the Picnicker) parties Pidgey ×3 (pawns) and Rattata + Pikachu (Pikachu excluded); wild Pidgey, Oddish, Bellsprout, Mankey, Meowth. Spare: Jr. Trainer♂ Spearow + Raticate (same route), Route 6 fishing (Poliwag, Goldeen)."
+      ]
     },
     "gym-ltsurge": {
       "team": {
@@ -246,8 +233,7 @@
         "magneton",
         "electrode",
         "electabuzz"
-      ],
-      "source": "Bulbapedia page \"Vermilion Gym\", Red/Blue: Lt. Surge's party Voltorb Lv21, Pikachu Lv18, Raichu Lv24 (ace, k). Gym trainers: Sailor Pikachu ×2, Rocker Voltorb + Magnemite + Voltorb, Gentleman Pikachu. Pikachu (most common gym species) are the pawns. Vermilion's wild table is all fishing, so species repeat. Spare is a judgment call outside Vermilion: the Power Plant electric types (Bulbapedia page \"Power Plant\" / \"Kanto Power Plant\"; Electabuzz is Red only), chosen to keep the electric identity."
+      ]
     },
     "legend-zapdos": {
       "team": {
@@ -263,8 +249,7 @@
         "raichu",
         "magnemite",
         "pikachu"
-      ],
-      "source": "Bulbapedia page \"Kanto Power Plant\" (via \"Power Plant\"), Red/Blue wild: Zapdos (static), Electrode (static item-ball encounters), Voltorb (pawns), Magnemite, Magneton, Pikachu, Electabuzz (Red only), Raichu (Blue only). Version split from src/data/sources.kanto.json, because Bulbapedia's Generation I table also lists Yellow's Grimer and Muk. Only eight species, so Magneton and Electrode repeat to leave three spares. Most common species not verified (rates not read); Voltorb chosen for the Power Plant's Voltorb/Electrode item traps."
+      ]
     },
     "r7-ines": {
       "team": {
@@ -280,8 +265,7 @@
         "ekans",
         "sandshrew",
         "rattata"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 7\": no trainers in Red/Blue, so the board is the route's Red/Blue wild table: Pidgey (both versions, pawns), Oddish, Mankey, Growlithe (Red), Bellsprout, Meowth, Vulpix (Blue); src/data/sources.kanto.json. Spare is a judgment call: Ekans and Sandshrew from Route 8, the twin route on the other side of Saffron (Bulbapedia page \"Kanto Route 8\"), and Rattata from the Jr. Trainer♀ class on Route 6."
+      ]
     },
     "r7-theo": {
       "team": {
@@ -298,8 +282,7 @@
         "sandshrew",
         "spearow",
         "raticate"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 7\": no trainers in Red/Blue, so the board is the route's Red/Blue wild table: Pidgey (pawns), Oddish, Mankey, Growlithe (Red), Bellsprout, Meowth, Vulpix (Blue). Spare is a judgment call: Ekans and Sandshrew from Route 8 (Bulbapedia page \"Kanto Route 8\"), and Spearow and Raticate from the Jr. Trainer♂ (Camper) party on Route 6."
+      ]
     },
     "gym-erika": {
       "team": {
@@ -315,8 +298,7 @@
         "oddish",
         "poliwag",
         "slowpoke"
-      ],
-      "source": "Bulbapedia page \"Celadon Gym\", Red/Blue: Erika's party Victreebel Lv29, Tangela Lv24, Vileplume Lv29 (ace, k). Gym trainers: Lasses, Beauties and a Cooltrainer with Bellsprout (most common, pawns), Weepinbell, Oddish, Gloom, Exeggcute (Bulbasaur/Ivysaur excluded). Spare: Oddish (gym), then Celadon City fishing (Poliwag, Slowpoke; src/data/sources.kanto.json), because no other grass type is in the Celadon context."
+      ]
     },
     "gc-rocco": {
       "team": {
@@ -334,8 +316,7 @@
         "vulpix",
         "poliwhirl",
         "voltorb"
-      ],
-      "source": "Bulbapedia page \"Rocket Game Corner\", Generation I prize Pokémon: Red Abra, Clefairy, Nidorina, Dratini, Scyther, Porygon; Blue Abra, Clefairy, Nidorino, Pinsir, Dratini, Porygon. Abra (the cheapest prize) are the pawns. The only Red/Blue battle there is a Team Rocket Grunt (Raticate, Zubat), left out on purpose. No Gambler battles inside, so spare is Clefairy (prize), then Gambler parties (Bulbapedia page \"Gambler\": Route 8 Growlithe + Vulpix, Poliwag ×2 + Poliwhirl; Route 11 Voltorb + Magnemite)."
+      ]
     },
     "r14-sasha": {
       "team": {
@@ -352,8 +333,7 @@
         "ditto",
         "oddish",
         "bellsprout"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 14\", Red/Blue: Bird Keepers (Pidgey + Spearow + Pidgey + Fearow; Pidgey + Doduo + Pidgeotto; Pidgeotto + Fearow; Spearow + Doduo + Fearow; Farfetch'd Lv33; Spearow + Fearow) and wild Pidgey (pawns), Pidgeotto. Spare: Route 14 wild Venonat, Ditto, Oddish (Red), Bellsprout (Blue)."
+      ]
     },
     "r14-omar": {
       "team": {
@@ -370,8 +350,7 @@
         "bellsprout",
         "pidgeotto",
         "pidgey"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 14\", Red/Blue: Bikers (Koffing + Muk; Koffing + Grimer; Grimer ×2 + Koffing; Koffing ×3 + Grimer), with Koffing the most common (pawns), and wild Venonat, Ditto, Gloom (Red), Weepinbell (Blue), Oddish, Bellsprout, Pidgey, Pidgeotto. The Biker poison types overlap Team Rocket's usual roster, but they are this route's canon."
+      ]
     },
     "gym-koga": {
       "team": {
@@ -388,8 +367,7 @@
         "venonat",
         "venomoth",
         "nidorino"
-      ],
-      "source": "Bulbapedia page \"Fuchsia Gym\", Red/Blue: Koga's party Koffing Lv37, Muk Lv39, Koffing Lv37, Weezing Lv43 (ace, k); Koffing are the pawns (twice in his party). Gym trainers: Jugglers Drowzee, Kadabra, Hypno; Tamers Arbok, Sandslash. Spare: Juggler Kadabra, then poison types from the Fuchsia Safari Zone wild table (Venonat, Venomoth, Nidorino; src/data/sources.kanto.json)."
+      ]
     },
     "legend-articuno": {
       "team": {
@@ -408,8 +386,7 @@
         "psyduck",
         "slowpoke",
         "horsea"
-      ],
-      "source": "Bulbapedia page \"Seafoam Islands\", Red/Blue wild: Articuno (static, B4F), Seel (ice, unevolved, pawns), Dewgong, Shellder, Slowpoke, Slowbro, Psyduck, Golduck, Krabby, Kingler (Blue), Horsea, Seadra (Red), Staryu, Zubat, Golbat. Version split from src/data/sources.kanto.json, because Bulbapedia's Generation I table includes Yellow. Ice types lead. Most common species not verified (rates not read)."
+      ]
     },
     "r8-june": {
       "team": {
@@ -427,8 +404,7 @@
         "ekans",
         "mankey",
         "growlithe"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 8\", Red/Blue: Lasses (Clefairy ×2; Nidoran♀ + Nidorina; Meowth ×3; Pidgey + Rattata + Nidoran♂ + Meowth + Pikachu, Pikachu excluded), where Meowth is the most common (pawns), and wild Sandshrew, Meowth, Vulpix (Blue), Ekans, Mankey, Growlithe (Red), Pidgey. Spare: the rest of the Lass parties and the Route 8 wild table."
+      ]
     },
     "r8-hugo": {
       "team": {
@@ -445,8 +421,7 @@
         "pidgey",
         "clefairy",
         "voltorb"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 8\" and Bulbapedia page \"Gambler\", Red/Blue: Gamblers on Route 8 (Growlithe + Vulpix Lv24; Poliwag ×2 + Poliwhirl Lv22, so Poliwag are the pawns) and wild Ekans, Growlithe, Mankey (Red), Meowth, Vulpix, Sandshrew (Blue), Pidgey. Spare: Route 8 wild (Sandshrew, Pidgey), then other Route 8 trainers (Lass Clefairy, Super Nerd Voltorb)."
+      ]
     },
     "r8-ada": {
       "team": {
@@ -464,8 +439,7 @@
         "sandshrew",
         "ekans",
         "pidgey"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 8\", Red/Blue: Super Nerds (Grimer + Muk + Grimer; Koffing Lv26; Voltorb + Koffing + Voltorb + Magnemite), with Grimer as pawns, and wild Mankey (Red), Vulpix (Blue). Spare: the Route 8 wild table."
+      ]
     },
     "gym-sabrina": {
       "team": {
@@ -482,8 +456,7 @@
         "hitmonlee",
         "hitmonchan",
         "lapras"
-      ],
-      "source": "Bulbapedia page \"Saffron Gym\", Red/Blue: Sabrina's party Kadabra Lv38, Mr. Mime Lv37, Venomoth Lv38, Alakazam Lv43 (ace, k). Mr. Mime is the queen as the highest-stat member after Alakazam. Gym trainers: Psychics Slowpoke ×2 + Slowbro, Mr. Mime + Kadabra, Slowbro, Kadabra + Slowpoke + Mr. Mime + Kadabra (Slowpoke are the pawns); Channelers Gastly, Haunter. Saffron has no wild table. Spare: Channeler Gastly, then Saffron City gifts (Fighting Dojo Hitmonlee/Hitmonchan, Silph Co. Lapras; src/data/sources.kanto.json)."
+      ]
     },
     "r21-mo": {
       "team": {
@@ -499,8 +472,7 @@
         "staryu",
         "poliwag",
         "tentacool"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 21\", Red/Blue: Fishermen (Magikarp ×6, the pawns; Seaking + Goldeen + Seaking + Seaking; Shellder + Cloyster; Seaking + Goldeen) and wild Tangela (his journey ace) plus Sea Route 21 fishing and surfing: Horsea, Shellder, Goldeen, Staryu, Poliwag, Tentacool (src/data/sources.kanto.json)."
+      ]
     },
     "r21-lena": {
       "team": {
@@ -517,8 +489,7 @@
         "horsea",
         "rattata",
         "pidgey"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 21\", Red/Blue: Swimmers (Seadra + Tentacruel; Starmie Lv37; Poliwhirl + Tentacool + Seadra; Staryu + Wartortle, Wartortle excluded) and Cue Ball (Tentacool ×2 + Tentacruel). Tentacool (also the surf encounter) are the pawns. Wild: Raticate, Pidgeotto (her journey team), Rattata, Pidgey, Horsea, Staryu."
+      ]
     },
     "gym-blaine": {
       "team": {
@@ -535,8 +506,7 @@
         "grimer",
         "weezing",
         "muk"
-      ],
-      "source": "Bulbapedia page \"Cinnabar Gym\", Red/Blue: Blaine's party Growlithe Lv42 (pawns), Ponyta Lv40, Rapidash Lv42, Arcanine Lv47 (ace, k). Gym trainers: Burglars and Super Nerds with Growlithe, Vulpix, Ninetales, Ponyta, Rapidash (Charmander excluded). Magmar from the Pokémon Mansion wild table (Blue only; Bulbapedia page \"Pokémon Mansion (Kanto)\"). Spare: the other Mansion wild species, none of which are fire types."
+      ]
     },
     "lab-iris": {
       "team": {
@@ -552,8 +522,7 @@
         "seel",
         "tangela",
         "voltorb"
-      ],
-      "source": "Bulbapedia page \"Cinnabar Lab\": no trainers in Red/Blue. The lab revives Omanyte, Kabuto and Aerodactyl, and offers in-game trades for Seel, Electrode and Tangela. Judgment call: the Scientist class's Red/Blue parties on the same island, in Bulbapedia page \"Pokémon Mansion (Kanto)\" and Bulbapedia page \"Scientist\" (Electrode + Weezing; Magnemite + Magneton + Voltorb; Magnemite + Electrode), with Magnemite the most common Scientist species (pawns). Spare: the other lab trades and Voltorb."
+      ]
     },
     "r22-jun": {
       "team": {
@@ -570,8 +539,7 @@
         "sandslash",
         "dugtrio",
         "rhyhorn"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 22\": only the rival battles there in Red/Blue; wild Rattata (most common, pawns), Nidoran♂, Nidoran♀, Spearow, and fishing Poliwag, Goldeen, Magikarp. Queen is a judgment call: Nidorino from the Cooltrainer Nidorino + Nidoking in the Viridian Gym next door (Bulbapedia pages \"Cooltrainer\" and \"Viridian Gym\"). Spare: Magikarp (Route 22 fishing), then the other Viridian Gym Cooltrainer species."
+      ]
     },
     "r22-vera": {
       "team": {
@@ -588,8 +556,7 @@
         "dugtrio",
         "nidorino",
         "rhyhorn"
-      ],
-      "source": "Bulbapedia page \"Kanto Route 22\": only the rival battles there in Red/Blue; wild Rattata (pawns), Nidoran♀, Nidoran♂, Spearow, and fishing Goldeen, Poliwag, Magikarp. Queen is a judgment call: Sandslash from the Cooltrainer Sandslash + Dugtrio in the Viridian Gym next door (Bulbapedia pages \"Cooltrainer\" and \"Viridian Gym\"). Spare: Magikarp, then the other Viridian Gym Cooltrainer species."
+      ]
     },
     "gym-giovanni": {
       "team": {
@@ -606,8 +573,7 @@
         "machop",
         "arbok",
         "tauros"
-      ],
-      "source": "Bulbapedia page \"Viridian Gym\", Red/Blue: Giovanni's party Rhyhorn Lv45, Dugtrio Lv42, Nidoqueen Lv44, Nidoking Lv45, Rhydon Lv50 (ace, k). Gym trainers: Cooltrainers Nidorino + Nidoking, Sandslash + Dugtrio, Rhyhorn; Tamers Arbok + Tauros, Rhyhorn; Blackbelts Machop, Machoke. Rhyhorn (three parties) are the pawns. Spare: the non-ground gym species."
+      ]
     },
     "legend-moltres": {
       "team": {
@@ -623,8 +589,7 @@
         "onix",
         "geodude",
         "machop"
-      ],
-      "source": "In Red/Blue, Moltres is a static encounter in Victory Road; this game puts it at moltres-peak. Bulbapedia page \"Victory Road (Kanto)\", Red/Blue wild: Zubat (unevolved flyer on every floor, pawns), Golbat, Machop, Machoke, Geodude, Graveler, Onix, Marowak, Venomoth (3F). Victory Road has no fire types, so the board keeps a flying lead (Golbat queen) and fills by strength. Most common species not verified (rates not read)."
+      ]
     },
     "e4-lorelei": {
       "team": {
@@ -640,8 +605,7 @@
         "shellder",
         "slowpoke",
         "gyarados"
-      ],
-      "source": "Bulbapedia page \"Lorelei\", Red/Blue: Dewgong Lv54, Cloyster Lv53, Slowbro Lv54, Jynx Lv56, Lapras Lv56 (ace, k). Indigo Plateau has no wild table and her party has no unevolved species, so the pawns are Seel (Dewgong's pre-evolution, not in her party; judgment call). Spare: the pre-evolutions Shellder and Slowpoke, then Lance's Gyarados (same location; Bulbapedia page \"Lance\")."
+      ]
     },
     "e4-bruno": {
       "team": {
@@ -657,8 +621,7 @@
         "marowak",
         "geodude",
         "golbat"
-      ],
-      "source": "Bulbapedia page \"Bruno\", Red/Blue: Onix Lv53, Hitmonchan Lv55, Hitmonlee Lv55, Onix Lv56, Machamp Lv58 (ace, k). Indigo Plateau has no wild table, so the fill (judgment call) comes from Victory Road, the route into it (Bulbapedia page \"Victory Road (Kanto)\"): Machop (pawns), Machoke, Graveler; spare Marowak, Geodude, Golbat."
+      ]
     },
     "e4-agatha": {
       "team": {
@@ -674,8 +637,7 @@
         "zubat",
         "ekans",
         "venomoth"
-      ],
-      "source": "Bulbapedia page \"Agatha\", Red/Blue: Gengar Lv56, Golbat Lv56, Haunter Lv55, Arbok Lv58, Gengar Lv60 (ace, k). Her party has two Gengar, which is why Gengar fills two slots. No unevolved species, so the pawns are Gastly, the base of her ghost line (not in her party; judgment call). Spare: Zubat (Victory Road wild, Golbat's base), Ekans (Arbok's base), Venomoth (Victory Road 3F)."
+      ]
     },
     "e4-lance": {
       "team": {
@@ -691,8 +653,7 @@
         "magikarp",
         "lapras",
         "golbat"
-      ],
-      "source": "Bulbapedia page \"Lance\", Red/Blue: Gyarados Lv58, Dragonair Lv56, Dragonair Lv56, Aerodactyl Lv60, Dragonite Lv62 (ace, k). Aerodactyl is the queen as his next-highest level. Pawns are Dratini, the base of his dragons (not in his party; in Red/Blue it comes from the Game Corner and Safari Zone; judgment call). Spare: Magikarp (Gyarados's base), then Indigo Plateau's other flyers and water types (Lorelei's Lapras, Agatha's Golbat)."
+      ]
     },
     "legend-mewtwo": {
       "team": {
@@ -711,8 +672,7 @@
         "wigglytuff",
         "venomoth",
         "parasect"
-      ],
-      "source": "Bulbapedia page \"Cerulean Cave\", Red/Blue wild: Mewtwo (static, B1F), Ditto (no evolution, on every floor; pawns), Hypno, Kadabra (psychic lead), Rhydon, Marowak, Electrode, Magneton, Chansey, Wigglytuff, Dodrio, Golbat, Parasect, Venomoth, Arbok (Red), Sandslash (Blue), Raichu (left out: Pikachu/Raichu rule); fishing Slowbro, Kingler, Seadra, Seaking. Version split from src/data/sources.kanto.json, because Bulbapedia's Generation I table includes Yellow. Most common species not verified (rates not read)."
+      ]
     }
   }
 }
