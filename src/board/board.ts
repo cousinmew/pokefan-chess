@@ -188,7 +188,7 @@ export class Board {
       if (img && after && typeof img.animate === 'function') {
         const dx = before.left - after.left;
         const dy = before.top - after.top;
-        img.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ms, easing: 'ease-out' });
+        img.animate([{ translate: `${dx}px ${dy}px` }, { translate: '0 0' }], { duration: ms, easing: 'ease-out' });
       }
     }
   }
@@ -264,7 +264,7 @@ export class Board {
     window.clearTimeout(this.hold);
     p.dragging = true;
     p.img.classList.add('dragging');
-    p.img.style.transform = `translate(${dx}px, ${dy}px)`;
+    p.img.style.translate = `${dx}px ${dy}px`;
   }
 
   private onUp(e: PointerEvent): void {
@@ -335,7 +335,11 @@ function pieceImg(sp: Species, animate: boolean, faded: boolean, live: boolean):
   return img;
 }
 
-/** Shows `src` in a piece, cropped with the trim box of its set (the animated sprites' or the stills'). */
+/** Shows `src` in a piece, cropped with the trim box of its set (the animated sprites' or the stills'). The box is
+ * the square for every set (paint lint, 26 Oct: sized from each set's canvas, it moved when the animation replaced the
+ * still): the canvas fills it, and the transform scales it back to its shape and places it as width, height, left and
+ * top did, about the square's centre. A piece's own motion (a hop, a drag, a slide, a faint) uses translate, rotate and
+ * scale, which apply on top. */
 function frame(img: HTMLImageElement, sp: Species, src: string, animated: boolean): HTMLImageElement {
   const set = animated ? (sp.shiny ? 'shiny/front' : 'front') : sp.shiny ? 'static/shiny' : 'static/front';
   img.src = src;
@@ -343,11 +347,11 @@ function frame(img: HTMLImageElement, sp: Species, src: string, animated: boolea
   if (b) {
     const [x, y, w, h, W, H] = b;
     const k = PIECE_FILL / Math.max(w, h);
+    const left = 0.5 - (x + w / 2) * k;
+    const top = 0.98 - (y + h) * k;
     img.classList.add('trimmed');
-    img.style.width = `${W * k * 100}%`;
-    img.style.height = `${H * k * 100}%`;
-    img.style.left = `${(0.5 - (x + w / 2) * k) * 100}%`;
-    img.style.top = `${(0.98 - (y + h) * k) * 100}%`;
+    img.style.transform = `translate(${(left - 0.5 + (W * k) / 2) * 100}%, ${(top - 0.5 + (H * k) / 2) * 100}%) scale(${W * k}, ${H * k})`;
+    img.style.setProperty('--th', String(H * k)); // the canvas's height in squares (a faint's drop)
   }
   return img;
 }

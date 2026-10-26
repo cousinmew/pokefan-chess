@@ -362,8 +362,8 @@ test('C6: Two Players auto flip lets the move land first, then turns the board; 
   await page.evaluate(() => addEventListener('pointerup', (e) => (e.target as Element).closest('[data-square="e4"]') && requestAnimationFrame(() => {
     const img = document.querySelector('[data-square="e4"] .piece, [data-square="e4"] .classic');
     const a = img?.getAnimations()[0];
-    const from = (a?.effect as KeyframeEffect | undefined)?.getKeyframes()[0]?.transform as string | undefined;
-    const m = from ? /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(from) : null;
+    const from = (a?.effect as KeyframeEffect | undefined)?.getKeyframes()[0]?.translate as string | undefined; // a slide moves translate (paint lint, 26 Oct)
+    const m = from ? /(-?[\d.]+)px,? (-?[\d.]+)px/.exec(from) : null;
     const cell = document.querySelector('[data-square="e4"]')!.getBoundingClientRect();
     (window as unknown as { __slide: unknown }).__slide = m ? { x: cell.left + Number(m[1]), y: cell.top + Number(m[2]) } : null;
   }), { capture: true }));

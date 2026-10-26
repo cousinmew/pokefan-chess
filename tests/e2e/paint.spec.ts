@@ -2,10 +2,12 @@
 // Sprite paint lint (23 Oct): six cold walks over every screen that shows sprites, on Fast 4G (the gate) or on Slow
 // 4G with a 4x slower CPU (@perf: PERF=1 npx playwright test paint.spec.ts --project perf), recorded by paintwatch.ts.
 // Fails on what does not depend on timing: an asset that fails, an image whose box is not reserved before it loads
-// or changed size as it drew, a trainer with no sprite. Pop-in (an image blank on screen), late reveals and layout
-// shifts are logged per step and written to the test's output folder as paint.json; @perf also fails on a blank with
-// nothing standing in that outlasts BLANK_MS, KNOWN ones aside. Two more checks hold a sprite's files back to see
-// that an evolution and a capture battle never start on an empty box. The data side: tests/unit/spriterefs.test.ts.
+// or changed size as it drew, a trainer with no sprite, a layout shift as an image draws or from the battle screen's
+// own motion (26 Oct). Pop-in (an image blank on screen), late reveals and all layout shifts are logged per step and
+// written to the test's output folder as paint.json; @perf also fails on a blank with nothing standing in that
+// outlasts BLANK_MS and on a screen opened at its cover's cap with images not drawn, KNOWN ones aside. Two more checks
+// hold a sprite's files back to see that an evolution and a capture battle never start on an empty box. The data
+// side: tests/unit/spriterefs.test.ts.
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { FAST_4G, FEN_D5, SAVE, SLOW_4G, boot, cartBlue, fresh, kc } from './loadwatch';
@@ -67,6 +69,8 @@ async function walk(browser: Browser, name: string, store: Record<string, unknow
   expect(p!.unreserved, 'images with no box of their own before they load (they move the layout when they do)').toEqual([]);
   expect(p!.jumps, 'images whose box changed size as they drew').toEqual([]);
   expect(p!.noArt, 'a trainer with no sprite (a silhouette for good)').toEqual([]);
+  // An image's box never moves as its pixels come (a board piece's still giving way to its animation included).
+  expect(p!.shifts.filter((s) => s.kind === 'img' && !s.input).map((s) => `${s.mark} ${s.v}: ${s.nodes.join('; ')}`), 'layout shifts as images draw').toEqual([]);
   // The battle screen moves its sprites with transforms only: a layout shift there is left or top changing.
   expect(p!.shifts.filter((s) => s.kind === 'battle' && !s.input).map((s) => `${s.mark} ${s.v}: ${s.nodes.join('; ')}`), "layout shifts from the battle screen's own motion").toEqual([]);
   if (perf) expect(p!.blanks.filter((b) => !b.stand && b.ms > BLANK_MS && !known(b.at)), `blank on screen over ${BLANK_MS} ms with nothing standing in`).toEqual([]);
