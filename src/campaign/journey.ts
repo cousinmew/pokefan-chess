@@ -49,6 +49,8 @@ export interface Place {
   badge?: string;
   /** Side places (fossils, prize, legendaries) never block the journey. */
   optional?: boolean;
+  /** Before CERULEAN GYM (playtest, 23 Oct): one move puzzles where the theme has them, and authored castling. */
+  oneMove?: boolean;
   /** Pokémon given once, when the place is first cleared (§B12 part 2); "@starter-…" are resolved in code. */
   reward?: { gift?: string[]; choice?: string[] };
   drills?: Drill[];

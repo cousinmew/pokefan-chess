@@ -68,11 +68,11 @@ const DIRS: Record<'b' | 'r' | 'q', [number, number][]> = {
   q: [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]],
 };
 
-type Family = 'fork' | 'pin' | 'skewer' | 'discovered' | 'mate' | 'hanging' | 'promotion' | null;
+type Family = 'fork' | 'pin' | 'skewer' | 'discovered' | 'mate' | 'hanging' | 'promotion' | 'castle' | null;
 const FAMILY: Record<string, Family> = {
   fork: 'fork', pin: 'pin', skewer: 'skewer', xRayAttack: 'skewer', discoveredAttack: 'discovered', discoveredCheck: 'discovered', doubleCheck: 'discovered',
   mateIn1: 'mate', mateIn2: 'mate', backRankMate: 'mate', hangingPiece: 'hanging', capturingDefender: 'hanging', trappedPiece: 'hanging', advantage: 'hanging',
-  promotion: 'promotion', advancedPawn: 'promotion',
+  promotion: 'promotion', advancedPawn: 'promotion', castling: 'castle',
 };
 
 /** The theme's key idea on a solved line (§B15). `moves` starts with your first move; you play `you`. */
@@ -145,6 +145,17 @@ export function keyIdea(theme: string, startFen: string, moves: string[], you: C
       return { lines: [], marks: [cap.slice(2, 4)], text: { key: 'review.hanging', vars: { piece: nameAt(pos, cap.slice(2, 4)) } } };
     }
   }
+  if (family === 'castle') {
+    // The king tucked away and the rook beside it (playtest, 23 Oct: a castling solve ended on "Solved!").
+    const pos = new Chess(startFen);
+    for (const [i, m] of moves.entries()) {
+      const mv = pos.move(asMove(m));
+      if (i % 2 === 0 && (mv.isKingsideCastle() || mv.isQueensideCastle())) {
+        const rook = `${mv.isKingsideCastle() ? 'f' : 'd'}${mv.to[1]}`;
+        return { lines: [], marks: [mv.to, rook], text: { key: 'review.castle', vars: { king: nameAt(pos, mv.to), rook: nameAt(pos, rook) } } };
+      }
+    }
+  }
   if (family === 'promotion') {
     const promo = moves.find((m) => m.length > 4);
     if (promo) return { lines: [], marks: [promo.slice(2, 4)], text: { key: 'review.promotion', vars: { piece: nameAt(end, promo.slice(2, 4)) || nameAt(chess, to) } } };
@@ -152,15 +163,65 @@ export function keyIdea(theme: string, startFen: string, moves: string[], you: C
   return { lines: [], marks: [], text: { key: 'review.solved' } };
 }
 
-/** One line about the punishing reply to a wrong move (§B15). */
+/** Your biggest piece that the piece on `sq` now attacks and that it can win: undefended, or worth more than it. */
+function threatened(chess: Chess, sq: string, you: Color): { square: string; color: Color; type: Role } | null {
+  const mover = chess.get(sq as Square);
+  if (!mover || mover.color === you) return null;
+  const hits = chess.board().flat().filter((p) => p && p.color === you && p.type !== 'k' && chess.attackers(p.square, mover.color).includes(sq as Square) && (VALUE[p.type] > VALUE[mover.type] || chess.attackers(p.square, you).length === 0));
+  const top = hits.sort((a, b) => VALUE[b!.type] - VALUE[a!.type])[0];
+  return top ? { square: top.square, color: top.color, type: top.type } : null;
+}
+
+/** One line about the punishing reply to a wrong move (§B15), true to what it does (playtest, 23 Oct: a quiet queen
+ * retreat read "that one hurts!"): it mates, takes, checks, now attacks one of yours, or gets away from your attack. */
 export function refutationText(afterWrong: string, reply: string, you: Color, sideName: string): { key: StringKey; vars: Vars } {
   const chess = new Chess(afterWrong);
-  const victim = chess.get(reply.slice(2, 4) as Square);
+  const from = reply.slice(0, 2);
+  const to = reply.slice(2, 4);
+  const mover = chess.get(from as Square);
+  const victim = chess.get(to as Square);
+  const fled = !!mover && chess.attackers(from as Square, you).length > 0;
   const mv = chess.move(asMove(reply));
   if (chess.isCheckmate()) return { key: 'review.wrong.mate', vars: { side: sideName } };
-  if (victim && victim.color === you) return { key: 'review.wrong.capture', vars: { side: sideName, piece: speciesFor(victim.color, victim.type, reply.slice(2, 4)).name } };
+  if (victim && victim.color === you) return { key: 'review.wrong.capture', vars: { side: sideName, piece: speciesFor(victim.color, victim.type, to).name } };
   if (chess.inCheck()) return { key: 'review.wrong.check', vars: { side: sideName, san: mv.san } };
+  const hit = threatened(chess, to, you);
+  if (hit) return { key: 'review.wrong.threat', vars: { side: sideName, piece: speciesFor(hit.color, hit.type, hit.square).name } };
+  if (fled && mover) return { key: 'review.wrong.escape', vars: { side: sideName, piece: speciesFor(mover.color, mover.type, from).name } };
   return { key: 'review.wrong.move', vars: { side: sideName, san: mv.san } };
+}
+
+/** What their reply did, said between your moves (playtest, 23 Oct: "Good! Keep going." hid that they took your queen,
+ * so the obvious recapture looked right). `before` is the position before their reply. */
+export function replyLine(before: string, reply: string, you: Color, them: string): { key: StringKey; vars?: Vars } {
+  const chess = new Chess(before);
+  const to = reply.slice(2, 4);
+  const victim = chess.get(to as Square);
+  chess.move(asMove(reply));
+  if (victim && victim.color === you) return { key: 'reply.took', vars: { them, piece: speciesFor(victim.color, victim.type, to).name } };
+  if (chess.inCheck()) return { key: 'reply.check', vars: { them } };
+  const hit = threatened(chess, to, you);
+  if (hit) return { key: 'reply.attacks', vars: { them, piece: speciesFor(hit.color, hit.type, hit.square).name } };
+  return { key: 'puzzle.correct' };
+}
+
+/** Material for `you` minus the other side, in points (pawn 1, knight and bishop 3, rook 5, queen 9). */
+export function material(fen: string, you: Color): number {
+  let n = 0;
+  for (const p of new Chess(fen).board().flat()) if (p && p.type !== 'k') n += (p.color === you ? 1 : -1) * VALUE[p.type];
+  return n;
+}
+
+/** "Your move: behind by 3. The right line: ahead by 3." (playtest, 23 Oct: the miss review showed what was right, not
+ * what it was worth). Points against the puzzle's start, so a queen lost on the way counts; a line that mates says so. */
+export function compareText(start: string, yours: string, right: string, you: Color, t: (key: StringKey, vars?: Vars) => string): string {
+  const base = material(start, you);
+  const say = (fen: string) => {
+    if (new Chess(fen).isCheckmate()) return t('review.pts.mate');
+    const d = material(fen, you) - base;
+    return d > 0 ? t('review.pts.up', { n: String(d) }) : d < 0 ? t('review.pts.down', { n: String(-d) }) : t('review.pts.even');
+  };
+  return t('review.compare', { yours: say(yours), right: say(right) });
 }
 
 /** The right move in plain words (§B21 item 1): the piece, how it moves and what it does, never notation. Square names
@@ -173,8 +234,14 @@ export function describeMove(fen: string, uci: string, names: 'species' | 'role'
   const victim = chess.get(to as Square);
   const label = (p: { color: Color; type: Role }, sq: string) => (names === 'role' ? t(`role.${p.type}` as StringKey) : speciesFor(p.color, p.type, sq).name);
   const vars: Vars = { piece: label(mover, from), action: t(`review.act.${mover.type}` as StringKey), squares: coords ? ` (${from}-${to})` : '' };
-  chess.move(asMove(uci));
+  const mv = chess.move(asMove(uci));
   if (chess.isCheckmate()) return { key: 'review.right.mate', vars };
+  // Castling says so (playtest, 23 Oct: it read "steps over: that's the best square").
+  if (mv.isKingsideCastle() || mv.isQueensideCastle()) {
+    const rookFrom = `${mv.isKingsideCastle() ? 'h' : 'a'}${from[1]}`;
+    const rook = new Chess(fen).get(rookFrom as Square);
+    if (rook) return { key: 'review.right.castle', vars: { ...vars, rook: label(rook, rookFrom) } };
+  }
   if (victim) return { key: 'review.right.capture', vars: { ...vars, victim: label(victim, to) } };
   if (chess.inCheck()) return { key: 'review.right.check', vars };
   // The biggest piece it now attacks, if any.

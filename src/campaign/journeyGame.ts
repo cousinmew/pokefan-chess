@@ -27,6 +27,7 @@ import { beatTrainer, clearPlace, goalLine, nextGoal, nextTrainer, PLACES, place
 import { FIRST_CATCH, warmup, type WarmupHost } from './warmup';
 import { partyOf } from './rivalTeam';
 import { THEMES } from './trainer';
+import { CASTLE_ROWS } from './castling';
 import type { PuzzleGame } from './puzzleGame';
 import type { Challenge } from '../main';
 import type { DrillStatus } from './drill';
@@ -338,7 +339,8 @@ export class JourneyGame {
   async lesson(theme: string, done: () => void): Promise<void> {
     void this.host.cover('screen'); // up at once, held while the example loads (pacing §2)
     try {
-      const rows = await pool(theme).catch((err: unknown) => {
+      // New players' castling is the authored set (castling.ts), so the example is one of them.
+      const rows = theme === 'castling' ? CASTLE_ROWS : await pool(theme).catch((err: unknown) => {
         console.warn('lesson example unavailable:', err instanceof Error ? err.message : err);
         return [];
       });
@@ -377,6 +379,8 @@ export class JourneyGame {
       themes: t.topics ?? (theme === 'mixed' ? themesFor(p, t) : [theme]),
       battle: true,
       easy: t.easy,
+      oneMove: p.oneMove,
+      retry: p.kind === 'route', // gyms, the Elite Four and legendaries stay one try: they are the tests
       boost: t.boost ?? 0,
       banner: text,
       // The trainer you are battling stands on the top plate (W3, ux #5), not the story stage's Rocket trainer; a rival's
@@ -621,6 +625,7 @@ export class JourneyGame {
     void this.host.puzzle.start({
       themes: route.themes,
       ownsNext: true,
+      oneMove: p.oneMove,
       // J7: the banner says the rule, and after a miss that the Pokémon ran away (the next puzzle came with no word).
       banner: () => fmt(ran ? 'grass.ran' : 'grass.rule'),
       onLeave: () => this.showRoute(p),

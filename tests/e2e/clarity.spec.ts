@@ -101,8 +101,15 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
     await expect(page.getByTestId('text-main')).toHaveText('Your turn! Tap your Pokémon, then a square.');
     await page.click('[data-square="a4"]');
     await page.click('[data-square="a1"]');
+    // A route trainer gives one more try (playtest, 23 Oct): nothing counts yet.
+    await expect(page.getByTestId('text-main')).toHaveText('Not quite! One more try: look at what just changed.');
+    await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●○○ need 1');
+    expect(await phase(page)).toBe('player');
+    await page.click('[data-square="a4"]');
+    await page.click('[data-square="a1"]');
     await expect(page.getByTestId('text-main')).toHaveText('Not quite. Watch what happens, then the right move.');
-    await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●✕○ Win the next one!'); // not "1 more of the next 1" (playtest, 12 Oct)
+    // Not "1 more of the next 1" (playtest, 12 Oct), and about this battle only (playtest, 23 Oct).
+    await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●✕○ Win the next one to win the battle!');
     await expect.poll(async () => (await save(page)).tips).toEqual(['puzzle']);
     expect(errors).toEqual([]);
   });

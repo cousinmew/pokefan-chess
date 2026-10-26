@@ -93,8 +93,9 @@ function lineLog(): void {
   new MutationObserver(check).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
 }
 const lines = (page: Page) => page.evaluate(() => (window as unknown as { __lines: { t: number; text: string }[] }).__lines);
-/** A refutation's line: "That lets … take your …", "… answers with check!", "… answers, and that one hurts!". */
-const WHY = /That lets|answers/;
+/** A refutation's line: "That lets … take your …", "… answers with check!", "… now attacks your …", "…'s … gets away!",
+ * "… answers. Now watch the stronger move." (playtest, 23 Oct: true to what the reply does). */
+const WHY = /That lets|answers|attacks your|gets away/;
 
 /** In the page, each frame: the time, the position, the screen, START, the coach bubble and the hold. */
 function frameLog(): void {

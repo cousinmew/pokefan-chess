@@ -27,6 +27,13 @@ export function pick(rows: PuzzleRow[], rating: number, seen: readonly string[],
   return rows[Math.floor(rng.next() * rows.length)]!;
 }
 
+/** Places before CERULEAN GYM (playtest, 23 Oct): one move puzzles where the theme has them, so the goal on the card
+ * ("grab the piece nobody defends") is the whole puzzle. Themes with none (trapped pieces) keep their full lines. */
+export function oneMoveFirst(rows: PuzzleRow[]): PuzzleRow[] {
+  const one = rows.filter((r) => r[2].trim().split(/\s+/).length === 2);
+  return one.length ? one : rows;
+}
+
 /** Pieces on the board of a FEN. */
 export const pieceCount = (fen: string) => (fen.split(' ')[0] ?? '').replace(/[^a-zA-Z]/g, '').length;
 

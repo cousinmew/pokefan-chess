@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Puzzle player: sets up a Lichess puzzle, checks each answer, auto plays the replies, gives hints and
 // updates the Trainer Rating. Moves go through the normal board path, so captures still battle.
-import { CARD_GUARD_MS, MOVE_SLIDE_MS, OPPONENT_REPLY_MS, PUZZLE_SETUP_MS, REVIEW_MOVE_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS, THINKING_LINE_MS, TURN_LINE_DELAY_MS } from '../config';
+import { CARD_GUARD_MS, CASTLE_LICHESS_FROM, MOVE_SLIDE_MS, OPPONENT_REPLY_MS, PUZZLE_SETUP_MS, REVIEW_MOVE_MS, SOLVE_BEAT_MS, SOLVED_STAMP_MS, THINKING_LINE_MS, TURN_LINE_DELAY_MS } from '../config';
 import { Chess } from 'chess.js';
-import { describeMove, keyIdea, lineFrames, refutationText, type Frame } from './review';
+import { compareText, describeMove, keyIdea, lineFrames, refutationText, replyLine, type Frame } from './review';
+import { CASTLE_ROWS } from './castling';
 import type { Color } from '../board/pieces';
 import { createRng } from '../game/rng';
 import { fmt, type StringKey, type Vars } from '../game/text';
@@ -11,7 +12,7 @@ import { button, el } from '../ui/dom';
 import type { App } from '../main';
 import type { Side } from '../look';
 import { objective, PuzzleRun, type Answer, type PuzzleRow } from './puzzle';
-import { loadTrainer, pick, pickEasy, pool, record, shownLevel, THEMES } from './trainer';
+import { loadTrainer, oneMoveFirst, pick, pickEasy, pool, record, shownLevel, THEMES } from './trainer';
 import { cancelHold, guard, hold, holding, onScreen, type HoldEnd, type HoldKind } from '../ui/pace';
 import { warmEngine } from '../ai/engine';
 
@@ -85,6 +86,10 @@ export interface PuzzleContext {
   onAttempt?(result: 'solved' | 'assisted' | 'missed'): void;
   /** The first trainers (W5): positions with the fewest pieces first, whatever the rating. */
   easy?: boolean;
+  /** Places before CERULEAN GYM (playtest, 23 Oct): one move puzzles where the theme has them, and authored castling. */
+  oneMove?: boolean;
+  /** Route trainers (playtest, 23 Oct): a wrong move gets one more try, and a solve after it counts as with a hint. */
+  retry?: boolean;
 }
 
 export class PuzzleGame {
@@ -121,6 +126,8 @@ export class PuzzleGame {
   forced: { row: PuzzleRow; theme: string } | null = null;
   /** The first puzzles of a save: "Tap your Pokémon, then a square." */
   private tapHelp = false;
+  /** This puzzle's one more try is used (route trainers, PuzzleContext.retry). */
+  private retried = false;
 
   constructor(private readonly host: PuzzleHost) {
     this.bar = el('div', 'puzzle-bar');
@@ -183,7 +190,7 @@ export class PuzzleGame {
 
   /** What to do in this puzzle, for the header (W3): "Checkmate in 1 move", "Goal: win material with a fork". */
   objective(): string {
-    return this.row ? objective(this.puzzleTheme, this.row[2], (k, v) => fmt(k, v)) : '';
+    return this.row ? objective(this.puzzleTheme, this.row[2], (k, v) => fmt(k, v), this.run?.step ?? 1) : '';
   }
 
   /** Starts a puzzle. `ctx`: a route's tall grass; null: plain puzzles; omitted: keep the current one.
@@ -209,7 +216,7 @@ export class PuzzleGame {
     /** `board`: only while the game screen shows (a dip's peak); the cover's own swap is how the board first shows. */
     const setUp = async (board: boolean) => {
       const rows = await load;
-      if (g === this.gen && !got.setup && (!board || this.host.onBoard())) got.setup = this.setUp(rows, theme);
+      if (g === this.gen && !got.setup && (!board || this.host.onBoard())) got.setup = this.setUp(rows, theme, !!forced);
     };
     // "Finding a puzzle…" only when the load is slow: on the cover or the dip after COVER_LABEL_MS (no 20 ms flash).
     if (this.host.onBoard()) {
@@ -244,7 +251,7 @@ export class PuzzleGame {
   }
 
   /** The new position, at the dip's peak or under the cover: its set up move, and whether the coach marks show. */
-  private setUp(rows: PuzzleRow[], theme: string): { move: string; coach: boolean } {
+  private setUp(rows: PuzzleRow[], theme: string, forced = false): { move: string; coach: boolean } {
     this.themeSel.hidden = this.context !== null;
     this.leaveBtn.hidden = this.context === null;
     this.nextBtn.hidden = this.context?.battle === true;
@@ -253,7 +260,13 @@ export class PuzzleGame {
     this.puzzleTheme = theme;
     this.endReview();
     this.ratingEl.hidden = true;
-    this.row = (this.context?.easy ? pickEasy(rows, this.trainer.seen) : null) ?? pick(rows, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
+    this.retried = false;
+    // Playtest, 23 Oct: castling for new players is the authored set (castling.ts), and places before CERULEAN GYM take
+    // one move puzzles where the theme has them. A forced puzzle (the harness) is played as it is.
+    const early = !forced && this.context?.oneMove === true;
+    const castle = !forced && theme === 'castling' && (early || this.trainer.rating.r < CASTLE_LICHESS_FROM);
+    const usable = castle ? CASTLE_ROWS : early ? oneMoveFirst(rows) : rows;
+    this.row = (this.context?.easy ? pickEasy(usable, this.trainer.seen) : null) ?? pick(usable, this.trainer.rating.r + (this.context?.boost ?? 0), this.trainer.seen, this.rng);
     this.run = new PuzzleRun(this.row);
     const move = this.run.first();
     const first = this.host.firstSteps();
@@ -283,11 +296,20 @@ export class PuzzleGame {
     const res = run.answer(uci);
     this.host.coach('stop');
     if (!res.ok) {
+      // A route trainer's puzzle gives one more try (playtest, 23 Oct): the piece shakes back, nothing is played, and a
+      // solve after it counts as with a hint (no rating change, still a win for the battle).
+      if (this.context?.retry && !this.retried) {
+        this.retried = true;
+        this.hints++;
+        this.host.miss(uci.slice(0, 2));
+        this.host.say('puzzle.retry');
+        return;
+      }
       this.trainer = record(this.trainer, this.row, 'missed');
       this.host.app.board.locked = true;
       this.host.say('puzzle.wrong');
       this.context?.onAttempt?.('missed');
-      void this.reviewMiss(run.currentFen(), uci, answer);
+      void this.reviewMiss(run.currentFen(), uci, run.rest().length ? run.rest() : [answer]);
       return;
     }
     this.pending = res;
@@ -310,8 +332,9 @@ export class PuzzleGame {
         this.phase = 'player';
         board.locked = false;
         if (was === 'setup') this.host.coach('setup');
-        const line = was === 'reply' ? 'puzzle.correct' : this.tapHelp ? 'puzzle.yourTurnTap' : 'puzzle.yourTurn';
-        window.setTimeout(() => g === this.gen && this.phase === 'player' && this.host.say(line), TURN_LINE_DELAY_MS);
+        // After their reply, what it did (playtest, 23 Oct): "LIAM took your CHARIZARD! Your move."
+        const line = was === 'reply' ? this.replyText() : { key: this.tapHelp ? ('puzzle.yourTurnTap' as const) : ('puzzle.yourTurn' as const) };
+        window.setTimeout(() => g === this.gen && this.phase === 'player' && this.host.say(line.key, line.vars), TURN_LINE_DELAY_MS);
       }, slide);
     } else if (this.phase === 'checking' && this.pending && this.row) {
       const res = this.pending;
@@ -335,6 +358,15 @@ export class PuzzleGame {
         void boardHold(OPPONENT_REPLY_MS, 'reply', true).then((how) => how !== 'cancel' && g === this.gen && this.phase === 'reply' && res.reply && this.host.applyMove(res.reply));
       }
     }
+  }
+
+  /** Their last reply in words (replyLine), or "Good! Keep going." when it took, checked and threatened nothing. */
+  private replyText(): { key: StringKey; vars?: Vars } {
+    const run = this.run;
+    if (!run || run.played.length < 2) return { key: 'puzzle.correct' };
+    const before = new Chess(run.startFen);
+    for (const m of run.played.slice(0, -1)) before.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] });
+    return replyLine(before.fen(), run.played[run.played.length - 1]!, run.side, this.host.them());
   }
 
   /** The solve (pacing A11), from the moment the mating piece lands: the line and the pip at once, the board alone for
@@ -375,7 +407,7 @@ export class PuzzleGame {
    * held REFUTATION_READ_MS (fix, 14 Oct: it went after 0.9 s, under half the time to read it), back to the position
    * and the right move. Each step is a hold a tap can cut after HOLD_MIN_MS. ◀ ▶ ↺ stop only the playback: the reply
    * and the right move join the line whenever the engine answers (fix, 13 Oct: a tap in the first second lost them). */
-  private async reviewMiss(pre: string, wrong: string, answer: string): Promise<void> {
+  private async reviewMiss(pre: string, wrong: string, line: string[]): Promise<void> {
     const g = this.gen;
     const chess = new Chess(pre);
     const you = chess.turn();
@@ -395,7 +427,7 @@ export class PuzzleGame {
     /** This review is still up (the frames may grow), and nothing took over its playback (it may go on). */
     const ours = () => g === this.gen && this.review === r;
     const live = () => ours() && r.play === t;
-    const right = this.rightFrames(pre, answer);
+    const right = this.rightFrames(pre, line);
     const over = chess.isGameOver();
     let answered = false;
     const thinking = fmt('ai.loading', { trainer: this.host.them() });
@@ -411,6 +443,10 @@ export class PuzzleGame {
         const said = source === 'stockfish' ? refutationText(after, uci, you, this.host.them()) : { key: 'review.wrong.any' as const, vars: {} };
         const m = { from: uci.slice(0, 2), to: uci.slice(2, 4) };
         frames.push({ fen: end.fen(), arrows: [{ ...m, color: 'blue' }], marks: [], slide: m, faded: [w.to], text: fmt(said.key, said.vars) });
+        // What each was worth, on the last frame of a right line with a follow up (playtest, 23 Oct; a one move line keeps
+        // its own words); only against Stockfish's real reply.
+        const last = right[right.length - 1]!;
+        if (source === 'stockfish' && line.length > 1) last.text = compareText(this.run?.startFen ?? pre, end.fen(), last.fen, you, (k, v) => fmt(k, v));
       }
       frames.push(...right);
       // The wait is over (fix, 14 Oct): "… is thinking" stayed after ◀ ▶ on a frame with no line of its own.
@@ -456,19 +492,22 @@ export class PuzzleGame {
     return { uci: reply, source };
   }
 
-  /** The right move (§B21 item 1): back to the position, then the piece slides in, both squares lit, the arrow stays,
-   * and one line in plain words. REPLAY (↺) plays it all again. */
-  private rightFrames(pre: string, answer: string): Frame[] {
+  /** The right line (§B21 item 1; playtest, 23 Oct: the whole line, not its first move only, so the follow up shows why
+   * it is better): back to the position, then each move slides in, yours green and theirs blue, with one line in plain
+   * words about your first move. REPLAY (↺) plays it all again. */
+  private rightFrames(pre: string, line: string[]): Frame[] {
     const s = this.host.app.settings;
-    const t = describeMove(pre, answer, s.pieceStyle === 'classic' ? 'role' : 'species', !!s.coords, (k) => fmt(k));
+    const t = describeMove(pre, line[0]!, s.pieceStyle === 'classic' ? 'role' : 'species', !!s.coords, (k) => fmt(k));
     const text = fmt(t.key, t.vars);
-    const m = { from: answer.slice(0, 2), to: answer.slice(2, 4) };
-    const end = new Chess(pre);
-    end.move({ from: m.from, to: m.to, promotion: answer[4] });
-    return [
-      { fen: pre, arrows: [{ ...m, color: 'green' }], marks: [], text },
-      { fen: end.fen(), arrows: [{ ...m, color: 'green' }], marks: [], slide: m, text },
-    ];
+    const first = { from: line[0]!.slice(0, 2), to: line[0]!.slice(2, 4) };
+    const frames: Frame[] = [{ fen: pre, arrows: [{ ...first, color: 'green' }], marks: [], text }];
+    const pos = new Chess(pre);
+    line.forEach((u, i) => {
+      const m = { from: u.slice(0, 2), to: u.slice(2, 4) };
+      pos.move({ ...m, promotion: u[4] });
+      frames.push({ fen: pos.fen(), arrows: [{ ...m, color: i % 2 ? 'blue' : 'green' }], marks: [], slide: m, ...(i === 0 ? { text } : {}) });
+    });
+    return frames;
   }
 
   /** "Show answer": the correct line from before your move, in green. */
