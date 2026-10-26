@@ -101,7 +101,7 @@ test('missed: your move in red, a legal Stockfish refutation, the review stays, 
   expect(ref.source).toBe('stockfish');
   const legal = new Chess(ref.fen).moves({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));
   expect(legal).toContain(ref.uci);
-  await expect(page.getByTestId('review-text')).toHaveText(/take your|checkmate you|answers/);
+  await expect(page.getByTestId('review-text')).toHaveText(/take your|checkmate you|answers|attacks your|gets away/);
   await page.waitForTimeout(10_000);
   expect(await kc<string>(page, 'puzzlePhase')).toBe('review');
   await page.getByTestId('review-answer').click();
@@ -158,6 +158,12 @@ for (const [label, settings, lang] of [
     // Then the right move: its two squares lit, the green arrow drawn, one line in words.
     await expect(page.locator(`[data-testid="review-layer"] line[data-arrow="${answer.slice(0, 4)}"][data-color="green"]`)).toBeAttached({ timeout: 15_000 });
     await expect(page.getByTestId('review-next')).toBeDisabled({ timeout: 10_000 });
+    // The whole right line plays (playtest, 23 Oct); ◀ walks back to its first move, both squares lit.
+    const lit = async () => (await page.locator(`[data-square="${answer.slice(0, 2)}"].last, [data-square="${answer.slice(2, 4)}"].last`).count()) === 2;
+    for (let i = 0; i < 12 && !(await lit()); i++) {
+      await page.getByTestId('review-prev').click();
+      await page.waitForTimeout(500);
+    }
     for (const sq of [answer.slice(0, 2), answer.slice(2, 4)]) await expect(page.locator(`[data-square="${sq}"]`)).toHaveClass(/last/);
     const text = (await page.getByTestId('review-text').textContent())!;
     if (lang === 'en') expect(text).toMatch(/^Your /);

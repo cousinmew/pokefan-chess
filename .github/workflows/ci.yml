@@ -29,8 +29,11 @@ jobs:
       - name: Grep gate G1 (brand)
         env:
           BRANDGUARD: ${{ secrets.BRANDGUARD }}
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork == true }}
+        # Fails closed (23 Oct): a missing secret is an error, except on a fork's pull request, which never gets secrets.
         run: |
-          if [ -z "$BRANDGUARD" ]; then echo "::warning::BRANDGUARD secret missing, G1 skipped"; exit 0; fi
+          if [ -z "$BRANDGUARD" ] && [ "$FORK_PR" = "true" ]; then echo "::warning::fork pull request, no secrets: G1 skipped"; exit 0; fi
+          if [ -z "$BRANDGUARD" ]; then echo "::error::BRANDGUARD secret missing, G1 cannot run"; exit 1; fi
           node scripts/grep-gates.mjs G1
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run e2e

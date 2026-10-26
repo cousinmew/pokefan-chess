@@ -47,8 +47,9 @@ jobs:
       - name: Grep gate G1 on the deployed bundle
         env:
           BRANDGUARD: ${{ secrets.BRANDGUARD }}
+        # Fails closed (23 Oct): nothing deploys unchecked.
         run: |
-          if [ -z "$BRANDGUARD" ]; then echo "::warning::BRANDGUARD secret missing, G1 skipped"; exit 0; fi
+          if [ -z "$BRANDGUARD" ]; then echo "::error::BRANDGUARD secret missing, G1 cannot run"; exit 1; fi
           node scripts/grep-gates.mjs G1
       - uses: actions/upload-pages-artifact@v3
         with:

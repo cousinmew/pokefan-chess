@@ -28,7 +28,7 @@
    "trainers": [
     {
      "id": "r1-toby",
-    "easy": true,
+     "easy": true,
      "class": "trainer.class.youngster",
      "name": "trainer.name.toby",
      "team": [
@@ -40,7 +40,7 @@
     },
     {
      "id": "r1-mina",
-    "easy": true,
+     "easy": true,
      "class": "trainer.class.lass",
      "name": "trainer.name.mina",
      "team": [
@@ -95,6 +95,7 @@
   {
    "id": "viridian-forest",
    "kind": "route",
+   "oneMove": true,
    "route": "viridian-forest",
    "trainers": [
     {
@@ -139,6 +140,7 @@
   {
    "id": "pewter-gym",
    "kind": "gym",
+   "oneMove": true,
    "name": "gym.1",
    "leader": "brock",
    "badge": "boulder",
@@ -169,6 +171,7 @@
   {
    "id": "route-3",
    "kind": "route",
+   "oneMove": true,
    "route": "route-3",
    "trainers": [
     {
@@ -212,6 +215,7 @@
   {
    "id": "mt-moon",
    "kind": "challenge",
+   "oneMove": true,
    "name": "place.mt-moon",
    "optional": true,
    "story": [
@@ -250,6 +254,7 @@
   {
    "id": "rival-2",
    "kind": "rival",
+   "oneMove": true,
    "name": "place.rival",
    "story": [
     "story.rival2.1",

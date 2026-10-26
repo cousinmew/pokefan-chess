@@ -44,6 +44,11 @@ export class PuzzleRun {
     return uci;
   }
 
+  /** Your move number in the line: 1 before your first move, 2 after the first reply (playtest, 23 Oct). */
+  get step(): number {
+    return Math.max(1, Math.ceil(this.idx / 2));
+  }
+
   /** The side the player plays. */
   get side(): 'w' | 'b' {
     return this.chess.turn();
@@ -99,10 +104,14 @@ const MATE_THEMES = ['mateIn1', 'mateIn2', 'backRankMate'];
 export const playerMoves = (moves: string): number => Math.max(1, Math.floor(moves.trim().split(/\s+/).length / 2));
 
 /** The goal in the header for every puzzle (W3): "Checkmate in 1 move", "Checkmate in 2 moves", or the theme's goal
- * ("Goal: win material with a fork (2 moves)"). */
-export function objective(theme: string, moves: string, t: (key: StringKey, vars?: Vars) => string): string {
+ * ("Goal: win material with a fork (2 moves)"). From your second move (`step`) the theme's goal gives way (playtest,
+ * 23 Oct: it describes the first move only, and most second moves are something else): "Move 2 of 2: find the
+ * strongest move"; a mate counts down instead. */
+export function objective(theme: string, moves: string, t: (key: StringKey, vars?: Vars) => string, step = 1): string {
   const n = playerMoves(moves);
-  if (MATE_THEMES.includes(theme)) return n === 1 ? t('obj.mate1') : t('obj.mateN', { n: String(n) });
+  const left = Math.max(1, n - step + 1);
+  if (MATE_THEMES.includes(theme)) return left === 1 ? t('obj.mate1') : t('obj.mateN', { n: String(left) });
+  if (step > 1 && n > 1) return t('obj.next', { n: String(Math.min(step, n)), total: String(n) });
   const goal = t('obj.goal', { goal: t(`lesson.${theme}.banner` as StringKey) });
   return n > 1 ? `${goal} ${t('obj.moves', { n: String(n) })}` : goal;
 }

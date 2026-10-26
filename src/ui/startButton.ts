@@ -7,7 +7,7 @@
 import type { StringKey } from '../game/text';
 import { el } from './dom';
 
-export type StartItem = 'journey' | 'computer' | 'friend' | 'online' | 'dex' | 'option' | 'quit';
+export type StartItem = 'journey' | 'computer' | 'friend' | 'online' | 'dex' | 'team' | 'option' | 'quit';
 /** What START offers; `guest` labels the last item QUIT, as a guest's game is not saved (ux #14); `next` is the
  * journey's next goal, shown as the first line (W5). */
 export type StartActions = Partial<Record<StartItem, () => void>> & { guest?: boolean; next?: string | null };
@@ -125,7 +125,8 @@ export class StartButton {
       list.append(b);
       return b;
     };
-    for (const id of ['journey', 'computer', 'friend', 'online', 'dex', 'option', 'quit'] as StartItem[]) {
+    // MY TEAM sits under POKéDEX, as POKéMON does in the Gen 1 menu (playtest, 23 Oct: changing your team was hard to find).
+    for (const id of ['journey', 'computer', 'friend', 'online', 'dex', 'team', 'option', 'quit'] as StartItem[]) {
       const run = acts[id];
       if (run) item(id, id === 'quit' && acts.guest ? 'startmenu.quitGuest' : (`startmenu.${id}` as StringKey), run);
     }
