@@ -398,6 +398,8 @@ function boot(): App {
     ...(!yellow() ? { online: () => showOnline() } : {}),
     // POKéDEX's Back returns to where START was opened, like OPTION (ux #14).
     ...(!isGuest() ? { dex: () => (yellow() ? show(dexScreen(loadCampaign(), () => undefined, returnHere(), true)) : journey.openFromHub('dex', returnHere())) } : {}),
+    // MY TEAM (playtest, 23 Oct): who plays on your board, from anywhere; a guest has no team to keep.
+    ...(!isGuest() ? { team: () => (yellow() ? yellowMode.team() : journey.openFromHub('team', returnHere())) } : {}),
     option: () => showSettings(),
     quit: () => (endGame.guestInGame() ? endGame.askQuit() : quit()),
     guest: isGuest(), // QUIT, not SAVE & QUIT: nothing is saved (ux #14)

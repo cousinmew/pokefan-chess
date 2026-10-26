@@ -28,6 +28,7 @@ import { FIRST_CATCH, warmup, type WarmupHost } from './warmup';
 import { partyOf } from './rivalTeam';
 import { THEMES } from './trainer';
 import { CASTLE_ROWS } from './castling';
+import { boardOf } from './boards';
 import type { PuzzleGame } from './puzzleGame';
 import type { Challenge } from '../main';
 import type { DrillStatus } from './drill';
@@ -385,7 +386,8 @@ export class JourneyGame {
       banner: text,
       // The trainer you are battling stands on the top plate (W3, ux #5), not the story stage's Rocket trainer; a rival's
       // pieces are BLUE's team (J12), as his goal card and intro show it.
-      opponent: { sprite: this.spriteOf(t) ?? '', name: who, title: '', ...(p.kind === 'rival' ? { team: rivalSkin(partyOf(this.campaign, t)) } : {}) },
+      // Every other trainer plays on their own canon Pokémon (playtest, 23 Oct: BROCK wore Team Rocket's pieces).
+      opponent: { sprite: this.spriteOf(t) ?? '', name: who, title: '', team: p.kind === 'rival' ? rivalSkin(partyOf(this.campaign, t)) : (boardOf(this.campaign, t) ?? null) },
       onLeave: () => p.kind === 'route' ? this.showRoute(p) : this.showMap(),
       // The pip changes the moment a puzzle is decided (design J), before the review.
       onAttempt: (r) => {
