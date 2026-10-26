@@ -276,6 +276,7 @@ function boot(): App {
     dip: boardDip, cover: () => covers.cover('screen'), uncover: () => covers.reveal(), cheer: (sq) => moments.cheer(sq),
   });
   const legend = new Legend(game, board);
+  legend.opponent = () => (app.mode === 'puzzle' ? (puzzle.opponent()?.name ?? null) : null);
   /** Who's who (§B19 item 4): on, off, or auto (YELLOW, and a save's first games). */
   const legendOn = () => settings.legend === 'on' || (settings.legend === 'auto' && (yellow() || (load<number>('gamesPlayed') ?? 0) < LEGEND_FIRST_GAMES));
   const plates = new Plates();

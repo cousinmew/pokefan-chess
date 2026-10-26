@@ -34,6 +34,8 @@ export class Legend {
   private on: { color: Color; role: Role; id: string } | null = null;
   /** The species on the board when it was last built, so a move only rebuilds it when that changes. */
   private sig = '';
+  /** The trainer a puzzle battle faces, named on their row (playtest, 23 Oct: their own Pokémon under "TEAM ROCKET"). */
+  opponent: () => string | null = () => null;
 
   constructor(private readonly game: Game, private readonly board: Board) {
     this.el = el('div', 'legend-strip');
@@ -67,10 +69,13 @@ export class Legend {
     if (!visible) return;
     const rows: HTMLElement[] = [];
     const teams = this.onBoard();
-    this.sig = JSON.stringify(teams.map((t) => [t.color, t.items.map((i) => i.role + i.id)]));
+    this.sig = this.signature(teams);
     for (const { color, items } of teams) {
       const row = el('div', 'legend-team');
-      row.append(el('b', 'legend-team-name', lookOf(color) === 'w' ? 'team.red' : 'team.rocket'));
+      const title = el('b', 'legend-team-name', lookOf(color) === 'w' ? 'team.red' : 'team.rocket');
+      const them = lookOf(color) === 'w' ? null : this.opponent();
+      if (them) title.textContent = them;
+      row.append(title);
       const count: Partial<Record<Role, number>> = {};
       for (const { role, id, square } of items) {
         const sp = speciesFor(color, role, square);
@@ -102,8 +107,12 @@ export class Legend {
   /** After a move: rebuilds only when the species on the board changed (a capture, a promotion). */
   refresh(visible: boolean): void {
     this.clear();
-    const sig = JSON.stringify(this.onBoard().map((t) => [t.color, t.items.map((i) => i.role + i.id)]));
-    if (!visible || this.el.hidden || sig !== this.sig) this.render(visible);
+    if (!visible || this.el.hidden || this.signature(this.onBoard()) !== this.sig) this.render(visible);
+  }
+
+  /** The species per side and the opponent's name: what the rows show. */
+  private signature(teams: { color: Color; items: Item[] }[]): string {
+    return JSON.stringify([this.opponent(), ...teams.map((t) => [t.color, t.items.map((i) => i.role + i.id)])]);
   }
 
   private toggle(color: Color, role: Role, id: string, item: HTMLElement): void {

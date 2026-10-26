@@ -74,8 +74,9 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
     // You play black, but your pieces are TEAM RED, your starter is the king, and you are at the bottom.
     const king = page.locator('[data-square="g7"] img.piece');
     await expect(king).toHaveAttribute('alt', 'BULBASAUR');
-    await expect(page.locator('[data-square="h5"] img.piece')).toHaveAttribute('alt', 'RATICATE');
-    await expect(page.locator('[data-square="h4"] img.piece')).toHaveAttribute('alt', 'RATTATA');
+    // TOBY plays on his own Pokémon (playtest, 23 Oct): RATTATA king, PIDGEY pawns (src/data/journey-boards.json).
+    await expect(page.locator('[data-square="h5"] img.piece')).toHaveAttribute('alt', 'RATTATA');
+    await expect(page.locator('[data-square="h4"] img.piece')).toHaveAttribute('alt', 'PIDGEY');
     const y = async (sq: string) => (await page.locator(`[data-square="${sq}"]`).boundingBox())!.y;
     expect(await y('g7')).toBeGreaterThan(await y('h5'));
     await expect(page.locator('[data-square="g7"] .ground')).toHaveClass(/ground-w/); // Red's ground shadow
@@ -88,7 +89,7 @@ for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
     await page.click('[data-square="h4"]');
     await expect.poll(() => phase(page), { timeout: 8000 }).toBe('review');
     await expect(page.getByTestId('text-main')).toHaveText('Checkmate! Well done.');
-    await expect(page.getByTestId('review-text')).toContainText('RATICATE');
+    await expect(page.getByTestId('review-text')).toContainText('RATTATA'); // TOBY's own king (playtest, 23 Oct)
     await expect(page.getByTestId('review-text')).not.toContainText('BULBASAUR');
     await expect(page.getByTestId('turn')).toHaveText('Checkmate in 1 move');
     await expect(page.getByTestId('puzzle-banner')).toHaveText('YOUNGSTER TOBY ●○○ need 1');
@@ -167,8 +168,9 @@ test('black to move puzzle: START → OPTION → Back keeps your team and theirs
   await expect.poll(() => phase(page), { timeout: 8000 }).toBe('player');
   const before = await sides(page);
   // You play black: your starter is the king on g7, PIKACHU stands where the story team had BULBASAUR (f6, dark).
-  expect(before.pieces).toEqual(['a4:SNORLAX', 'd7:ZUBAT', 'f5:SANDSLASH', 'f6:PIKACHU', 'g7:BULBASAUR', 'h4:RATTATA', 'h5:RATICATE']);
-  expect(before.teams).toEqual(['TEAM RED:b', 'TEAM ROCKET:w']);
+  // TOBY's side is his own Pokémon, named after him in the Who's who (playtest, 23 Oct).
+  expect(before.pieces).toEqual(['a4:SNORLAX', 'd7:NIDORAN♂', 'f5:SPEAROW', 'f6:PIKACHU', 'g7:BULBASAUR', 'h4:PIDGEY', 'h5:RATTATA']);
+  expect(before.teams).toEqual(['TEAM RED:b', 'YOUNGSTER TOBY:w']);
   await page.getByTestId('start-button').click();
   await page.getByTestId('start-menu-option').click();
   await expect(page.getByTestId('screen-settings')).toBeVisible();
