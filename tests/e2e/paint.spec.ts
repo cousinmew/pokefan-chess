@@ -13,16 +13,14 @@ import { settled } from './pace';
 import { audit, mark, painter, pw, type Pw } from './paintwatch';
 
 const BLANK_MS = 300; // @perf: longest an image may stay blank on screen with nothing standing in
-/** Known pop-ins (paint lint, 23 Oct), each one in the fix plan: logged, and not failed by @perf until fixed, by
- * where they show. Anything else blank past BLANK_MS fails. */
-const KNOWN: [RegExp, string][] = [
-  [/^screen-route \.dex-sprite$/, "a route's wild Pokémon (animated fronts) at the same cap"],
-  [/^screen-team team-(red|rocket) \.menu-sprite$/, "the team picker's animated fronts at the same cap"],
-];
+/** Known pop-ins, by where they show, each one a fix still to make: logged, and not failed by @perf until fixed.
+ * Anything else blank past BLANK_MS fails. (The 23 Oct list is all fixed, 26 Oct.) */
+const KNOWN: [RegExp, string][] = [];
 const known = (at: string) => KNOWN.some(([re]) => re.test(at));
-/** Screens known to open at their cover's cap with images not drawn (paint lint, 26 Oct), each in the fix plan;
- * @perf fails on any other screen that does (a board's battle cover aside: its cap is the board's own matter). */
-const KNOWN_CAPPED: string[] = ['screen-team', 'screen-route', 'screen-yellow'];
+/** Screens known to open at their cover's cap with images not drawn, each a fix still to make; @perf fails on any
+ * other screen that does (a board's battle cover aside: its cap is the board's own matter). YELLOW's home shows its
+ * three mascots animated (30 to 40 KB each), past SCREEN_READY_MS on Slow 4G (paint lint, 26 Oct). */
+const KNOWN_CAPPED: string[] = ['screen-yellow'];
 const READ_MS = 1500; // a player reads a screen for a moment before the next tap (as loading.spec.ts's level picker)
 /** Mate in 1 by a capture (a battle): the set up a2-a3, then Re8xe1#. */
 const CAPTURE1 = ['pace1', '4r1k1/5ppp/8/8/8/8/P4PPP/4N1K1 w - - 0 1', 'a2a3 e8e1', 600];

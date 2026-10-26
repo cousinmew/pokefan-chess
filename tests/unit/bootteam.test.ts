@@ -12,7 +12,8 @@ const storage = new Proxy(
 );
 (globalThis as unknown as { window: unknown }).window = { localStorage: storage, setTimeout: () => 0 };
 
-const { knownSpecies, knownTeam, setSkins, species, speciesIdFor, SPECIES, spriteUrl } = await import('../../src/board/pieces');
+const { knownSpecies, knownTeam, setSkins, species, speciesIdFor, SPECIES } = await import('../../src/board/pieces');
+const { ASSET_BASE } = await import('../../src/config');
 const { loadCampaign } = await import('../../src/campaign/kanto');
 const { teamArt } = await import('../../src/ui/kanto');
 const { unpackSave } = await import('../../src/store/backup');
@@ -46,13 +47,13 @@ describe('a save with an unknown My Team species', () => {
     expect(loadCampaign().team).toEqual({ p: 'pidgey' });
   });
 
-  it("teamArt never throws: an unknown slot shows the default piece's Gen 1 sprite, as the board does", () => {
+  it("teamArt never throws: an unknown slot shows the default piece's still, as the board does", () => {
     const c = { ...loadCampaign(), team: { n: 'missingno', p: 'pidgey' } };
     const art = teamArt(c); // base: TypeError, reading 'dex' of undefined
     const plain = teamArt({ ...c, team: { p: 'pidgey' } });
     expect(art).toEqual(plain);
     expect(art).toHaveLength(7);
-    expect(art).toContain(spriteUrl(SPECIES.pidgey!.dex, 'retro'));
+    expect(art).toContain(`${ASSET_BASE}static/front/${SPECIES.pidgey!.dex}.png`); // a preview is the still (paint lint, 26 Oct)
   });
 
   it('Import and save codes (unpackSave) store only the known slots, and everything else as it was', () => {

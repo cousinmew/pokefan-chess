@@ -21,7 +21,8 @@ import { music } from '../audio/music';
 
 /** A Pokémon sprite that is never an empty box (§B14 bug): the tiny Gen 1 sprite shows while the animated GIF
  * loads (behind a queue of battle preloads on a slow phone), and stays if the GIF fails. `o.still`: the still PNG
- * (about 0.8 KB, no placeholder needed); `o.lazy`: no src yet, it waits in data-src for the caller (J8). */
+ * (about 0.8 KB, no placeholder of its own; a caller's goes once it is in), for small icons (paint lint, 26 Oct);
+ * `o.lazy`: no src yet, it waits in data-src for the caller (J8). */
 export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny = false, eager = false, o: { still?: boolean; lazy?: boolean } = {}): HTMLImageElement {
   const img = el('img', cls + (silhouette ? ' silhouette' : ''));
   const dex = SPECIES[id]!.dex;
@@ -30,10 +31,8 @@ export function mon(id: string, cls = 'menu-sprite', silhouette = false, shiny =
   img.dataset.species = id;
   img.decoding = 'async';
   if (eager) img.fetchPriority = 'high';
-  if (!o.still) {
-    img.style.backgroundImage = `url("${retro}")`;
-    img.onload = () => (img.style.backgroundImage = '');
-  }
+  if (!o.still) img.style.backgroundImage = `url("${retro}")`;
+  img.onload = () => (img.style.backgroundImage = '');
   img.onerror = () => {
     img.onerror = null;
     img.src = retro;
@@ -399,8 +398,9 @@ function forms(c: Campaign): { id: string; label: string }[] {
 }
 
 /** My Team. `ready` (the Journey's fetch ahead) settles once the given files are in: a changed row keeps its old preview
- * until the new one can paint, its Gen 1 placeholder or its animation, at most TEAM_SWAP_WAIT_MS (merge review, 14 Oct:
- * the new pick's box was empty for about 0.6 s on Slow 4G, its placeholder one round trip away). */
+ * until the new one can paint, at most TEAM_SWAP_WAIT_MS (merge review, 14 Oct: the new pick's box was empty for about
+ * 0.6 s on Slow 4G, its placeholder one round trip away). A preview is the form's still (paint lint, 26 Oct: its
+ * animation, 10 to 60 KB for a 40 px icon, came in after the screen on Slow 4G). */
 export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: () => void, clearNotice: () => void, ready?: (urls: string[]) => Promise<unknown>): HTMLElement {
   const rows = el('div', 'settings');
   if (c.teamNotice.length) {
@@ -441,11 +441,11 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
       reason = 'queenLocked';
     }
     sel.value = team[role] ?? '';
-    // J9: a preview is a mon(), so the Gen 1 sprite shows while the animation loads, and a new one on a change (a src
-    // swap kept the old Pokémon's frame until the new one came, about 790 ms on a slow phone).
+    // J9: a new preview element on a change (a src swap kept the old Pokémon's frame until the new one came, about
+    // 790 ms on a slow phone).
     const previewOf = (v: string) => {
       const { base, shiny } = parseVariant(knownSpecies(v) ? v : speciesIdFor('w', piece, sq));
-      return Object.assign(mon(base, 'team-sprite', false, shiny), { alt: '' });
+      return Object.assign(mon(base, 'team-sprite', false, shiny, false, { still: true }), { alt: '' });
     };
     let preview = previewOf(team[role] ?? '');
     let picks = 0;
@@ -456,7 +456,7 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
       const pick = ++picks; // a later change of this row replaces this one
       const loaded = new Promise((done) => (next.complete ? done(null) : next.addEventListener('load', done, { once: true })));
       const capped = new Promise((done) => window.setTimeout(done, TEAM_SWAP_WAIT_MS));
-      void (ready ? Promise.race([ready([teamRetro(sel.value, role)]), loaded, capped]) : Promise.resolve()).then(() => {
+      void (ready ? Promise.race([ready([teamStill(sel.value, role)]), loaded, capped]) : Promise.resolve()).then(() => {
         if (pick !== picks) return;
         preview.replaceWith(next);
         preview = next;
@@ -474,18 +474,20 @@ export function teamScreen(c: Campaign, change: (team: TeamSkin) => void, back: 
   return screen('team', el('h2', '', 'team.title'), el('p', 'small', 'team.note'), rows, button('back', back, 'back', 'secondary'));
 }
 
-/** The Gen 1 placeholder of a My Team row's preview: the picked form, else that square's default. A species this build
- * does not know (a save from another build) stands for the default piece, as on the board (boot fix, 14 Oct: it threw
- * at boot). */
-const teamRetro = (id: string | undefined, role: (typeof SKIN_ROLES)[number]): string =>
-  spriteUrl(SPECIES[parseVariant(knownSpecies(id) ? id : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0])).base]!.dex, 'retro');
+/** The still a My Team row's preview shows (paint lint, 26 Oct; its Gen 1 placeholder before): the picked form, else
+ * that square's default. A species this build does not know (a save from another build) stands for the default piece,
+ * as on the board (boot fix, 14 Oct: it threw at boot). */
+const teamStill = (id: string | undefined, role: (typeof SKIN_ROLES)[number]): string => {
+  const { base, shiny } = parseVariant(knownSpecies(id) ? id : speciesIdFor('w', ROLE_SQUARE[role][1], ROLE_SQUARE[role][0]));
+  return `${ASSET_BASE}static/${shiny ? 'shiny' : 'front'}/${SPECIES[base]!.dex}.png`;
+};
 
-/** My Team's seven previews' Gen 1 placeholders (J9), to fetch before the screen shows. */
-export const teamArt = (c: Campaign): string[] => SKIN_ROLES.map((role) => teamRetro(c.team[role], role));
+/** My Team's seven previews (J9), to fetch before the screen shows. */
+export const teamArt = (c: Campaign): string[] => SKIN_ROLES.map((role) => teamStill(c.team[role], role));
 
-/** The placeholder of every other pick a row offers (each form you own, each square's default), fetched once MY TEAM
+/** The preview of every other pick a row offers (each form you own, each square's default), fetched once MY TEAM
  * shows, so a changed row's new preview is usually in at once (merge review, 14 Oct). */
-export const teamOptionArt = (c: Campaign): string[] => [...new Set([...forms(c).map((f) => teamRetro(f.id, 'p')), ...SKIN_ROLES.map((role) => teamRetro('', role))])];
+export const teamOptionArt = (c: Campaign): string[] => [...new Set([...forms(c).map((f) => teamStill(f.id, 'p')), ...SKIN_ROLES.map((role) => teamStill('', role))])];
 
 /** A gift for a first clear (J4): the Pokémon, the new Pokédex count and OAK's line under it, before the unlock card. */
 export function giftCard(id: string, caught: number, oak?: string): HTMLElement {
