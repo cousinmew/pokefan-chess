@@ -19,9 +19,9 @@ const WAITING = 'radial-gradient(circle, transparent 0 9%, rgba(128, 128, 128, 0
 
 /** A menu Pokémon (team picker, intro card) that is never an empty box (loading fix, 14 Oct): kanto.ts mon(), whose
  * retro sprite stands in while the animated one loads, over a drawn outline while the retro one loads too. */
-function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite'): HTMLImageElement {
+function sprite(color: Color, role: Role, square: string, cls = 'menu-sprite', still = false): HTMLImageElement {
   const { base, shiny } = parseVariant(speciesIdFor(color, role, square));
-  const img = mon(base, cls, false, shiny, true);
+  const img = mon(base, cls, false, shiny, true, { still });
   img.style.backgroundImage = [img.style.backgroundImage, WAITING].filter(Boolean).join(', ');
   return img;
 }
@@ -205,7 +205,7 @@ export function teamSelect(pick: (c: Color) => void, back: () => void): HTMLElem
   const row = el('div', 'cards');
   for (const [color, name, note] of [['w', 'team.red', 'team.redNote'], ['b', 'team.rocket', 'team.rocketNote']] as [Color, StringKey, StringKey][]) {
     const card = button(name, () => pick(color), `team-${color === 'w' ? 'red' : 'rocket'}`, 'card');
-    card.prepend(sprite(color, 'k', color === 'w' ? 'e1' : 'e8'));
+    card.prepend(sprite(color, 'k', color === 'w' ? 'e1' : 'e8', 'menu-sprite', true)); // a still (paint lint, 26 Oct)
     card.append(el('small', '', note));
     row.append(card);
   }

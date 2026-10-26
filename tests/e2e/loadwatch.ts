@@ -189,7 +189,8 @@ export async function boot(page: Page, query = '?debug=1', tap = true): Promise<
   await coldGoto(page, query);
   await page.getByTestId('screen-splash').waitFor({ timeout: 120_000 });
   await page.waitForLoadState('load', { timeout: 120_000 });
-  await page.waitForFunction(() => performance.getEntriesByType('resource').filter((r) => /assets\/(front|retro|trainers)\//.test(r.name)).length >= 4, null, { timeout: 60_000 }).catch(() => undefined);
+  // Stills count too (paint lint, 26 Oct): My Team's previews, which boot fetches ahead, are stills now, not Gen 1 sprites.
+  await page.waitForFunction(() => performance.getEntriesByType('resource').filter((r) => /assets\/(front|retro|trainers|static\/(front|shiny))\//.test(r.name)).length >= 4, null, { timeout: 60_000 }).catch(() => undefined);
   if (tap) await tapSplash(page, 60_000);
 }
 

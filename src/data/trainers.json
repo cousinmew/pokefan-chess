@@ -12,6 +12,6 @@
   "trainer.class.camper": "camper-gen2", "trainer.class.picnicker": "picnicker-gen2", "trainer.class.birdkeeper": "birdkeeper-gen1",
   "trainer.class.biker": "biker-gen1", "trainer.class.gambler": "gambler-gen1", "trainer.class.supernerd": "supernerd-gen1",
   "trainer.class.fisherman": "fisherman-gen1", "trainer.class.swimmer": "swimmer-gen1", "trainer.class.cooltrainer": "acetrainer-gen3",
-  "trainer.class.rival": "blue-gen1"
+  "trainer.class.scientist": "scientist-gen1", "trainer.class.rival": "blue-gen1"
  }
 }

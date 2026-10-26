@@ -22,6 +22,7 @@ import { pauseWhile, revealNeeds } from './loader';
 
 export const BATTLE_READY_MS = 2500; // longest a battle cover or a board dip stays shut waiting for the board's images (Slow 4G on HTTP/1.1: three round trips of stills)
 export const SCREEN_READY_MS = 300; // longest a screen, area or splash cover waits for the screen's visible images
+export const STILLS_READY_MS = 2500; // ...when every one of them still loading is a small still (paint lint, 26 Oct): as long as a board's
 export const LABEL_MIN_MS = 250; // a cover's or dip's line, once shown, stays at least this long before it changes or the cover opens
 
 export type CoverKind = 'screen' | 'area' | 'battle' | 'first';
@@ -50,7 +51,9 @@ export interface CoverFx {
   ready?(kind: CoverKind): Promise<void>;
   /** Whether the screen under it shows a board with pieces (it then waits as long as a battle cover). */
   board?(): boolean;
-  /** The wait for its images ran out (BATTLE_READY_MS or SCREEN_READY_MS): it opens on what is drawn by then. */
+  /** Whether every image still loading on the screen under it is a small still (it then waits STILLS_READY_MS). */
+  stills?(): boolean;
+  /** The wait for its images ran out (BATTLE_READY_MS, STILLS_READY_MS or SCREEN_READY_MS): it opens on what is drawn by then. */
   capped?(kind: CoverKind): void;
 }
 
@@ -188,7 +191,7 @@ export class Covers {
     let cap = 0;
     // A zero delay still waits a task: a screen already drawn opens without a word.
     const slow = window.setTimeout(() => s === this.seq && this.line.say('drawing'), Math.max(0, this.upAt + COVER_LABEL_MS - performance.now()));
-    const ms = kind === 'battle' || this.fx.board?.() ? BATTLE_READY_MS : SCREEN_READY_MS;
+    const ms = kind === 'battle' || this.fx.board?.() ? BATTLE_READY_MS : this.fx.stills?.() ? STILLS_READY_MS : SCREEN_READY_MS;
     const capped = new Promise<void>((r) => (cap = window.setTimeout(() => (s === this.seq && this.fx.capped?.(kind), r()), ms)));
     return Promise.race([ready.catch(() => undefined), capped])
       .finally(() => {
@@ -234,6 +237,16 @@ function loadingImages(root: ParentNode, skip?: Element | null): HTMLImageElemen
     const r = img.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < h && r.left < w;
   });
+}
+
+/** A still, a Gen 1 sprite, a trainer or an item icon: a PNG of about 0.4 to 1 KB, round trip bound. */
+const STILL = /\/(static\/(front|shiny)|retro|trainers|items)\/[^/]+\.png$|\/art\/[^/]+\.png$/;
+/** Every image in `root` a player would see that is still loading is a small still (paint lint, 26 Oct): the
+ * Pokédex, the level pickers, a lesson's mini board. Opened at SCREEN_READY_MS, they showed 10 to 20 empty boxes for
+ * up to 2.4 s on Slow 4G; three round trips of stills is what a board's cover allows for. */
+export function stillsOnly(root: ParentNode, skip?: Element | null): boolean {
+  const imgs = loadingImages(root, skip);
+  return imgs.length > 0 && imgs.every((img) => STILL.test(img.src));
 }
 
 /** Resolves once every image in `root` a player would see has decoded or failed (uncapped). Idle loads wait meanwhile,
@@ -298,9 +311,10 @@ export function domCovers(root: HTMLElement, label: () => string): CoverFx {
     },
     ready(kind) {
       // Its visible images, and what it shows right after its reveal (the intro card's king, src/ui/loader.ts).
-      return Promise.all([imagesDrawn(root, el, kind === 'battle' || onBoard() ? BATTLE_READY_MS : SCREEN_READY_MS), revealNeeds()]).then(() => undefined);
+      return Promise.all([imagesDrawn(root, el, kind === 'battle' || onBoard() ? BATTLE_READY_MS : stillsOnly(root, el) ? STILLS_READY_MS : SCREEN_READY_MS), revealNeeds()]).then(() => undefined);
     },
     board: () => onBoard(),
+    stills: () => stillsOnly(root, el),
     capped() {
       // Tests (?debug=1) tell a cover that opened at its cap from one whose images were all in.
       if (debug && el) el.dataset.capped = '';

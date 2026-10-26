@@ -460,10 +460,10 @@ test.describe('menu sprites, Slow 4G cold', () => {
       };
       requestAnimationFrame(tick);
     });
-    // The kings' files come late on top of Slow 4G (the retro stand-in 1 s, the animated sprite 2 s), so the shots
-    // below see the drawn outline, then the retro sprite, never only the card.
-    await context.route(/\/assets\/(retro|front)\/\d+\.(png|gif|webp)$/, async (route) => {
-      await new Promise((r) => setTimeout(r, /\/retro\//.test(route.request().url()) ? 1000 : 2000));
+    // The kings' stills (paint lint, 26 Oct: the team picker shows stills) come 4 s late on top of Slow 4G, past the
+    // cover's wait for them (STILLS_READY_MS), so the shots below see the drawn outline, never only the card.
+    await context.route(/\/assets\/static\/(front|shiny)\/\d+\.png$/, async (route) => {
+      await new Promise((r) => setTimeout(r, 4000));
       await route.continue().catch(() => undefined);
     });
     await page.getByTestId('vs-computer').click();
