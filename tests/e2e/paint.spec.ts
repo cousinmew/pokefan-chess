@@ -67,6 +67,8 @@ async function walk(browser: Browser, name: string, store: Record<string, unknow
   expect(p!.unreserved, 'images with no box of their own before they load (they move the layout when they do)').toEqual([]);
   expect(p!.jumps, 'images whose box changed size as they drew').toEqual([]);
   expect(p!.noArt, 'a trainer with no sprite (a silhouette for good)').toEqual([]);
+  // The battle screen moves its sprites with transforms only: a layout shift there is left or top changing.
+  expect(p!.shifts.filter((s) => s.kind === 'battle' && !s.input).map((s) => `${s.mark} ${s.v}: ${s.nodes.join('; ')}`), "layout shifts from the battle screen's own motion").toEqual([]);
   if (perf) expect(p!.blanks.filter((b) => !b.stand && b.ms > BLANK_MS && !known(b.at)), `blank on screen over ${BLANK_MS} ms with nothing standing in`).toEqual([]);
   if (perf) expect(p!.opens.filter((o) => o.capped && o.late.length && o.kind !== 'battle' && !KNOWN_CAPPED.includes(o.scr)).map((o) => `${o.scr} [${o.mark}] ${o.late.length} not drawn`), 'a screen opened at its cap with images not drawn').toEqual([]);
 }

@@ -86,7 +86,7 @@ test("computer captures: the player's Pokémon stays near (back view), the attac
   const view = await page.evaluate(() =>
     ['.mon.att', '.mon.def'].map((s) => {
       const slot = document.querySelector(s) as HTMLElement;
-      return { src: (slot.querySelector('img') as HTMLImageElement).src.split('/').slice(-2).join('/'), top: parseFloat(slot.style.top) };
+      return { src: (slot.querySelector('img') as HTMLImageElement).src.split('/').slice(-2).join('/'), top: slot.getBoundingClientRect().top };
     }),
   );
   expect(view[0]!.src.replace(/\.(gif|webp)$/, '')).toBe('front/20');

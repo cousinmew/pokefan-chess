@@ -63,10 +63,14 @@ main { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .battle[hidden] { display: none; }
 .screen { position: relative; width: min(100vw - 16px, 480px, (100dvh - 16px) * 320 / 288); aspect-ratio: 320 / 288; background: #f8f8f0; border: 4px solid var(--ink); border-radius: 6px; overflow: hidden; }
 .screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
-.mon { position: absolute; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); }
+/* A battle sprite is placed by its transform alone (paint lint, 26 Oct: left and top laid the screen out again every
+   frame): --x and --y are its centre as a share of the screen, set by the overlay, and a transform's percentages are
+   of its own square box, --mw of the screen's width. The screen is 320 by 288 (its border makes the y within half a
+   pixel). An overlay transform (the KO spin, the lunge's squash) starts with var(--at) too. */
+.mon { position: absolute; left: 0; top: 0; --mw: 0.34; width: calc(var(--mw) * 100%); aspect-ratio: 1; --at: translate(calc(var(--x, 0) / var(--mw) * 100%), calc(var(--y, 0) * 288 / 320 / var(--mw) * 100%)); transform: var(--at) translate(-50%, -50%); }
 .mon img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .mon.mirror img { transform: scaleX(-1); }
-.mon.evo { width: 40%; }
+.mon.evo { --mw: 0.4; }
 .mon.evo img { filter: brightness(0); }
 .hp { position: absolute; width: 40%; height: 7px; border: 2px solid var(--ink); border-radius: 4px; background: #fff; }
 .hp[hidden] { display: none; }
