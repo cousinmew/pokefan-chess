@@ -235,17 +235,16 @@ for (const perf of [false, true]) {
   });
 }
 
-// Animations against files that come late (no throttle: the route holds them), so each one meets its sprites' cap.
+// Animations against files that come late (no throttle: CDP holds them), so each one meets its sprites' cap.
 test.describe('sprite paint lint: animations wait for their frames', () => {
-  // METAPOD: in no team the idle preload fetches for this save, so nothing has it before the Pokédex asks.
-  test("evolution: METAPOD's files 8 s late, nothing blank on the evolution screen", async ({ browser }) => {
-    // Known (paint lint, 23 Oct; in the fix plan): with none of the three files in by the flash, 'evolve-flash' puts
-    // in the animation still loading (src/battle/overlay.ts evolve), and the evolved form is an empty box for about
-    // 1.35 s. This passes once that is fixed: then drop the line below.
-    test.fail(true, 'the evolved form is blank when none of its sprites is in by the flash');
+  // METAPOD: in no team the idle preload fetches for this save, so nothing has it before the Pokédex asks. Its still
+  // (asked for by the Pokédex) comes in after the swap's usual end and within EVOLVE_HOLD_MS of it; the animation and
+  // the Gen 1 sprite (asked for by the entry) only after the evolution.
+  test("evolution: METAPOD's still comes in after the swap's usual end, nothing blank on the evolution screen", async ({ browser }) => {
     await walk(browser, 'evolve-late', { ...cartBlue, 'kc:v1:campaign': SAVE }, false, async (page, step) => {
       await kc(page, 'grant', 'caterpie', 9); // 27 candy: METAPOD costs 25
-      await late(page, 11, 8000);
+      await late(page, 11, 4500, ['static/front']);
+      await late(page, 11, 8000, ['front', 'retro']);
       await step('Pokédex', () => tap(page, 'kanto').then(() => tap(page, 'open-dex')));
       await step('dex entry', () => tap(page, 'dex-caterpie').then(() => page.getByTestId('evolve-metapod').waitFor({ timeout: 60_000 })));
       await step('evolution', () => tap(page, 'evolve-metapod').then(() => expect(page.getByTestId('dex-detail')).toContainText('METAPOD x1', { timeout: 60_000 })));

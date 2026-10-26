@@ -50,6 +50,7 @@ export const EVOLVE_MS = 1200; // whole evolution sequence
 export const EVOLVE_START_PERIOD_MS = 300; // first silhouette swap period
 export const EVOLVE_END_PERIOD_MS = 60; // last silhouette swap period
 export const EVOLVE_FLASH_MS = 150; // white flash at the end of the evolution
+export const EVOLVE_HOLD_MS = 2500; // longest the swap goes on past EVOLVE_MS while the evolved form has no decoded sprite (paint lint, 26 Oct)
 export const EVOLVE_DONE_MS = 1200; // then the evolved Pokémon and "{pawn} evolved into {piece}!" on the evolution screen (J1), skippable after HOLD_MIN_MS
 export const CRY_VOLUME = 0.35; // cry volume in battles and on check
 export const SELECT_CRY_VOLUME = 0.12; // short quiet cry when a piece is selected
