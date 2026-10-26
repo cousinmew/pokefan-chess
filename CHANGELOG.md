@@ -167,3 +167,5 @@
 - Route trainers give one more try after a wrong move. The banner after a miss is about this battle only, and a lost battle is a rematch: nothing is lost.
 - Every Journey trainer plays on their own Pokémon: BROCK on ONIX and GEODUDE, MISTY on STARMIE and STARYU, LANCE on DRAGONITE, and so on.
 - MY TEAM is in START, under POKéDEX.
+- Pictures never pop in. The Who's who icons load with the board, and the Pokédex, level pickers and lessons wait until their Pokémon are drawn. Small icons use still sprites, battle sprites move without shifting the page, pieces no longer jump when their animation starts, and an evolution waits until the new form has loaded.
+- The CINNABAR LAB's SCIENTIST has a sprite.
