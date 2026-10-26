@@ -332,6 +332,10 @@ export function dexScreen(c: Campaign, open: (id: string) => void, back: () => v
   return view;
 }
 
+/** The stills the Pokédex loads first (its first DEX_EAGER_CELLS cells, as dexScreen asks for them): the map fetches
+ * them ahead of its POKéDEX tap (paint lint, 26 Oct). */
+export const dexStills = (c: Campaign): string[] => DEX.slice(0, DEX_EAGER_CELLS).map((s) => `${ASSET_BASE}static/${(c.shiny[s] ?? 0) > 0 ? 'shiny' : 'front'}/${SPECIES[s]!.dex}.png`);
+
 export interface DexActions {
   evolve(e: Evolution): void;
   oak(): void;

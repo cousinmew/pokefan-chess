@@ -50,9 +50,10 @@ import { Fitter } from './ui/fit';
 import { firstYellowDefaults } from './cartridgeDefaults';
 import { YellowMode } from './campaign/yellowMode';
 import { warmHubSheet } from './ui/icons';
-import { preloadNow, releaseIdle } from './ui/loader';
+import { prefetch, preloadNow, releaseIdle } from './ui/loader';
 import { Plates } from './ui/plates';
 import { applyLooks, ladderFaces, myLook, standing, storyStage } from './look';
+import { ladderArt } from './ui/ladder';
 import type { Look } from '../worker/src/protocol';
 import { PathGame } from './campaign/pathGame';
 import { loadCampaign, STARTERS } from './campaign/kanto';
@@ -379,7 +380,12 @@ function boot(): App {
 
   /** VS COMPUTER from the hub, START or PLAY CHESS: YELLOW's big levels, or BLUE's team then level. */
   // The level picker's Back goes back one step, to the team picker (ux #14).
-  const vsComputer = (): void => (yellow() ? show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w'))) : show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), vsComputer, faces(human))), goTitle)));
+  const vsComputer = (): void => {
+    if (yellow()) return void show(yellowLevels((level) => startGame({ mode: 'computer', human: 'w', level }), goTitle, faces('w')));
+    show(teamSelect((human) => show(levelSelect((level) => startGame({ mode: 'computer', human, level }), vsComputer, faces(human))), goTitle));
+    // The level picker's trainers and loadout stills for either team, ahead of the team tap (paint lint, 26 Oct).
+    prefetch([...ladderArt(faces('w')), ...ladderArt(faces('b'))]);
+  };
   /** SAVE & QUIT (§B22 item 3): progress is already saved; back to the start menu. A guest's session just ends. */
   function quit(): void {
     endGame.flush(); // what an ended game brought, if its end panel never came (C5)

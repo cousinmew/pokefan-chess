@@ -16,12 +16,14 @@ const BLANK_MS = 300; // @perf: longest an image may stay blank on screen with n
 /** Known pop-ins (paint lint, 23 Oct), each one in the fix plan: logged, and not failed by @perf until fixed, by
  * where they show. Anything else blank past BLANK_MS fails. */
 const KNOWN: [RegExp, string][] = [
-  [/^screen-dex dex-[a-z-]+ \.dex-sprite$/, 'the Pokédex opens at the SCREEN_READY_MS cap, 300 ms, with its stills loading'],
-  [/^screen-(level|yellow-levels) loadout \.loadout-mon$/, 'the level pickers open at the same cap'],
   [/^screen-route \.dex-sprite$/, "a route's wild Pokémon (animated fronts) at the same cap"],
-  [/^screen-team team-red \.menu-sprite$/, "the team picker's animated fronts at the same cap"],
+  [/^screen-team team-(red|rocket) \.menu-sprite$/, "the team picker's animated fronts at the same cap"],
 ];
 const known = (at: string) => KNOWN.some(([re]) => re.test(at));
+/** Screens known to open at their cover's cap with images not drawn (paint lint, 26 Oct), each in the fix plan;
+ * @perf fails on any other screen that does (a board's battle cover aside: its cap is the board's own matter). */
+const KNOWN_CAPPED: string[] = ['screen-team', 'screen-route', 'screen-yellow'];
+const READ_MS = 1500; // a player reads a screen for a moment before the next tap (as loading.spec.ts's level picker)
 /** Mate in 1 by a capture (a battle): the set up a2-a3, then Re8xe1#. */
 const CAPTURE1 = ['pace1', '4r1k1/5ppp/8/8/8/8/P4PPP/4N1K1 w - - 0 1', 'a2a3 e8e1', 600];
 const YELLOW = { 'kc:v1:cartridge': 'yellow', 'kc:v1:campaign': { v: 2, name: '', introSeen: true, caught: {}, team: {}, journey: { cleared: [], beaten: [], visited: [] } } };
@@ -68,6 +70,7 @@ async function walk(browser: Browser, name: string, store: Record<string, unknow
   expect(p!.jumps, 'images whose box changed size as they drew').toEqual([]);
   expect(p!.noArt, 'a trainer with no sprite (a silhouette for good)').toEqual([]);
   if (perf) expect(p!.blanks.filter((b) => !b.stand && b.ms > BLANK_MS && !known(b.at)), `blank on screen over ${BLANK_MS} ms with nothing standing in`).toEqual([]);
+  if (perf) expect(p!.opens.filter((o) => o.capped && o.late.length && o.kind !== 'battle' && !KNOWN_CAPPED.includes(o.scr)).map((o) => `${o.scr} [${o.mark}] ${o.late.length} not drawn`), 'a screen opened at its cap with images not drawn').toEqual([]);
 }
 
 /** One line per finding kind, the worst first. */
@@ -184,7 +187,8 @@ for (const perf of [false, true]) {
           while (!(await page.getByTestId('trainer-intro').isVisible())) await tap(page, 'story'); // the Lab's story first
         });
         await reboot();
-        await tap(page, 'kanto');
+        await step('map again', () => tap(page, 'kanto'));
+        await page.waitForTimeout(READ_MS);
         await step('Pokédex', () => tap(page, 'open-dex').then(() => page.getByTestId('screen-dex').waitFor({ timeout: 60_000 })));
         await step('dex entry', () => tap(page, 'dex-bulbasaur').then(() => page.getByTestId('dex-detail').waitFor({ timeout: 60_000 })));
         await step('evolution', () => tap(page, 'evolve-ivysaur').then(() => expect(page.getByTestId('dex-detail')).toContainText('IVYSAUR x1', { timeout: 60_000 })));
@@ -194,6 +198,7 @@ for (const perf of [false, true]) {
     test(`${tag}BLUE vs Computer: team, level picker, intro card, board, capture battle`, async ({ browser }) => {
       await walk(browser, 'blue-vs', cartBlue, perf, async (page, step) => {
         await step('team picker', () => tap(page, 'vs-computer').then(() => page.getByTestId('team-red').waitFor({ timeout: 60_000 })));
+        await page.waitForTimeout(READ_MS);
         await step('level picker', () => tap(page, 'team-red').then(() => page.getByTestId('level-1').waitFor({ timeout: 60_000 })));
         await step('board', async () => {
           await tap(page, 'level-1');
