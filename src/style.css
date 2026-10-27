@@ -34,14 +34,15 @@ main { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 @keyframes pulse { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(220, 30, 30, 0.9); } 50% { box-shadow: inset 0 0 0 calc(var(--sq) / 2) rgba(220, 30, 30, 0.6); } }
 .piece { position: relative; z-index: 1; width: calc(var(--sq) * var(--piece-scale)); height: calc(var(--sq) * var(--piece-scale)); object-fit: contain; object-position: bottom; image-rendering: pixelated; pointer-events: none; }
 .piece.hop { animation: hop 180ms ease-out; }
-@keyframes hop { 50% { transform: translateY(calc(var(--hop) * -1)); } }
+/* A piece's own motion uses translate, rotate and scale, on top of a trimmed piece's transform (src/board/board.ts). */
+@keyframes hop { 50% { translate: 0 calc(var(--hop) * -1); } }
 .piece.dragging { z-index: 10; transition: none; }
 .glyph { position: absolute; right: 1px; bottom: 1px; width: calc(var(--sq) * var(--glyph)); height: calc(var(--sq) * var(--glyph)); z-index: 3; pointer-events: none; }
 .glyph text { font-size: 18px; fill: var(--ink); stroke: var(--paper); stroke-width: 1px; paint-order: stroke; }
 .piece.blast-off { animation: blast var(--end-anim) ease-in forwards; }
-@keyframes blast { to { transform: translateY(-120vh) rotate(1080deg) scale(0.2); } }
+@keyframes blast { to { translate: 0 -120vh; rotate: 1080deg; scale: 0.2; } }
 .piece.faint { animation: faint var(--end-anim) ease-in forwards; }
-@keyframes faint { to { transform: translateY(30%); opacity: 0; } }
+@keyframes faint { to { translate: 0 calc(var(--th, 1) * 30%); opacity: 0; } }
 .textbox { position: relative; width: calc(var(--sq) * 8); min-height: 72px; border: 4px double var(--ink); border-radius: 6px; background: #fff; padding: 6px 10px; }
 .tb-main { margin: 0; font-weight: 700; text-transform: none; }
 .tb-caption { margin: 4px 0 0; font-size: 12px; color: #505050; }
@@ -63,10 +64,14 @@ main { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .battle[hidden] { display: none; }
 .screen { position: relative; width: min(100vw - 16px, 480px, (100dvh - 16px) * 320 / 288); aspect-ratio: 320 / 288; background: #f8f8f0; border: 4px solid var(--ink); border-radius: 6px; overflow: hidden; }
 .screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
-.mon { position: absolute; width: 34%; aspect-ratio: 1; transform: translate(-50%, -50%); }
+/* A battle sprite is placed by its transform alone (paint lint, 26 Oct: left and top laid the screen out again every
+   frame): --x and --y are its centre as a share of the screen, set by the overlay, and a transform's percentages are
+   of its own square box, --mw of the screen's width. The screen is 320 by 288 (its border makes the y within half a
+   pixel). An overlay transform (the KO spin, the lunge's squash) starts with var(--at) too. */
+.mon { position: absolute; left: 0; top: 0; --mw: 0.34; width: calc(var(--mw) * 100%); aspect-ratio: 1; --at: translate(calc(var(--x, 0) / var(--mw) * 100%), calc(var(--y, 0) * 288 / 320 / var(--mw) * 100%)); transform: var(--at) translate(-50%, -50%); }
 .mon img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .mon.mirror img { transform: scaleX(-1); }
-.mon.evo { width: 40%; }
+.mon.evo { --mw: 0.4; }
 .mon.evo img { filter: brightness(0); }
 .hp { position: absolute; width: 40%; height: 7px; border: 2px solid var(--ink); border-radius: 4px; background: #fff; }
 .hp[hidden] { display: none; }
@@ -455,7 +460,7 @@ body.cart-yellow .textbox { min-height: 56px; }
 /* Piece legibility (§B19). Trimmed sprites are positioned per piece inside their square. */
 .sq { overflow: hidden; }
 .sq:has(.dragging) { overflow: visible; }
-.piece.trimmed { position: absolute; max-width: none; object-fit: fill; object-position: 0 0; }
+.piece.trimmed { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; object-fit: fill; }
 .piece.faded { opacity: 0.7; }
 /* The chip: about 42% of the square (at least 18 px), top left, above the sprite. Red: white with a dark ring;
    Rocket: dark with a white ring. Both pairs are far above 4.5:1. */

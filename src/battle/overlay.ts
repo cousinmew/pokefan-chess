@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Battle screen, Quick mode board effect and evolution, all on one fixed timestep timeline (§4.5).
-import { ANIME, ASSET_BASE, BATTLE, HOLD_MIN_MS, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_DONE_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
+import { ANIME, ASSET_BASE, BATTLE, HOLD_MIN_MS, TRAINER_OUT_SHARE, TRAINER_SLIDE_MS, HP_TICK_MS, TYPE_COLORS, TYPE_FLASH_ALPHA, TYPE_FLASH_MS, EVOLVE_DONE_MS, EVOLVE_END_PERIOD_MS, EVOLVE_FLASH_MS, EVOLVE_HOLD_MS, EVOLVE_MS, EVOLVE_START_PERIOD_MS, MAX_FRAME_MS, QUICK_FX_MS } from '../config';
 import { MOVES, species, spriteUrl, type SpeciesId } from '../board/pieces';
 import { fmt, type Line } from '../game/text';
 import type { Rng } from '../game/rng';
@@ -210,7 +210,7 @@ export class Overlay {
     this.cam.style.transformOrigin = `${(dPos.x / W) * 100}% ${(dPos.y / H) * 100}%`;
     const ko = (p: number) => {
       // Anime KO: a bigger exit, spinning up and away.
-      const spin = `translate(-50%, -50%) rotate(${p * ANIME.koSpinDeg}deg) scale(${1 + p * ANIME.koScale})`;
+      const spin = `var(--at) translate(-50%, -50%) rotate(${p * ANIME.koSpinDeg}deg) scale(${1 + p * ANIME.koScale})`;
       this.def.style.transform = spin;
       this.place(this.def, dPos, (attackerNear ? 1 : -1) * p * 120, -p * 160, 1 - p);
     };
@@ -289,7 +289,7 @@ export class Overlay {
             this.layer.trail({ x: aPos.x + dx, y: aPos.y + dy });
             // Squash and stretch along the lunge.
             const v = Math.min(1, Math.hypot(dx, dy) / 60);
-            this.att.style.transform = `translate(-50%, -50%) scale(${1 + 0.25 * v}, ${1 - 0.2 * v})`;
+            this.att.style.transform = `var(--at) translate(-50%, -50%) scale(${1 + 0.25 * v}, ${1 - 0.2 * v})`;
           }
           this.camera(shake);
           // Type tinted flash for the first TYPE_FLASH_MS of the effect; none under reduced motion.
@@ -397,7 +397,9 @@ export class Overlay {
    * sprites decode (at most BATTLE.spriteWaitMs; prefetchEvolutions starts them earlier; review R2: the wait came before
    * the screen, so the bare screen behind took taps), then the silhouettes swap between those decoded elements with an
    * accelerating period, a flash reveals the evolved form, and it stays EVOLVE_DONE_MS with "{pawn} evolved into
-   * {piece}!" (it said only "is evolving" before). */
+   * {piece}!" (it said only "is evolving" before). Paint lint, 26 Oct: the swap goes on at its last period, at most
+   * EVOLVE_HOLD_MS, until one of the evolved form's sprites has decoded; the flash revealed an empty box for 1.35 s
+   * when none was in by then. */
   async evolve(pawn: SpeciesId, into: SpeciesId): Promise<void> {
     const from = species(pawn);
     const to = species(into);
@@ -410,6 +412,13 @@ export class Overlay {
     const show = (dex: number, first = false) => {
       const img = bestOf(dex) ?? (first ? evoSprites(dex)[0].img : null);
       if (img) this.setSprite(this.def, img);
+    };
+    const swap = (period: number, dt: number) => {
+      acc += dt;
+      if (acc < period) return;
+      acc = 0;
+      showTarget = !showTarget;
+      show((showTarget ? to : from).dex);
     };
     await this.start('evolve', [
       {
@@ -440,15 +449,14 @@ export class Overlay {
           this.def.className = 'mon def evo';
           show(from.dex);
         },
-        tick: (p, dt) => {
-          acc += dt;
-          const period = EVOLVE_START_PERIOD_MS + (EVOLVE_END_PERIOD_MS - EVOLVE_START_PERIOD_MS) * p;
-          if (acc >= period) {
-            acc = 0;
-            showTarget = !showTarget;
-            show((showTarget ? to : from).dex);
-          }
-        },
+        tick: (p, dt) => swap(EVOLVE_START_PERIOD_MS + (EVOLVE_END_PERIOD_MS - EVOLVE_START_PERIOD_MS) * p, dt),
+      },
+      {
+        // No time at all when a sprite of the evolved form is ready, as it nearly always is.
+        id: 'evolve-hold',
+        ms: EVOLVE_HOLD_MS,
+        until: () => bestOf(to.dex) !== null,
+        tick: (_p, dt) => swap(EVOLVE_END_PERIOD_MS, dt),
       },
       {
         id: 'evolve-flash',
@@ -590,9 +598,12 @@ export class Overlay {
     bar.style.background = frac > 0.5 ? '#40c040' : frac > 0.2 ? '#e0c020' : '#e03030';
   }
 
+  /** Puts a sprite's centre at `at` plus (dx, dy), in screen units, as --x and --y (a share of the screen) that its
+   * transform reads (src/style.css .mon). Paint lint, 26 Oct: left and top laid the battle out again every frame,
+   * 0.04 to 0.06 of layout shift a battle. */
   private place(img: HTMLElement, at: Pt, dx: number, dy: number, alpha = 1): void {
-    img.style.left = `${((at.x + dx) / W) * 100}%`;
-    img.style.top = `${((at.y + dy) / H) * 100}%`;
+    img.style.setProperty('--x', String((at.x + dx) / W));
+    img.style.setProperty('--y', String((at.y + dy) / H));
     img.style.opacity = String(alpha);
   }
 

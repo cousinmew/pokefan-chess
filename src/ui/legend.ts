@@ -11,18 +11,6 @@ const ROLES: Role[] = ['k', 'q', 'r', 'b', 'n', 'p'];
 const ROLE_NAME: Record<Role, StringKey> = { k: 'role.k', q: 'role.q', r: 'role.r', b: 'role.b', n: 'role.n', p: 'role.p' };
 type Item = { role: Role; id: string; square: string };
 
-/** Runs `fn` once no cover or dip is up (html[data-transition] gone, src/ui/transitions.ts); at once if none is. */
-function afterCovers(fn: () => void): void {
-  const html = document.documentElement;
-  if (html.dataset.transition === undefined) return fn();
-  const watch = new MutationObserver(() => {
-    if (html.dataset.transition !== undefined) return;
-    watch.disconnect();
-    fn();
-  });
-  watch.observe(html, { attributes: true, attributeFilter: ['data-transition'] });
-}
-
 function chipEl(color: Color, role: Role): HTMLElement {
   const c = el('span', `chip ${color === 'w' ? 'chip-w' : 'chip-b'} legend-chip`);
   c.textContent = '♚♛♜♝♞♟'['kqrbnp'.indexOf(role)]!;
@@ -34,6 +22,8 @@ export class Legend {
   private on: { color: Color; role: Role; id: string } | null = null;
   /** The species on the board when it was last built, so a move only rebuilds it when that changes. */
   private sig = '';
+  /** The trainer a puzzle battle faces, named on their row (playtest, 23 Oct: their own Pokémon under "TEAM ROCKET"). */
+  opponent: () => string | null = () => null;
 
   constructor(private readonly game: Game, private readonly board: Board) {
     this.el = el('div', 'legend-strip');
@@ -67,10 +57,13 @@ export class Legend {
     if (!visible) return;
     const rows: HTMLElement[] = [];
     const teams = this.onBoard();
-    this.sig = JSON.stringify(teams.map((t) => [t.color, t.items.map((i) => i.role + i.id)]));
+    this.sig = this.signature(teams);
     for (const { color, items } of teams) {
       const row = el('div', 'legend-team');
-      row.append(el('b', 'legend-team-name', lookOf(color) === 'w' ? 'team.red' : 'team.rocket'));
+      const title = el('b', 'legend-team-name', lookOf(color) === 'w' ? 'team.red' : 'team.rocket');
+      const them = lookOf(color) === 'w' ? null : this.opponent();
+      if (them) title.textContent = them;
+      row.append(title);
       const count: Partial<Record<Role, number>> = {};
       for (const { role, id, square } of items) {
         const sp = speciesFor(color, role, square);
@@ -80,11 +73,11 @@ export class Legend {
         item.dataset.testid = `legend-${color}${role}${n > 1 ? n : ''}`;
         item.dataset.species = id;
         const img = el('img', 'legend-mon');
-        // After the board's own pieces (loading fix, 14 Oct): low priority, and only once no cover or dip is up.
-        img.loading = 'lazy';
-        img.fetchPriority = 'low';
-        const src = spriteUrl(sp.dex, 'retro');
-        afterCovers(() => (img.src = src));
+        // With the board's stills (paint lint, 26 Oct): asked for at once, so the cover that waits for the board's
+        // images waits for these Gen 1 icons (about 0.4 KB) too. Loaded after the covers, they came in up to 1.8 s
+        // after the board on Slow 4G, an empty box until then.
+        img.fetchPriority = 'high';
+        img.src = spriteUrl(sp.dex, 'retro');
         img.alt = '';
         const txt = el('span', 'legend-text');
         const name = el('b');
@@ -102,8 +95,12 @@ export class Legend {
   /** After a move: rebuilds only when the species on the board changed (a capture, a promotion). */
   refresh(visible: boolean): void {
     this.clear();
-    const sig = JSON.stringify(this.onBoard().map((t) => [t.color, t.items.map((i) => i.role + i.id)]));
-    if (!visible || this.el.hidden || sig !== this.sig) this.render(visible);
+    if (!visible || this.el.hidden || this.signature(this.onBoard()) !== this.sig) this.render(visible);
+  }
+
+  /** The species per side and the opponent's name: what the rows show. */
+  private signature(teams: { color: Color; items: Item[] }[]): string {
+    return JSON.stringify([this.opponent(), ...teams.map((t) => [t.color, t.items.map((i) => i.role + i.id)])]);
   }
 
   private toggle(color: Color, role: Role, id: string, item: HTMLElement): void {

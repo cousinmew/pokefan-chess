@@ -2,9 +2,10 @@
 // The level pickers show who you will face (§B20 item 1): each level carries its trainer, name, title and stars,
 // and your own trainer (RED or MEIR) stands on the other side.
 import type { Side } from '../look';
+import { AI_LEVELS } from '../config';
 import { fmt } from '../game/text';
 import { el } from './dom';
-import { trainerSprite } from './kanto';
+import { trainerSprite, trainerSrc } from './kanto';
 import { species } from '../board/pieces';
 import { stillUrl } from '../battle/sprites';
 import trim from '../data/trim.json';
@@ -30,6 +31,22 @@ function loadoutMon(id: string): HTMLElement {
   }
   box.append(img);
   return box;
+}
+
+/** Every file a level picker shows (paint lint, 26 Oct): your trainer, and each level's trainer and loadout stills,
+ * as opponentTag and loadoutMon ask for them, so the team picker can fetch them ahead of its tap. */
+export function ladderArt(faces: { me: Side; them(level: number): Side }): string[] {
+  const urls: string[] = [];
+  for (const s of [faces.me, ...AI_LEVELS.map((l) => faces.them(l.id))]) {
+    if (s.sprite) urls.push(trainerSrc(s.sprite));
+    for (const role of ['k', 'q', 'p'] as const) {
+      const id = s.team?.[role];
+      if (!id) continue;
+      const sp = species(id);
+      urls.push(stillUrl(sp.dex, sp.shiny));
+    }
+  }
+  return [...new Set(urls)];
 }
 
 /** Trainer sprite, "NAME · Title" and 1 to 4 stars, appended to a level button. */

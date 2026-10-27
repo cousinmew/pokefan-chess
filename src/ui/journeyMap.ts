@@ -11,8 +11,8 @@ import { AREA_IN_MS, MAP_STAMP_DELAY_MS, STAMP_PAUSE_MS } from '../config';
 import { warmEngine } from '../ai/engine';
 import trainers from '../data/trainers.json';
 import { button, el, screen } from './dom';
-import { mon, trainerSprite, trainerSrc } from './kanto';
-import { preloadNow } from './loader';
+import { dexStills, mon, trainerSprite, trainerSrc } from './kanto';
+import { preloadNow, prefetch } from './loader';
 
 export const BADGE_SHOW_MS = 1200; // a gym just won: the strip with the new badge pulsing shows this long before the map scrolls to the gym's row
 export const MAP_SCROLL_MS = 450; // that scroll's time, before the row's CLEARED stamp slams
@@ -127,6 +127,7 @@ function currentCard(c: Campaign, p: Place, i: number, goal: Goal, a: MapActions
  * badge pulsing for BADGE_SHOW_MS (it was a 12 px dot on the row, the strip above the fold), then scrolls to the row
  * for the stamp. Under reduced motion the stamp fades in (from hidden too) and nothing flashes or pulses. */
 export function mapScreen(c: Campaign, a: MapActions, justCleared?: string, calm = false): HTMLElement {
+  prefetch(dexStills(c)); // the Pokédex's first stills, ahead of its tap
   const goal = nextGoal(c);
   const list = el('div', 'kanto-map');
   let locked = 0;
@@ -234,7 +235,8 @@ export function routeScreen(p: Place, c: Campaign, a: RouteActions): HTMLElement
   const dex = el('div', 'dex-grid');
   for (const s of routeSpecies(r)) {
     const cell = el('div', 'dex-cell');
-    cell.append(mon(s, 'dex-sprite', !c.caught[s]), document.createTextNode(c.caught[s] ? SPECIES[s]!.name : fmt('dex.unknown')));
+    // A still, as in the Pokédex (paint lint, 26 Oct: the animation, for a 56 px icon, came in after the route showed).
+    cell.append(mon(s, 'dex-sprite', !c.caught[s], false, false, { still: true }), document.createTextNode(c.caught[s] ? SPECIES[s]!.name : fmt('dex.unknown')));
     dex.append(cell);
   }
   const h = el('h2');

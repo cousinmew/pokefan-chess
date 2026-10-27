@@ -177,6 +177,9 @@
      "optional": {
       "type": "boolean"
      },
+     "oneMove": {
+      "type": "boolean"
+     },
      "here": {
       "type": "string",
       "pattern": "^town\\."

@@ -36,6 +36,25 @@ export function preloadNow(urls: string[], done?: () => void): void {
   }
 }
 
+const asked = new Set<string>();
+/** Fetches and decodes the next screen's stills ahead of its tap (paint lint, 26 Oct; a few KB in all), each once, as
+ * idle work ahead of the rest: after the priority lane, so a board's own stills, cries and backs never wait for them
+ * (in the lane, the level picker's art held up a board's backs on Slow 4G). */
+export function prefetch(urls: string[]): void {
+  for (const u of urls) {
+    if (asked.has(u)) continue;
+    asked.add(u);
+    const task = () => {
+      const img = new Image();
+      img.fetchPriority = 'low';
+      img.src = u;
+      kept.push(img);
+      return img.decode().catch(() => undefined);
+    };
+    whenIdleFirst(task);
+  }
+}
+
 /** Queues a low priority load; it starts once the first screen is ready, in idle time. */
 export function whenIdle(task: () => Promise<unknown>): void {
   queue.push(task);

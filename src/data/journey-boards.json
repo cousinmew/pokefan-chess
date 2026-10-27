@@ -1,0 +1,678 @@
+{
+  "_note": "Journey trainers' own pieces (playtest, 23 Oct: BROCK played on Team Rocket's). Roles: k, q, r, n, bLight, bDark, p. k is the trainer's ace, then their Red/Blue party, the same gym's or place's trainers, then the place's Red/Blue wild table; pawns are its most basic common species. spare: canon swaps, in order, for a species that stands on your side (My Team is yours to edit). No starter lines, no Eevee; PIKACHU and RAICHU only for LT. SURGE and the POWER PLANT. The rivals' pieces come from their party (kanto.ts rivalSkin). Sources: journey-boards.sources.json (not bundled).",
+  "trainers": {
+    "r1-toby": {
+      "team": {
+        "k": "rattata",
+        "q": "ekans",
+        "r": "spearow",
+        "n": "nidoran-m",
+        "bLight": "nidoran-f",
+        "bDark": "pidgey",
+        "p": "pidgey"
+      },
+      "spare": [
+        "zubat",
+        "jigglypuff",
+        "sandshrew"
+      ]
+    },
+    "r1-mina": {
+      "team": {
+        "k": "pidgey",
+        "q": "jigglypuff",
+        "r": "nidoran-m",
+        "n": "spearow",
+        "bLight": "nidoran-f",
+        "bDark": "rattata",
+        "p": "rattata"
+      },
+      "spare": [
+        "clefairy",
+        "oddish",
+        "bellsprout"
+      ]
+    },
+    "vf-oskar": {
+      "team": {
+        "k": "caterpie",
+        "q": "kakuna",
+        "r": "metapod",
+        "n": "weedle",
+        "bLight": "kakuna",
+        "bDark": "metapod",
+        "p": "weedle"
+      },
+      "spare": [
+        "beedrill",
+        "butterfree",
+        "pidgey",
+        "rattata"
+      ]
+    },
+    "vf-liam": {
+      "team": {
+        "k": "kakuna",
+        "q": "metapod",
+        "r": "caterpie",
+        "n": "weedle",
+        "bLight": "metapod",
+        "bDark": "kakuna",
+        "p": "weedle"
+      },
+      "spare": [
+        "beedrill",
+        "butterfree",
+        "pidgey",
+        "rattata"
+      ]
+    },
+    "vf-pip": {
+      "team": {
+        "k": "metapod",
+        "q": "kakuna",
+        "r": "caterpie",
+        "n": "weedle",
+        "bLight": "caterpie",
+        "bDark": "metapod",
+        "p": "weedle"
+      },
+      "spare": [
+        "beedrill",
+        "butterfree",
+        "pidgey",
+        "rattata"
+      ]
+    },
+    "gym-brock": {
+      "team": {
+        "k": "onix",
+        "q": "geodude",
+        "r": "sandshrew",
+        "n": "diglett",
+        "bLight": "sandshrew",
+        "bDark": "diglett",
+        "p": "geodude"
+      },
+      "spare": [
+        "aerodactyl",
+        "kabuto",
+        "omanyte"
+      ]
+    },
+    "r3-dev": {
+      "team": {
+        "k": "spearow",
+        "q": "ekans",
+        "r": "rattata",
+        "n": "spearow",
+        "bLight": "jigglypuff",
+        "bDark": "rattata",
+        "p": "pidgey"
+      },
+      "spare": [
+        "nidoran-m",
+        "caterpie",
+        "weedle",
+        "kakuna",
+        "metapod"
+      ]
+    },
+    "r3-rosa": {
+      "team": {
+        "k": "jigglypuff",
+        "q": "nidoran-m",
+        "r": "rattata",
+        "n": "spearow",
+        "bLight": "pidgey",
+        "bDark": "rattata",
+        "p": "pidgey"
+      },
+      "spare": [
+        "ekans",
+        "caterpie",
+        "weedle",
+        "metapod"
+      ]
+    },
+    "r3-finn": {
+      "team": {
+        "k": "spearow",
+        "q": "metapod",
+        "r": "kakuna",
+        "n": "weedle",
+        "bLight": "caterpie",
+        "bDark": "metapod",
+        "p": "caterpie"
+      },
+      "spare": [
+        "pidgey",
+        "jigglypuff",
+        "rattata",
+        "nidoran-m"
+      ]
+    },
+    "mm-gus": {
+      "team": {
+        "k": "clefairy",
+        "q": "paras",
+        "r": "geodude",
+        "n": "voltorb",
+        "bLight": "omanyte",
+        "bDark": "kabuto",
+        "p": "zubat"
+      },
+      "spare": [
+        "magnemite",
+        "grimer",
+        "koffing",
+        "onix"
+      ]
+    },
+    "gym-misty": {
+      "team": {
+        "k": "starmie",
+        "q": "staryu",
+        "r": "shellder",
+        "n": "horsea",
+        "bLight": "poliwag",
+        "bDark": "krabby",
+        "p": "goldeen"
+      },
+      "spare": [
+        "psyduck",
+        "magikarp",
+        "slowpoke"
+      ]
+    },
+    "r6-kai": {
+      "team": {
+        "k": "mankey",
+        "q": "raticate",
+        "r": "spearow",
+        "n": "meowth",
+        "bLight": "oddish",
+        "bDark": "bellsprout",
+        "p": "pidgey"
+      },
+      "spare": [
+        "rattata",
+        "poliwag",
+        "goldeen",
+        "krabby"
+      ]
+    },
+    "r6-noor": {
+      "team": {
+        "k": "oddish",
+        "q": "bellsprout",
+        "r": "rattata",
+        "n": "mankey",
+        "bLight": "meowth",
+        "bDark": "pidgey",
+        "p": "pidgey"
+      },
+      "spare": [
+        "spearow",
+        "raticate",
+        "poliwag",
+        "goldeen"
+      ]
+    },
+    "gym-ltsurge": {
+      "team": {
+        "k": "raichu",
+        "q": "voltorb",
+        "r": "magnemite",
+        "n": "pikachu",
+        "bLight": "voltorb",
+        "bDark": "magnemite",
+        "p": "pikachu"
+      },
+      "spare": [
+        "magneton",
+        "electrode",
+        "electabuzz"
+      ]
+    },
+    "legend-zapdos": {
+      "team": {
+        "k": "zapdos",
+        "q": "electabuzz",
+        "r": "magneton",
+        "n": "electrode",
+        "bLight": "magneton",
+        "bDark": "electrode",
+        "p": "voltorb"
+      },
+      "spare": [
+        "raichu",
+        "magnemite",
+        "pikachu"
+      ]
+    },
+    "r7-ines": {
+      "team": {
+        "k": "oddish",
+        "q": "vulpix",
+        "r": "growlithe",
+        "n": "mankey",
+        "bLight": "bellsprout",
+        "bDark": "meowth",
+        "p": "pidgey"
+      },
+      "spare": [
+        "ekans",
+        "sandshrew",
+        "rattata"
+      ]
+    },
+    "r7-theo": {
+      "team": {
+        "k": "growlithe",
+        "q": "meowth",
+        "r": "mankey",
+        "n": "vulpix",
+        "bLight": "oddish",
+        "bDark": "bellsprout",
+        "p": "pidgey"
+      },
+      "spare": [
+        "ekans",
+        "sandshrew",
+        "spearow",
+        "raticate"
+      ]
+    },
+    "gym-erika": {
+      "team": {
+        "k": "vileplume",
+        "q": "victreebel",
+        "r": "tangela",
+        "n": "exeggcute",
+        "bLight": "gloom",
+        "bDark": "weepinbell",
+        "p": "bellsprout"
+      },
+      "spare": [
+        "oddish",
+        "poliwag",
+        "slowpoke"
+      ]
+    },
+    "gc-rocco": {
+      "team": {
+        "k": "porygon",
+        "q": "scyther",
+        "r": "pinsir",
+        "n": "nidorino",
+        "bLight": "dratini",
+        "bDark": "nidorina",
+        "p": "abra"
+      },
+      "spare": [
+        "clefairy",
+        "growlithe",
+        "vulpix",
+        "poliwhirl",
+        "voltorb"
+      ]
+    },
+    "r14-sasha": {
+      "team": {
+        "k": "pidgeotto",
+        "q": "fearow",
+        "r": "doduo",
+        "n": "farfetchd",
+        "bLight": "spearow",
+        "bDark": "pidgey",
+        "p": "pidgey"
+      },
+      "spare": [
+        "venonat",
+        "ditto",
+        "oddish",
+        "bellsprout"
+      ]
+    },
+    "r14-omar": {
+      "team": {
+        "k": "venonat",
+        "q": "muk",
+        "r": "ditto",
+        "n": "grimer",
+        "bLight": "gloom",
+        "bDark": "weepinbell",
+        "p": "koffing"
+      },
+      "spare": [
+        "oddish",
+        "bellsprout",
+        "pidgeotto",
+        "pidgey"
+      ]
+    },
+    "gym-koga": {
+      "team": {
+        "k": "weezing",
+        "q": "muk",
+        "r": "arbok",
+        "n": "sandslash",
+        "bLight": "hypno",
+        "bDark": "drowzee",
+        "p": "koffing"
+      },
+      "spare": [
+        "kadabra",
+        "venonat",
+        "venomoth",
+        "nidorino"
+      ]
+    },
+    "legend-articuno": {
+      "team": {
+        "k": "articuno",
+        "q": "dewgong",
+        "r": "slowbro",
+        "n": "golduck",
+        "bLight": "shellder",
+        "bDark": "kingler",
+        "p": "seel"
+      },
+      "spare": [
+        "seadra",
+        "staryu",
+        "golbat",
+        "psyduck",
+        "slowpoke",
+        "horsea"
+      ]
+    },
+    "r8-june": {
+      "team": {
+        "k": "sandshrew",
+        "q": "nidorina",
+        "r": "clefairy",
+        "n": "nidoran-f",
+        "bLight": "nidoran-m",
+        "bDark": "rattata",
+        "p": "meowth"
+      },
+      "spare": [
+        "pidgey",
+        "vulpix",
+        "ekans",
+        "mankey",
+        "growlithe"
+      ]
+    },
+    "r8-hugo": {
+      "team": {
+        "k": "growlithe",
+        "q": "poliwhirl",
+        "r": "ekans",
+        "n": "vulpix",
+        "bLight": "meowth",
+        "bDark": "mankey",
+        "p": "poliwag"
+      },
+      "spare": [
+        "sandshrew",
+        "pidgey",
+        "clefairy",
+        "voltorb"
+      ]
+    },
+    "r8-ada": {
+      "team": {
+        "k": "mankey",
+        "q": "muk",
+        "r": "koffing",
+        "n": "voltorb",
+        "bLight": "magnemite",
+        "bDark": "vulpix",
+        "p": "grimer"
+      },
+      "spare": [
+        "growlithe",
+        "meowth",
+        "sandshrew",
+        "ekans",
+        "pidgey"
+      ]
+    },
+    "gym-sabrina": {
+      "team": {
+        "k": "alakazam",
+        "q": "mr-mime",
+        "r": "slowbro",
+        "n": "kadabra",
+        "bLight": "venomoth",
+        "bDark": "haunter",
+        "p": "slowpoke"
+      },
+      "spare": [
+        "gastly",
+        "hitmonlee",
+        "hitmonchan",
+        "lapras"
+      ]
+    },
+    "r21-mo": {
+      "team": {
+        "k": "tangela",
+        "q": "cloyster",
+        "r": "seaking",
+        "n": "shellder",
+        "bLight": "horsea",
+        "bDark": "goldeen",
+        "p": "magikarp"
+      },
+      "spare": [
+        "staryu",
+        "poliwag",
+        "tentacool"
+      ]
+    },
+    "r21-lena": {
+      "team": {
+        "k": "raticate",
+        "q": "starmie",
+        "r": "tentacruel",
+        "n": "seadra",
+        "bLight": "pidgeotto",
+        "bDark": "poliwhirl",
+        "p": "tentacool"
+      },
+      "spare": [
+        "staryu",
+        "horsea",
+        "rattata",
+        "pidgey"
+      ]
+    },
+    "gym-blaine": {
+      "team": {
+        "k": "arcanine",
+        "q": "rapidash",
+        "r": "ninetales",
+        "n": "ponyta",
+        "bLight": "vulpix",
+        "bDark": "magmar",
+        "p": "growlithe"
+      },
+      "spare": [
+        "koffing",
+        "grimer",
+        "weezing",
+        "muk"
+      ]
+    },
+    "lab-iris": {
+      "team": {
+        "k": "aerodactyl",
+        "q": "electrode",
+        "r": "omanyte",
+        "n": "kabuto",
+        "bLight": "magneton",
+        "bDark": "weezing",
+        "p": "magnemite"
+      },
+      "spare": [
+        "seel",
+        "tangela",
+        "voltorb"
+      ]
+    },
+    "r22-jun": {
+      "team": {
+        "k": "nidoran-m",
+        "q": "nidorino",
+        "r": "spearow",
+        "n": "nidoran-f",
+        "bLight": "poliwag",
+        "bDark": "goldeen",
+        "p": "rattata"
+      },
+      "spare": [
+        "magikarp",
+        "sandslash",
+        "dugtrio",
+        "rhyhorn"
+      ]
+    },
+    "r22-vera": {
+      "team": {
+        "k": "nidoran-f",
+        "q": "sandslash",
+        "r": "spearow",
+        "n": "nidoran-m",
+        "bLight": "goldeen",
+        "bDark": "poliwag",
+        "p": "rattata"
+      },
+      "spare": [
+        "magikarp",
+        "dugtrio",
+        "nidorino",
+        "rhyhorn"
+      ]
+    },
+    "gym-giovanni": {
+      "team": {
+        "k": "rhydon",
+        "q": "nidoking",
+        "r": "nidoqueen",
+        "n": "dugtrio",
+        "bLight": "sandslash",
+        "bDark": "nidorino",
+        "p": "rhyhorn"
+      },
+      "spare": [
+        "machoke",
+        "machop",
+        "arbok",
+        "tauros"
+      ]
+    },
+    "legend-moltres": {
+      "team": {
+        "k": "moltres",
+        "q": "golbat",
+        "r": "graveler",
+        "n": "machoke",
+        "bLight": "marowak",
+        "bDark": "venomoth",
+        "p": "zubat"
+      },
+      "spare": [
+        "onix",
+        "geodude",
+        "machop"
+      ]
+    },
+    "e4-lorelei": {
+      "team": {
+        "k": "lapras",
+        "q": "jynx",
+        "r": "cloyster",
+        "n": "slowbro",
+        "bLight": "dewgong",
+        "bDark": "dewgong",
+        "p": "seel"
+      },
+      "spare": [
+        "shellder",
+        "slowpoke",
+        "gyarados"
+      ]
+    },
+    "e4-bruno": {
+      "team": {
+        "k": "machamp",
+        "q": "hitmonchan",
+        "r": "onix",
+        "n": "hitmonlee",
+        "bLight": "machoke",
+        "bDark": "graveler",
+        "p": "machop"
+      },
+      "spare": [
+        "marowak",
+        "geodude",
+        "golbat"
+      ]
+    },
+    "e4-agatha": {
+      "team": {
+        "k": "gengar",
+        "q": "arbok",
+        "r": "golbat",
+        "n": "haunter",
+        "bLight": "gengar",
+        "bDark": "haunter",
+        "p": "gastly"
+      },
+      "spare": [
+        "zubat",
+        "ekans",
+        "venomoth"
+      ]
+    },
+    "e4-lance": {
+      "team": {
+        "k": "dragonite",
+        "q": "aerodactyl",
+        "r": "gyarados",
+        "n": "dragonair",
+        "bLight": "dragonair",
+        "bDark": "gyarados",
+        "p": "dratini"
+      },
+      "spare": [
+        "magikarp",
+        "lapras",
+        "golbat"
+      ]
+    },
+    "legend-mewtwo": {
+      "team": {
+        "k": "mewtwo",
+        "q": "hypno",
+        "r": "rhydon",
+        "n": "marowak",
+        "bLight": "kadabra",
+        "bDark": "electrode",
+        "p": "ditto"
+      },
+      "spare": [
+        "slowbro",
+        "chansey",
+        "magneton",
+        "wigglytuff",
+        "venomoth",
+        "parasect"
+      ]
+    }
+  }
+}

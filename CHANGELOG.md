@@ -158,3 +158,14 @@
 - A smaller first download: only English ships at first, other languages load when chosen.
 - Every action answers in time: the Journey's evolutions, badges, catches, gifts and Training say what happened, in order; online rematches, a friend leaving or coming back, and a lost connection say what is going on.
 - The computer answers one request at a time, so a review and a game can no longer get each other's moves.
+
+## 2.14.0 (VIRIDIAN FOREST playtest)
+
+- Puzzles with more than one move say so honestly. The goal shows for the first move; after that the header reads "Move 2 of 2: find the strongest move", and the text box says what their reply did ("BUG CATCHER LIAM took your CHARIZARD!").
+- Until CERULEAN GYM, trainers set one-move puzzles where the theme has them. Castling for new players comes from eight hand-picked opening positions, not Lichess puzzles rated 1200 and up.
+- After a wrong move, the review says what their answer really did, plays the whole right line, and compares the outcomes ("Your move: behind by 3. The right line: ahead by 3."). Castling is called castling.
+- Route trainers give one more try after a wrong move. The banner after a miss is about this battle only, and a lost battle is a rematch: nothing is lost.
+- Every Journey trainer plays on their own Pokémon: BROCK on ONIX and GEODUDE, MISTY on STARMIE and STARYU, LANCE on DRAGONITE, and so on.
+- MY TEAM is in START, under POKéDEX.
+- Pictures never pop in. The Who's who icons load with the board, and the Pokédex, level pickers and lessons wait until their Pokémon are drawn. Small icons use still sprites, battle sprites move without shifting the page, pieces no longer jump when their animation starts, and an evolution waits until the new form has loaded.
+- The CINNABAR LAB's SCIENTIST has a sprite.
